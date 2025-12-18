@@ -1,0 +1,202 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  emailVerified DateTime?
+  name          String?
+  role          UserRole  @default(USER)
+  image         String?
+  password      String?
+  schoolProfileId String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  schoolProfile SchoolProfile? @relation(fields: [schoolProfileId], references: [id])
+  accounts      Account[]
+  sessions      Session[]
+  transactions  Transaction[] @relation("UserTransactions")
+  auditLogs     AuditLog[]
+
+  @@map("users")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verificationtokens")
+}
+
+model SchoolProfile {
+  id                String   @id @default(cuid())
+  name              String
+  address           String
+  phone             String
+  email             String   @unique
+  logoUrl           String?
+  signatureUrl      String?
+  stampUrl          String?
+  receiptFormat     String   @default("KW-{YYYY}{MM}-{000}")
+  receiptCounter    Int      @default(1)
+  receiptResetType  ResetType @default(MONTHLY)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relations
+  users        User[]
+  transactions Transaction[]
+  categories   Category[]
+  auditLogs    AuditLog[]
+
+  @@map("school_profiles")
+}
+
+model Category {
+  id              String      @id @default(cuid())
+  name            String
+  type            CategoryType
+  description     String?
+  isActive        Boolean     @default(true)
+  schoolProfileId String
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  // Relations
+  schoolProfile SchoolProfile @relation(fields: [schoolProfileId], references: [id], onDelete: Cascade)
+  transactions  Transaction[]
+
+  @@unique([name, type, schoolProfileId])
+  @@map("categories")
+}
+
+model Transaction {
+  id              String            @id @default(cuid())
+  receiptNumber   String            @unique
+  type            TransactionType
+  date            DateTime
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  amount          Decimal           @db.Decimal(15, 2)
+  categoryId      String
+  description     String
+  fromTo          String
+  paymentMethod   PaymentMethod
+  status          PaymentStatus
+  receiptFileUrl  String?
+  notes           String?
+  createdById     String
+  schoolProfileId String
+
+  // Relations
+  createdBy     User          @relation("UserTransactions", fields: [createdById], references: [id])
+  schoolProfile SchoolProfile @relation(fields: [schoolProfileId], references: [id])
+  category      Category      @relation(fields: [categoryId], references: [id])
+
+  @@map("transactions")
+}
+
+model AuditLog {
+  id              String      @id @default(cuid())
+  action          AuditAction
+  entityType      String
+  entityId        String
+  details         String?
+  userId          String
+  schoolProfileId String
+  createdAt       DateTime    @default(now())
+
+  // Relations
+  user          User          @relation(fields: [userId], references: [id])
+  schoolProfile SchoolProfile @relation(fields: [schoolProfileId], references: [id])
+
+  @@map("audit_logs")
+}
+
+enum UserRole {
+  USER
+  ADMIN
+  TREASURER
+}
+
+enum CategoryType {
+  INCOME
+  EXPENSE
+}
+
+enum TransactionType {
+  INCOME
+  EXPENSE
+}
+
+enum PaymentMethod {
+  CASH
+  BANK_TRANSFER
+  QRIS
+}
+
+enum PaymentStatus {
+  PAID
+  PENDING
+  VOID
+}
+
+enum ResetType {
+  MONTHLY
+  YEARLY
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  VIEW
+  LOGIN
+  LOGOUT
+  CREATE_TRANSACTION
+  UPDATE_TRANSACTION
+  DELETE_TRANSACTION
+}
