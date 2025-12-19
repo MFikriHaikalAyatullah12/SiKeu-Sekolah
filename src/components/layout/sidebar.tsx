@@ -1,6 +1,7 @@
 'use client'
 
 import { usePathname } from 'next/navigation'
+import { useSession } from 'next-auth/react'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
 import {
@@ -10,53 +11,87 @@ import {
   FileText,
   Users,
   Menu,
+  Building2,
+  Shield,
 } from 'lucide-react'
 
 const navigation = [
-  { name: 'Dashboard', href: '/dashboard', icon: Home },
-  { name: 'Transaksi', href: '/dashboard/transactions', icon: TrendingUp },
-  { name: 'Laporan', href: '/dashboard/reports', icon: FileText },
-  { name: 'Pengguna', href: '/dashboard/users', icon: Users },
-  { name: 'Pengaturan', href: '/dashboard/settings', icon: Settings },
+  { name: 'Dashboard', href: '/dashboard', icon: Home, roles: ['SUPER_ADMIN', 'ADMIN', 'TREASURER', 'USER'] },
+  { name: 'Transaksi', href: '/dashboard/transactions', icon: TrendingUp, roles: ['SUPER_ADMIN', 'ADMIN', 'TREASURER'] },
+  { name: 'Laporan', href: '/dashboard/reports', icon: FileText, roles: ['SUPER_ADMIN', 'ADMIN'] },
+  { name: 'Pengguna', href: '/dashboard/users', icon: Users, roles: ['SUPER_ADMIN', 'ADMIN'] },
+  { name: 'Pengaturan Sekolah', href: '/dashboard/school-settings', icon: Building2, roles: ['SUPER_ADMIN'] },
+  { name: 'Info Role', href: '/dashboard/role-info', icon: Shield, roles: ['SUPER_ADMIN', 'ADMIN', 'TREASURER', 'USER'] },
+  { name: 'Pengaturan', href: '/dashboard/settings', icon: Settings, roles: ['SUPER_ADMIN', 'ADMIN', 'TREASURER', 'USER'] },
 ]
 
 export function Sidebar() {
   const pathname = usePathname()
+  const { data: session } = useSession()
+
+  // Filter navigation berdasarkan role user
+  const filteredNavigation = navigation.filter(item => {
+    if (!session?.user?.role) return false
+    return item.roles.includes(session.user.role)
+  })
 
   return (
-    <div className="hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0">
-      <div className="flex-1 flex flex-col min-h-0 bg-gray-900">
-        <div className="flex items-center h-16 flex-shrink-0 px-4 bg-gray-900">
-          <h1 className="text-white text-xl font-bold">
-            Keuangan Sekolah
-          </h1>
+    <div className="hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0 z-50">
+      <div className="flex flex-col flex-grow bg-gradient-to-b from-gray-900 to-gray-800 overflow-y-auto shadow-xl">
+        <div className="flex items-center h-16 flex-shrink-0 px-6 bg-gray-900 border-b border-gray-700">
+          <div className="flex items-center gap-2">
+            <div className="p-2 bg-blue-600 rounded-lg">
+              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <h1 className="text-white text-lg font-bold">
+              SiKeu Sekolah
+            </h1>
+          </div>
         </div>
-        <div className="flex-1 flex flex-col overflow-y-auto">
-          <nav className="flex-1 px-2 py-4 space-y-1">
-            {navigation.map((item) => {
-              const isActive = pathname === item.href
-              return (
-                <Link
-                  key={item.name}
-                  href={item.href}
+        <nav className="flex-1 px-3 py-4 space-y-1">
+          {filteredNavigation.map((item) => {
+            const isActive = pathname === item.href
+            return (
+              <Link
+                key={item.name}
+                href={item.href}
+                className={cn(
+                  'group flex items-center px-3 py-3 text-sm font-medium rounded-lg transition-all duration-200',
+                  isActive
+                    ? 'bg-blue-600 text-white shadow-lg'
+                    : 'text-gray-300 hover:bg-gray-700 hover:text-white hover:translate-x-1'
+                )}
+              >
+                <item.icon
                   className={cn(
-                    'group flex items-center px-2 py-2 text-sm font-medium rounded-md',
-                    isActive
-                      ? 'bg-gray-800 text-white'
-                      : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                    'mr-3 h-5 w-5 flex-shrink-0',
+                    isActive ? 'text-white' : 'text-gray-400 group-hover:text-white'
                   )}
-                >
-                  <item.icon
-                    className={cn(
-                      'mr-3 h-6 w-6 flex-shrink-0',
-                      isActive ? 'text-white' : 'text-gray-400 group-hover:text-white'
-                    )}
-                  />
-                  {item.name}
-                </Link>
-              )
-            })}
-          </nav>
+                />
+                <span className="truncate">{item.name}</span>
+              </Link>
+            )
+          })}
+        </nav>
+        <div className="p-4 border-t border-gray-700">
+          <div className="flex items-center gap-3 px-3 py-2 bg-gray-800/50 rounded-lg">
+            <div className="flex-shrink-0 w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white font-semibold text-sm">
+              {session?.user?.name?.charAt(0) || 'U'}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-white truncate">
+                {session?.user?.name || 'User'}
+              </p>
+              <p className="text-xs text-gray-400 truncate">
+                {session?.user?.role === 'SUPER_ADMIN' && '👑 Super Admin'}
+                {session?.user?.role === 'ADMIN' && '🔑 Admin'}
+                {session?.user?.role === 'TREASURER' && '💰 Bendahara'}
+                {session?.user?.role === 'USER' && '👤 User'}
+              </p>
+            </div>
+          </div>
         </div>
       </div>
     </div>

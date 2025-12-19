@@ -6,6 +6,20 @@ const prisma = new PrismaClient()
 async function main() {
   console.log('🌱 Starting database seeding...')
 
+  // Create Super Admin User (Global - tanpa schoolProfileId)
+  const superAdminPassword = await bcrypt.hash('superadmin123', 12)
+  const superAdminUser = await prisma.user.create({
+    data: {
+      email: 'superadmin@sikeu.com',
+      password: superAdminPassword,
+      name: 'Super Administrator',
+      role: 'SUPER_ADMIN',
+      schoolProfileId: null, // Super admin tidak terikat ke sekolah tertentu
+    }
+  })
+
+  console.log('✅ Super Admin user created:', superAdminUser.email)
+
   // Create School Profile
   const schoolProfile = await prisma.schoolProfile.create({
     data: {
@@ -217,7 +231,8 @@ async function main() {
   console.log('🎉 Database seeding completed successfully!')
   console.log('')
   console.log('Test accounts:')
-  console.log('📧 Admin: admin@smanjakarta.sch.id / admin123')
+  console.log('� Super Admin: superadmin@sikeu.com / superadmin123 (Akses ke semua sekolah)')
+  console.log('�📧 Admin: admin@smanjakarta.sch.id / admin123')
   console.log('📧 Bendahara: bendahara@smanjakarta.sch.id / bendahara123')
   console.log('')
   console.log('🌐 App URL: http://localhost:3000')

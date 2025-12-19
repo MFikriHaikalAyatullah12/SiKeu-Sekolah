@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { signIn, getSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -245,10 +246,10 @@ export default function SignInPage() {
               </Button>
 
               <div className="text-center text-sm text-gray-600">
-                Butuh bantuan?{" "}
-                <Button variant="link" className="p-0 text-blue-600 hover:text-blue-700">
-                  Hubungi Admin
-                </Button>
+                Belum punya akun?{" "}
+                <Link href="/auth/register" className="text-blue-600 hover:text-blue-700 font-semibold">
+                  Daftar di sini
+                </Link>
               </div>
             </CardContent>
           </Card>
