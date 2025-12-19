@@ -5,13 +5,15 @@ import { requireRole } from "@/lib/permissions"
 // GET - Mendapatkan detail sekolah berdasarkan ID
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await requireRole(["SUPER_ADMIN", "ADMIN"])
 
+    const { id } = await params
+
     const school = await prisma.schoolProfile.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         users: {
           select: {
@@ -50,13 +52,24 @@ export async function GET(
 // PUT - Update data sekolah spesifik
 export async function PUT(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await requireRole(["SUPER_ADMIN"])
 
+    const { id } = await params
     const body = await request.json()
     const { name, address, phone, email } = body
+
+    console.log("Update school request:", { id, body })
+
+    // Validasi input
+    if (!name || !address || !phone || !email) {
+      return NextResponse.json(
+        { error: "Semua field harus diisi" },
+        { status: 400 }
+      )
+    }
 
     // Cek apakah email sudah digunakan sekolah lain
     if (email) {
@@ -64,7 +77,7 @@ export async function PUT(
         where: {
           email,
           NOT: {
-            id: params.id
+            id
           }
         }
       })
@@ -78,14 +91,16 @@ export async function PUT(
     }
 
     const updatedSchool = await prisma.schoolProfile.update({
-      where: { id: params.id },
+      where: { id },
       data: {
-        ...(name && { name }),
-        ...(address && { address }),
-        ...(phone && { phone }),
-        ...(email && { email }),
+        name,
+        address,
+        phone,
+        email,
       }
     })
+
+    console.log("School updated successfully:", updatedSchool)
 
     return NextResponse.json({
       message: "Data sekolah berhasil diupdate",
@@ -94,7 +109,7 @@ export async function PUT(
   } catch (error) {
     console.error("Update school error:", error)
     return NextResponse.json(
-      { error: "Gagal mengupdate data sekolah" },
+      { error: error instanceof Error ? error.message : "Gagal mengupdate data sekolah" },
       { status: 500 }
     )
   }

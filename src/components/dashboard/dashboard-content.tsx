@@ -122,20 +122,36 @@ export function DashboardContent() {
   const [categories, setCategories] = useState<any[]>([]);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [stats, setStats] = useState<any>(null);
+  const [schools, setSchools] = useState<any[]>([]);
+  const [selectedSchoolId, setSelectedSchoolId] = useState<string>("");
   
   const [formData, setFormData] = useState({
     categoryId: "",
     amount: "",
     description: "",
     date: new Date().toISOString().split("T")[0],
-    status: "COMPLETED"
+    status: "PAID",
+    schoolId: ""
   });
 
   useEffect(() => {
-    fetchDashboardData();
+    fetchDashboardData(true); // Show toast on first load
+    fetchSchools();
   }, []);
 
-  const fetchDashboardData = async () => {
+  const fetchSchools = async () => {
+    try {
+      const response = await fetch("/api/schools");
+      if (response.ok) {
+        const data = await response.json();
+        setSchools(data.schools || []);
+      }
+    } catch (error) {
+      console.error("Failed to fetch schools:", error);
+    }
+  };
+
+  const fetchDashboardData = async (showToast = false) => {
     try {
       const [categoriesRes, transactionsRes, statsRes] = await Promise.all([
         fetch("/api/categories"),
@@ -146,6 +162,13 @@ export function DashboardContent() {
       if (categoriesRes.ok) {
         const data = await categoriesRes.json();
         setCategories(data.categories || []);
+        
+        // Jika tidak ada kategori, tampilkan pesan hanya di load pertama
+        if (showToast && (!data.categories || data.categories.length === 0)) {
+          if (data.message) {
+            toast.info(data.message);
+          }
+        }
       }
 
       if (transactionsRes.ok) {
@@ -169,7 +192,8 @@ export function DashboardContent() {
       amount: "",
       description: "",
       date: new Date().toISOString().split("T")[0],
-      status: "COMPLETED"
+      status: "PAID",
+      schoolId: selectedSchoolId || ""
     });
     setIsDialogOpen(true);
   };
@@ -181,11 +205,26 @@ export function DashboardContent() {
       amount: "",
       description: "",
       date: new Date().toISOString().split("T")[0],
-      status: "COMPLETED"
+      status: "PAID",
+      schoolId: ""
     });
   };
 
   const handleSubmit = async () => {
+    // Validasi untuk Super Admin yang harus pilih sekolah
+    if (schools.length > 0 && !formData.schoolId) {
+      toast.error("Pilih sekolah terlebih dahulu");
+      return;
+    }
+
+    // Validasi kategori hanya jika sudah pilih sekolah (untuk Super Admin) atau user biasa
+    if (schools.length === 0 || formData.schoolId) {
+      if (filteredCategories.length === 0) {
+        toast.error("Tidak ada kategori tersedia untuk sekolah ini. Hubungi administrator untuk menambahkan kategori.");
+        return;
+      }
+    }
+
     if (!formData.categoryId || !formData.amount || !formData.description) {
       toast.error("Mohon lengkapi semua field");
       return;
@@ -210,7 +249,7 @@ export function DashboardContent() {
       if (response.ok) {
         toast.success(`${transactionType === "INCOME" ? "Pemasukan" : "Pengeluaran"} berhasil ditambahkan`);
         handleCloseDialog();
-        fetchDashboardData();
+        await fetchDashboardData(false); // Don't show toast after save
       } else {
         toast.error(data.error || "Gagal menambahkan transaksi");
       }
@@ -242,7 +281,7 @@ export function DashboardContent() {
 
       if (response.ok) {
         toast.success("Transaksi berhasil dihapus");
-        fetchDashboardData();
+        fetchDashboardData(false); // Don't show toast after delete
       } else {
         const data = await response.json();
         toast.error(data.error || "Gagal menghapus transaksi");
@@ -564,12 +603,12 @@ export function DashboardContent() {
                           <Badge 
                             variant="outline"
                             className={
-                              (transaction.status === "COMPLETED" || transaction.status === "LUNAS")
+                              (transaction.status === "PAID" || transaction.status === "LUNAS")
                                 ? "bg-blue-50 text-blue-700 border-blue-200" 
                                 : "bg-yellow-50 text-yellow-700 border-yellow-200"
                             }
                           >
-                            {(transaction.status === "COMPLETED" || transaction.status === "LUNAS") ? "Lunas" : "Tertunda"}
+                            {(transaction.status === "PAID" || transaction.status === "LUNAS") ? "Lunas" : "Tertunda"}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right">
@@ -622,23 +661,73 @@ export function DashboardContent() {
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
+            {schools.length > 0 && (
+              <div className="grid gap-2">
+                <Label htmlFor="school">Sekolah</Label>
+                <Select
+                  value={formData.schoolId}
+                  onValueChange={async (value) => {
+                    setFormData({ ...formData, schoolId: value, categoryId: "" });
+                    setSelectedSchoolId(value);
+                    // Fetch categories for selected school
+                    try {
+                      const response = await fetch(`/api/categories?schoolId=${value}`);
+                      if (response.ok) {
+                        const data = await response.json();
+                        setCategories(data.categories || []);
+                      }
+                    } catch (error) {
+                      console.error("Failed to fetch categories:", error);
+                    }
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Pilih sekolah" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {schools.map((school: any) => (
+                      <SelectItem key={school.id} value={school.id}>
+                        {school.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div className="grid gap-2">
               <Label htmlFor="category">Kategori</Label>
               <Select
                 value={formData.categoryId}
                 onValueChange={(value) => setFormData({ ...formData, categoryId: value })}
+                disabled={filteredCategories.length === 0}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Pilih kategori" />
+                  <SelectValue placeholder={filteredCategories.length === 0 ? "Tidak ada kategori tersedia" : "Pilih kategori"} />
                 </SelectTrigger>
                 <SelectContent>
-                  {filteredCategories.map((category) => (
-                    <SelectItem key={category.id} value={category.id}>
-                      {category.name}
-                    </SelectItem>
-                  ))}
+                  {filteredCategories.length === 0 ? (
+                    <div className="p-2 text-sm text-gray-500 text-center">
+                      Tidak ada kategori tersedia
+                    </div>
+                  ) : (
+                    filteredCategories.map((category) => (
+                      <SelectItem key={category.id} value={category.id}>
+                        {category.name}
+                      </SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
+              {filteredCategories.length === 0 && formData.schoolId && (
+                <p className="text-xs text-amber-600">
+                  Tidak ada kategori untuk sekolah ini. Hubungi administrator untuk menambahkan kategori.
+                </p>
+              )}
+              {!formData.schoolId && schools.length > 0 && (
+                <p className="text-xs text-blue-600">
+                  Pilih sekolah terlebih dahulu untuk melihat kategori.
+                </p>
+              )}
             </div>
             <div className="grid gap-2">
               <Label htmlFor="amount">Nominal (Rp)</Label>
@@ -679,8 +768,9 @@ export function DashboardContent() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="COMPLETED">Lunas</SelectItem>
+                  <SelectItem value="PAID">Lunas</SelectItem>
                   <SelectItem value="PENDING">Tertunda</SelectItem>
+                  <SelectItem value="VOID">Void</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -761,12 +851,12 @@ export function DashboardContent() {
                   <Badge 
                     variant="outline"
                     className={
-                      (selectedTransaction.status === "COMPLETED" || selectedTransaction.status === "LUNAS")
+                      (selectedTransaction.status === "PAID" || selectedTransaction.status === "LUNAS")
                         ? "bg-blue-50 text-blue-700 border-blue-200" 
                         : "bg-yellow-50 text-yellow-700 border-yellow-200"
                     }
                   >
-                    {(selectedTransaction.status === "COMPLETED" || selectedTransaction.status === "LUNAS") ? "Lunas" : "Tertunda"}
+                    {(selectedTransaction.status === "PAID" || selectedTransaction.status === "LUNAS") ? "Lunas" : "Tertunda"}
                   </Badge>
                 </div>
               </div>

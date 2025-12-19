@@ -19,6 +19,7 @@ export async function GET(request: NextRequest) {
         name: true,
         email: true,
         role: true,
+        schoolProfileId: true,
         schoolProfile: {
           select: {
             id: true,

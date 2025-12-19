@@ -6,10 +6,12 @@ const prisma = new PrismaClient()
 async function main() {
   console.log('🌱 Starting database seeding...')
 
-  // Create Super Admin User (Global - tanpa schoolProfileId)
+  // Upsert Super Admin User (Global - tanpa schoolProfileId)
   const superAdminPassword = await bcrypt.hash('superadmin123', 12)
-  const superAdminUser = await prisma.user.create({
-    data: {
+  const superAdminUser = await prisma.user.upsert({
+    where: { email: 'superadmin@sikeu.com' },
+    update: {},
+    create: {
       email: 'superadmin@sikeu.com',
       password: superAdminPassword,
       name: 'Super Administrator',
@@ -18,7 +20,7 @@ async function main() {
     }
   })
 
-  console.log('✅ Super Admin user created:', superAdminUser.email)
+  console.log('✅ Super Admin user ready:', superAdminUser.email)
 
   // Create School Profile
   const schoolProfile = await prisma.schoolProfile.create({

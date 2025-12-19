@@ -8,12 +8,13 @@ const transactionSchema = z.object({
   type: z.enum(['INCOME', 'EXPENSE']),
   date: z.string(),
   amount: z.number().positive(),
-  category: z.string(),
+  categoryId: z.string(), // Changed from 'category' to 'categoryId'
   description: z.string(),
-  fromTo: z.string(),
-  paymentMethod: z.enum(['CASH', 'BANK_TRANSFER', 'QRIS']),
-  status: z.enum(['PAID', 'PENDING', 'VOID']),
+  fromTo: z.string().optional(), // Made optional
+  paymentMethod: z.enum(['CASH', 'BANK_TRANSFER', 'QRIS']).optional(), // Made optional
+  status: z.enum(['PAID', 'PENDING', 'VOID']).optional(), // Fixed: removed COMPLETED
   receiptFileUrl: z.string().optional(),
+  schoolId: z.string().optional(), // For Super Admin
 })
 
 export async function GET(request: NextRequest) {
@@ -81,7 +82,31 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
+    console.log("Transaction POST body:", body)
+    
     const validatedData = transactionSchema.parse(body)
+
+    // Determine schoolId - use provided schoolId (for Super Admin) or user's schoolId
+    const schoolId = validatedData.schoolId || session.user.schoolId
+    
+    if (!schoolId) {
+      return NextResponse.json(
+        { error: 'School ID is required' },
+        { status: 400 }
+      )
+    }
+
+    // Verify user exists in database
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id }
+    })
+
+    if (!user) {
+      return NextResponse.json(
+        { error: 'User not found in database' },
+        { status: 404 }
+      )
+    }
 
     // Generate receipt number
     const now = new Date()
@@ -91,7 +116,7 @@ export async function POST(request: NextRequest) {
     // Get the last receipt number for this month
     const lastTransaction = await prisma.transaction.findFirst({
       where: {
-        schoolProfileId: session.user.schoolId,
+        schoolProfileId: schoolId,
         receiptNumber: {
           startsWith: `KW-${year}${month}`
         }
@@ -107,17 +132,29 @@ export async function POST(request: NextRequest) {
 
     const receiptNumber = `KW-${year}${month}-${String(counter).padStart(3, '0')}`
 
-    const { category, ...transactionData } = validatedData
+    const { categoryId, schoolId: _, date, ...transactionData } = validatedData
     
+    console.log("Creating transaction with:", {
+      schoolId,
+      userId: user.id,
+      categoryId,
+      receiptNumber
+    })
+
     const transaction = await prisma.transaction.create({
       data: {
         ...transactionData,
+        date: new Date(date),
         receiptNumber,
-        schoolProfileId: session.user.schoolId,
-        createdById: session.user.id,
-        categoryId: category,
+        schoolProfileId: schoolId,
+        createdById: user.id,
+        categoryId: categoryId,
+        fromTo: transactionData.fromTo || 'N/A',
+        paymentMethod: transactionData.paymentMethod || 'CASH',
+        status: transactionData.status || 'PAID',
       },
       include: {
+        category: true,
         createdBy: {
           select: { name: true, email: true }
         }
@@ -131,14 +168,15 @@ export async function POST(request: NextRequest) {
         entityType: 'Transaction',
         entityId: transaction.id,
         details: `Created transaction: ${transaction.receiptNumber}`,
-        userId: session.user.id,
-        schoolProfileId: session.user.schoolId,
+        userId: user.id,
+        schoolProfileId: schoolId,
       }
     })
 
     return NextResponse.json(transaction, { status: 201 })
   } catch (error) {
     if (error instanceof z.ZodError) {
+      console.error('Validation error:', error.issues)
       return NextResponse.json(
         { error: 'Validation error', details: error.issues },
         { status: 400 }
@@ -147,7 +185,7 @@ export async function POST(request: NextRequest) {
 
     console.error('Error creating transaction:', error)
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: error instanceof Error ? error.message : 'Internal server error' },
       { status: 500 }
     )
   }

@@ -11,9 +11,21 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
+    // Get schoolId from query params or session
+    const { searchParams } = new URL(request.url)
+    const schoolId = searchParams.get("schoolId") || session.user.schoolId
+
+    // Super Admin tidak punya schoolId, jadi perlu handle khusus
+    if (!schoolId) {
+      return NextResponse.json({ 
+        categories: [],
+        message: "Pilih sekolah terlebih dahulu" 
+      })
+    }
+
     const categories = await prisma.category.findMany({
       where: {
-        schoolProfileId: session.user.schoolId,
+        schoolProfileId: schoolId,
         isActive: true
       },
       orderBy: {

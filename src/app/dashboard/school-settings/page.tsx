@@ -84,8 +84,16 @@ export default function SchoolSettingsPage() {
   const handleSave = async () => {
     if (!editingSchool) return
 
+    // Validasi
+    if (!formData.name || !formData.address || !formData.phone || !formData.email) {
+      toast.error("Semua field harus diisi")
+      return
+    }
+
     setIsSaving(true)
     try {
+      console.log("Saving school:", editingSchool.id, formData)
+      
       const response = await fetch(`/api/schools/${editingSchool.id}`, {
         method: "PUT",
         headers: {
@@ -95,6 +103,7 @@ export default function SchoolSettingsPage() {
       })
 
       const data = await response.json()
+      console.log("Save response:", response.status, data)
 
       if (response.ok) {
         toast.success("Data sekolah berhasil diupdate")
@@ -104,6 +113,7 @@ export default function SchoolSettingsPage() {
         toast.error(data.error || "Gagal mengupdate data")
       }
     } catch (error) {
+      console.error("Save error:", error)
       toast.error("Terjadi kesalahan saat menyimpan")
     } finally {
       setIsSaving(false)
