@@ -14,6 +14,9 @@ export const metadata: Metadata = {
   description: "Aplikasi manajemen keuangan sekolah yang komprehensif dengan fitur transaksi, kwitansi, dan laporan otomatis.",
   keywords: "sistem keuangan sekolah, manajemen keuangan, kwitansi digital, laporan keuangan",
   authors: [{ name: "SiKeu Sekolah Team" }],
+  icons: {
+    icon: [{ url: "/icon.png", type: "image/png" }],
+  },
   openGraph: {
     title: "SiKeu Sekolah - Sistem Keuangan Sekolah",
     description: "Kelola keuangan sekolah dengan mudah dan akurat",

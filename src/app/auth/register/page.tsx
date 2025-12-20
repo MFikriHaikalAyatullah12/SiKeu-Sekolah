@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
-import { Eye, EyeOff, GraduationCap } from "lucide-react"
+import { Eye, EyeOff, GraduationCap, ArrowLeft } from "lucide-react"
 
 export default function RegisterPage() {
   const [isLoading, setIsLoading] = useState(false)
@@ -157,6 +157,15 @@ export default function RegisterPage() {
       {/* Right Side - Registration Form */}
       <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-gradient-to-br from-blue-50 to-blue-100">
         <div className="w-full max-w-md space-y-8">
+          {/* Back to landing */}
+          <div className="flex">
+            <Button asChild variant="ghost" size="sm" className="gap-2">
+              <Link href="/">
+                <ArrowLeft className="size-4" />
+                Kembali ke Beranda
+              </Link>
+            </Button>
+          </div>
           {/* Mobile Header */}
           <div className="lg:hidden flex items-center justify-center gap-3 mb-8">
             <div className="p-3 bg-blue-600 rounded-lg">
