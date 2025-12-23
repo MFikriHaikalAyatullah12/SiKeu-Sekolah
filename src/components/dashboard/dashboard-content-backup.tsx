@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,7 +21,6 @@ import {
   Edit,
   Trash2,
   Loader2,
-  Calendar,
 } from "lucide-react";
 import {
   LineChart,
@@ -39,6 +39,78 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 
+// Sample data - in real app this would come from API
+const mockData = {
+  stats: {
+    currentBalance: 2550000000,
+    monthlyIncome: 450000000,
+    monthlyExpense: 300000000,
+    surplus: 150000000,
+  },
+  chartData: [
+    { month: "Jun 2024", pemasukan: 80, pengeluaran: 65 },
+    { month: "Jul 2024", pemasukan: 200, pengeluaran: 95 },
+    { month: "Aug 2024", pemasukan: 190, pengeluaran: 160 },
+    { month: "Sep 2024", pemasukan: 310, pengeluaran: 150 },
+    { month: "Oct 2024", pemasukan: 270, pengeluaran: 180 },
+    { month: "Nov 2024", pemasukan: 370, pengeluaran: 200 },
+  ],
+  pieData: [
+    { name: "Gaji Guru & Staf", value: 45, color: "#3b82f6" },
+    { name: "Fasilitas Sekolah", value: 25, color: "#f59e0b" },
+    { name: "Operasional Harian", value: 15, color: "#10b981" },
+    { name: "Kegiatan Siswa", value: 10, color: "#8b5cf6" },
+    { name: "Lainnya", value: 5, color: "#6b7280" },
+  ],
+  recentTransactions: [
+    {
+      id: "1",
+      date: "18 Des 2024",
+      type: "PEMASUKAN",
+      category: "SPP Siswa",
+      description: "Budi Santoso (Kls 10A)",
+      amount: 1500000,
+      status: "LUNAS",
+    },
+    {
+      id: "2",
+      date: "17 Des 2024",
+      type: "PENGELUARAN",
+      category: "Operasional Harian",
+      description: "Pembelian ATK",
+      amount: 750000,
+      status: "LUNAS",
+    },
+    {
+      id: "3",
+      date: "16 Des 2024",
+      type: "PEMASUKAN",
+      category: "Donasi",
+      description: "Alumni Angkatan 2010",
+      amount: 5000000,
+      status: "LUNAS",
+    },
+    {
+      id: "4",
+      date: "15 Des 2024",
+      type: "PENGELUARAN",
+      category: "Fasilitas Sekolah",
+      description: "Perbaikan AC Ruang Guru",
+      amount: 2200000,
+      status: "LUNAS",
+    },
+    {
+      id: "5",
+      date: "14 Des 2024",
+      type: "PEMASUKAN",
+      category: "SPP Siswa",
+      description: "Siti Aminah (Kls 11B)",
+      amount: 1500000,
+      status: "TERTUNDA",
+    },
+  ],
+};
+
 export function DashboardContent() {
   const router = useRouter();
   const [selectedMonth, setSelectedMonth] = useState("Bulan Ini");
@@ -52,8 +124,6 @@ export function DashboardContent() {
   const [stats, setStats] = useState<any>(null);
   const [schools, setSchools] = useState<any[]>([]);
   const [selectedSchoolId, setSelectedSchoolId] = useState<string>("");
-  const [chartData, setChartData] = useState<any[]>([]);
-  const [pieData, setPieData] = useState<any[]>([]);
   
   const [formData, setFormData] = useState({
     categoryId: "",
@@ -65,7 +135,7 @@ export function DashboardContent() {
   });
 
   useEffect(() => {
-    fetchDashboardData(true);
+    fetchDashboardData(true); // Show toast on first load
     fetchSchools();
   }, []);
 
@@ -93,6 +163,7 @@ export function DashboardContent() {
         const data = await categoriesRes.json();
         setCategories(data.categories || []);
         
+        // Jika tidak ada kategori, tampilkan pesan hanya di load pertama
         if (showToast && (!data.categories || data.categories.length === 0)) {
           if (data.message) {
             toast.info(data.message);
@@ -107,26 +178,8 @@ export function DashboardContent() {
 
       if (statsRes.ok) {
         const data = await statsRes.json();
-        setStats(data.stats);
+        setStats(data.stats); // Extract stats object
       }
-
-      // Mock chart data - replace with real API data
-      setChartData([
-        { month: "Jun 2024", pemasukan: 80, pengeluaran: 65 },
-        { month: "Jul 2024", pemasukan: 200, pengeluaran: 95 },
-        { month: "Agust 2024", pemasukan: 190, pengeluaran: 160 },
-        { month: "Sept 2024", pemasukan: 310, pengeluaran: 150 },
-        { month: "Okt 2024", pemasukan: 270, pengeluaran: 180 },
-        { month: "Nov 2024", pemasukan: 370, pengeluaran: 200 },
-      ]);
-
-      setPieData([
-        { name: "Gaji Guru & Staf", value: 45, color: "#3b82f6" },
-        { name: "Fasilitas Sekolah", value: 25, color: "#f59e0b" },
-        { name: "Operasional Harian", value: 15, color: "#10b981" },
-        { name: "Kegiatan Siswa", value: 10, color: "#8b5cf6" },
-        { name: "Lainnya", value: 5, color: "#6b7280" },
-      ]);
     } catch (error) {
       console.error("Failed to fetch dashboard data:", error);
     }
@@ -158,11 +211,13 @@ export function DashboardContent() {
   };
 
   const handleSubmit = async () => {
+    // Validasi untuk Super Admin yang harus pilih sekolah
     if (schools.length > 0 && !formData.schoolId) {
       toast.error("Pilih sekolah terlebih dahulu");
       return;
     }
 
+    // Validasi kategori hanya jika sudah pilih sekolah (untuk Super Admin) atau user biasa
     if (schools.length === 0 || formData.schoolId) {
       if (filteredCategories.length === 0) {
         toast.error("Tidak ada kategori tersedia untuk sekolah ini. Hubungi administrator untuk menambahkan kategori.");
@@ -194,7 +249,7 @@ export function DashboardContent() {
       if (response.ok) {
         toast.success(`${transactionType === "INCOME" ? "Pemasukan" : "Pengeluaran"} berhasil ditambahkan`);
         handleCloseDialog();
-        await fetchDashboardData(false);
+        await fetchDashboardData(false); // Don't show toast after save
       } else {
         toast.error(data.error || "Gagal menambahkan transaksi");
       }
@@ -226,7 +281,7 @@ export function DashboardContent() {
 
       if (response.ok) {
         toast.success("Transaksi berhasil dihapus");
-        fetchDashboardData(false);
+        fetchDashboardData(false); // Don't show toast after delete
       } else {
         const data = await response.json();
         toast.error(data.error || "Gagal menghapus transaksi");
@@ -249,101 +304,129 @@ export function DashboardContent() {
   };
 
   const formatNumber = (amount: number | string) => {
+    // Convert to number and handle invalid cases
     const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
     if (!numAmount || isNaN(numAmount) || numAmount === 0) return "Rp 0";
     
     if (numAmount >= 1000000000) {
+      // Format untuk milyaran
       const billions = Math.floor(numAmount / 1000000000);
       const millions = Math.floor((numAmount % 1000000000) / 1000000);
       const thousands = Math.floor((numAmount % 1000000) / 1000);
-      return `Rp ${billions}.${millions.toString().padStart(3, "0")}.${thousands.toString().padStart(3, "0")}.000`;
+      return `Rp ${billions}.${millions.toString().padStart(3, "0")}.${thousands.toString().padStart(4, "0")}.000`;
     } else if (numAmount >= 1000000) {
+      // Format untuk jutaan
       const millions = Math.floor(numAmount / 1000000);
       const thousands = Math.floor((numAmount % 1000000) / 1000);
-      return `Rp ${millions}.${thousands.toString().padStart(3, "0")}.000`;
+      return `Rp ${millions}.${thousands.toString().padStart(4, "0")}.000`;
     }
     return formatCurrency(numAmount);
   };
 
   return (
-    <div className="space-y-6 p-6 bg-gray-50/50">
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Saldo Saat Ini */}
-        <Card className="border-0 shadow-sm hover:shadow-md transition-shadow">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between mb-2">
-              <div className="p-2.5 bg-green-100 rounded-lg">
+    <div className="space-y-8">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+          <p className="text-gray-500 mt-1">Ringkasan keuangan sekolah Anda</p>
+        </div>
+        <div className="flex flex-wrap gap-3">
+          <Button 
+            className="bg-green-600 hover:bg-green-700 shadow-md hover:shadow-lg transition-all"
+            onClick={() => handleOpenDialog("INCOME")}
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Tambah Pemasukan
+          </Button>
+          <Button 
+            variant="destructive" 
+            className="shadow-md hover:shadow-lg transition-all"
+            onClick={() => handleOpenDialog("EXPENSE")}
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Tambah Pengeluaran
+          </Button>
+        </div>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
+        <Card className="border-0 shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden">
+          <div className="absolute top-0 right-0 w-24 h-24 bg-green-500/10 rounded-bl-full"></div>
+          <CardContent className="p-6 relative">
+            <div className="flex justify-between items-start mb-4">
+              <div className="p-3 bg-green-50 rounded-lg">
                 <Wallet className="h-6 w-6 text-green-600" />
               </div>
             </div>
             <div className="space-y-1">
-              <p className="text-sm text-gray-600">Saldo Saat Ini</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {stats ? formatNumber(stats.balance) : "Rp 2.550.000.000"}
+              <p className="text-sm font-medium text-gray-500">Saldo Saat Ini</p>
+              <p className="text-2xl font-bold text-gray-900 tracking-tight">
+                {stats ? formatNumber(stats.balance) : "Rp 2550.0000.000"}
               </p>
-              <p className="text-xs text-green-600">
-                +Rp 150.000.000 (Bulan ini)
+              <p className="text-xs text-green-600 font-medium">
+                {stats && stats.balance > 0 ? `Surplus (Bulan ini)` : "Defisit (Bulan ini)"}
               </p>
             </div>
           </CardContent>
         </Card>
 
-        {/* Pemasukan Bulan Ini */}
-        <Card className="border-0 shadow-sm hover:shadow-md transition-shadow">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between mb-2">
-              <div className="p-2.5 bg-blue-100 rounded-lg">
+        <Card className="border-0 shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden">
+          <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/10 rounded-bl-full"></div>
+          <CardContent className="p-6 relative">
+            <div className="flex justify-between items-start mb-4">
+              <div className="p-3 bg-blue-50 rounded-lg">
                 <ArrowUpIcon className="h-6 w-6 text-blue-600" />
               </div>
             </div>
             <div className="space-y-1">
-              <p className="text-sm text-gray-600">Pemasukan Bulan Ini</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {stats ? formatNumber(stats.totalIncome) : "Rp 450.000.000"}
+              <p className="text-sm font-medium text-gray-500">Pemasukan Bulan Ini</p>
+              <p className="text-2xl font-bold text-green-600 tracking-tight">
+                {stats ? formatNumber(stats.totalIncome) : "Rp 450.0000.000"}
               </p>
               <p className="text-xs text-gray-500">
-                Berdasarkan {stats ? stats.incomeCount || 0 : 125} transaksi
+                {stats ? `Berdasarkan ${stats.incomeCount || 0} transaksi` : "Berdasarkan 125 transaksi"}
               </p>
             </div>
           </CardContent>
         </Card>
 
-        {/* Pengeluaran Bulan Ini */}
-        <Card className="border-0 shadow-sm hover:shadow-md transition-shadow">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between mb-2">
-              <div className="p-2.5 bg-red-100 rounded-lg">
+        <Card className="border-0 shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden">
+          <div className="absolute top-0 right-0 w-24 h-24 bg-red-500/10 rounded-bl-full"></div>
+          <CardContent className="p-6 relative">
+            <div className="flex justify-between items-start mb-4">
+              <div className="p-3 bg-red-50 rounded-lg">
                 <ArrowDownIcon className="h-6 w-6 text-red-600" />
               </div>
             </div>
             <div className="space-y-1">
-              <p className="text-sm text-gray-600">Pengeluaran Bulan Ini</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {stats ? formatNumber(stats.totalExpense) : "Rp 300.000.000"}
+              <p className="text-sm font-medium text-gray-500">Pengeluaran Bulan Ini</p>
+              <p className="text-2xl font-bold text-red-600 tracking-tight">
+                {stats ? formatNumber(stats.totalExpense) : "Rp 300.0000.000"}
               </p>
               <p className="text-xs text-gray-500">
-                Berdasarkan {stats ? stats.expenseCount || 0 : 80} transaksi
+                {stats ? `Berdasarkan ${stats.expenseCount || 0} transaksi` : "Berdasarkan 80 transaksi"}
               </p>
             </div>
           </CardContent>
         </Card>
 
-        {/* Surplus/Defisit */}
-        <Card className="border-0 shadow-sm hover:shadow-md transition-shadow">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between mb-2">
-              <div className="p-2.5 bg-purple-100 rounded-lg">
+        <Card className="border-0 shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden">
+          <div className="absolute top-0 right-0 w-24 h-24 bg-purple-500/10 rounded-bl-full"></div>
+          <CardContent className="p-6 relative">
+            <div className="flex justify-between items-start mb-4">
+              <div className="p-3 bg-purple-50 rounded-lg">
                 <Scale className="h-6 w-6 text-purple-600" />
               </div>
             </div>
             <div className="space-y-1">
-              <p className="text-sm text-gray-600">Surplus/Defisit</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {stats ? (stats.balance >= 0 ? '+' : '') + formatNumber(Math.abs(stats.balance)) : "+Rp 150.000.000"}
+              <p className="text-sm font-medium text-gray-500">Surplus/Defisit</p>
+              <p className={`text-2xl font-bold tracking-tight ${stats && stats.balance >= 0 ? 'text-purple-600' : 'text-red-600'}`}>
+                {stats ? (stats.balance >= 0 ? '+' : '') + formatNumber(stats.balance) : "+Rp 150.0000.000"}
               </p>
               <p className="text-xs text-gray-500">
-                Surplus (Bulan ini)
+                {stats && stats.balance >= 0 ? "Surplus (Bulan ini)" : "Defisit (Bulan ini)"}
               </p>
             </div>
           </CardContent>
@@ -351,162 +434,106 @@ export function DashboardContent() {
       </div>
 
       {/* Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Line Chart - 2 columns */}
-        <Card className="lg:col-span-2 border-0 shadow-sm">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-base font-semibold">
-              Pemasukan vs Pengeluaran (6 Bulan)
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Line Chart */}
+        <Card className="border-0 shadow-md">
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between text-lg">
+              <span>Pemasukan vs Pengeluaran (6 Bulan)</span>
+              <TrendingUp className="h-5 w-5 text-gray-400" />
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={280}>
-              <LineChart data={chartData}>
-                <defs>
-                  <linearGradient id="colorPemasukan" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.1}/>
-                    <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
-                  </linearGradient>
-                  <linearGradient id="colorPengeluaran" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#ef4444" stopOpacity={0.1}/>
-                    <stop offset="95%" stopColor="#ef4444" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={mockData.chartData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis 
-                  dataKey="month" 
-                  tick={{ fontSize: 11, fill: '#6b7280' }}
-                  axisLine={{ stroke: '#e5e7eb' }}
-                />
-                <YAxis 
-                  tick={{ fontSize: 11, fill: '#6b7280' }}
-                  axisLine={{ stroke: '#e5e7eb' }}
-                />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: '#fff', 
-                    border: '1px solid #e5e7eb',
-                    borderRadius: '8px',
-                    fontSize: '12px'
-                  }}
-                />
-                <Legend 
-                  wrapperStyle={{ fontSize: '12px' }}
-                  iconType="circle"
-                />
+                <XAxis dataKey="month" tick={{ fontSize: 12 }} />
+                <YAxis tick={{ fontSize: 12 }} />
+                <Tooltip formatter={(value) => [value + " juta", ""]} />
+                <Legend />
                 <Line 
                   type="monotone" 
                   dataKey="pemasukan" 
                   stroke="#10b981" 
-                  strokeWidth={2.5}
+                  strokeWidth={3}
                   name="Pemasukan"
-                  dot={{ fill: '#10b981', r: 4 }}
-                  activeDot={{ r: 6 }}
-                  fill="url(#colorPemasukan)"
+                  dot={{ r: 4 }}
                 />
                 <Line 
                   type="monotone" 
                   dataKey="pengeluaran" 
                   stroke="#ef4444" 
-                  strokeWidth={2.5}
+                  strokeWidth={3}
                   name="Pengeluaran"
-                  dot={{ fill: '#ef4444', r: 4 }}
-                  activeDot={{ r: 6 }}
-                  fill="url(#colorPengeluaran)"
+                  dot={{ r: 4 }}
                 />
               </LineChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
 
-        {/* Pie Chart - 1 column */}
-        <Card className="border-0 shadow-sm">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base font-semibold">Kategori Terbesar</CardTitle>
+        {/* Pie Chart */}
+        <Card className="border-0 shadow-md">
+          <CardHeader>
+            <CardTitle className="text-lg">Kategori Terbesar</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={180}>
-              <PieChart>
-                <Pie
-                  data={pieData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={45}
-                  outerRadius={70}
-                  paddingAngle={2}
-                  dataKey="value"
-                >
-                  {pieData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip 
-                  formatter={(value) => [`${value}%`, '']}
-                  contentStyle={{ 
-                    backgroundColor: '#fff', 
-                    border: '1px solid #e5e7eb',
-                    borderRadius: '8px',
-                    fontSize: '12px'
-                  }}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-            <div className="space-y-2 mt-4">
-              {pieData.map((item, index) => (
-                <div key={index} className="flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-2">
-                    <div 
-                      className="w-3 h-3 rounded-sm" 
-                      style={{ backgroundColor: item.color }}
-                    />
-                    <span className="text-gray-700">{item.name}</span>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <ResponsiveContainer width="100%" height={220}>
+                <PieChart>
+                  <Pie
+                    data={mockData.pieData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={50}
+                    outerRadius={90}
+                    paddingAngle={3}
+                    dataKey="value"
+                  >
+                    {mockData.pieData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(value) => [value + "%", ""]} />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="space-y-3 flex flex-col justify-center">
+                {mockData.pieData.map((item, index) => (
+                  <div key={index} className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <div 
+                        className="w-4 h-4 rounded" 
+                        style={{ backgroundColor: item.color }}
+                      />
+                      <span className="text-sm text-gray-700">{item.name}</span>
+                    </div>
+                    <span className="text-sm font-semibold">{item.value}%</span>
                   </div>
-                  <span className="font-semibold text-gray-900">{item.value}%</span>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           </CardContent>
         </Card>
       </div>
 
       {/* Recent Transactions */}
-      <Card className="border-0 shadow-sm">
+      <Card className="border-0 shadow-md">
         <CardHeader className="flex flex-row items-center justify-between pb-4">
           <div>
-            <CardTitle className="text-base font-semibold">Transaksi Terbaru</CardTitle>
-            <p className="text-xs text-gray-500 mt-1">
-              Menampilkan 1-5 dari 150 transaksi
+            <CardTitle className="text-lg">Transaksi Terbaru</CardTitle>
+            <p className="text-sm text-gray-500 mt-1">
+              Menampilkan 5 transaksi terakhir
             </p>
           </div>
           <div className="flex gap-2">
-            <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-              <SelectTrigger className="w-[140px] h-9 text-sm">
-                <Calendar className="h-4 w-4 mr-2" />
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Bulan Ini">Bulan Ini</SelectItem>
-                <SelectItem value="3 Bulan">3 Bulan</SelectItem>
-                <SelectItem value="6 Bulan">6 Bulan</SelectItem>
-                <SelectItem value="Tahun Ini">Tahun Ini</SelectItem>
-              </SelectContent>
-            </Select>
             <Button 
-              size="sm"
-              className="bg-green-600 hover:bg-green-700 h-9"
-              onClick={() => handleOpenDialog("INCOME")}
+              variant="outline" 
+              size="sm" 
+              className="hover:bg-gray-50"
+              onClick={() => router.push("/dashboard/transactions")}
             >
-              <Plus className="h-4 w-4 mr-1" />
-              Tambah Pemasukan
-            </Button>
-            <Button 
-              size="sm"
-              variant="destructive"
-              className="h-9"
-              onClick={() => handleOpenDialog("EXPENSE")}
-            >
-              <Plus className="h-4 w-4 mr-1" />
-              Tambah Pengeluaran
+              <Eye className="mr-2 h-4 w-4" />
+              Lihat Semua
             </Button>
           </div>
         </CardHeader>
@@ -514,29 +541,26 @@ export function DashboardContent() {
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
-                <TableRow className="bg-gray-50 hover:bg-gray-50">
-                  <TableHead className="font-semibold text-gray-700">Tanggal</TableHead>
-                  <TableHead className="font-semibold text-gray-700">Tipe</TableHead>
-                  <TableHead className="font-semibold text-gray-700">Kategori</TableHead>
-                  <TableHead className="font-semibold text-gray-700">Nama</TableHead>
-                  <TableHead className="font-semibold text-gray-700">Nominal</TableHead>
-                  <TableHead className="font-semibold text-gray-700">Status</TableHead>
-                  <TableHead className="text-right font-semibold text-gray-700">Aksi</TableHead>
+                <TableRow className="bg-gray-50">
+                  <TableHead className="font-semibold">Tanggal</TableHead>
+                  <TableHead className="font-semibold">Tipe</TableHead>
+                  <TableHead className="font-semibold">Kategori</TableHead>
+                  <TableHead className="font-semibold">Deskripsi</TableHead>
+                  <TableHead className="font-semibold">Nominal</TableHead>
+                  <TableHead className="font-semibold">Status</TableHead>
+                  <TableHead className="text-right font-semibold">Aksi</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {transactions.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-12 text-gray-500">
-                      <div className="flex flex-col items-center gap-2">
-                        <TrendingUp className="h-12 w-12 text-gray-300" />
-                        <p className="font-medium">Belum ada transaksi</p>
-                        <p className="text-sm">Klik tombol di atas untuk menambahkan transaksi</p>
-                      </div>
+                    <TableCell colSpan={7} className="text-center py-8 text-gray-500">
+                      Belum ada transaksi. Klik "Tambah Pemasukan" atau "Tambah Pengeluaran" untuk memulai.
                     </TableCell>
                   </TableRow>
                 ) : (
                   transactions.map((transaction) => {
+                    // Format date properly
                     let formattedDate = "Invalid Date";
                     if (transaction.date) {
                       try {
@@ -554,8 +578,8 @@ export function DashboardContent() {
                     }
                     
                     return (
-                      <TableRow key={transaction.id} className="hover:bg-gray-50">
-                        <TableCell className="font-medium text-sm">
+                      <TableRow key={transaction.id} className="hover:bg-gray-50 transition-colors">
+                        <TableCell className="font-medium text-gray-700">
                           {formattedDate}
                         </TableCell>
                         <TableCell>
@@ -563,16 +587,16 @@ export function DashboardContent() {
                             variant="outline"
                             className={
                               (transaction.type === "INCOME" || transaction.type === "PEMASUKAN")
-                                ? "bg-green-50 text-green-700 border-green-200 text-xs" 
-                                : "bg-red-50 text-red-700 border-red-200 text-xs"
+                                ? "bg-green-50 text-green-700 border-green-200" 
+                                : "bg-red-50 text-red-700 border-red-200"
                             }
                           >
                             {(transaction.type === "INCOME" || transaction.type === "PEMASUKAN") ? "Pemasukan" : "Pengeluaran"}
                           </Badge>
                         </TableCell>
-                        <TableCell className="text-sm">{transaction.category?.name || transaction.category}</TableCell>
-                        <TableCell className="text-sm text-gray-600">{transaction.description}</TableCell>
-                        <TableCell className="font-semibold text-sm">
+                        <TableCell className="text-gray-700">{transaction.category?.name || transaction.category}</TableCell>
+                        <TableCell className="text-gray-600">{transaction.description}</TableCell>
+                        <TableCell className="font-semibold text-gray-900">
                           {formatCurrency(Number(transaction.amount))}
                         </TableCell>
                         <TableCell>
@@ -580,8 +604,8 @@ export function DashboardContent() {
                             variant="outline"
                             className={
                               (transaction.status === "PAID" || transaction.status === "LUNAS")
-                                ? "bg-blue-50 text-blue-700 border-blue-200 text-xs" 
-                                : "bg-yellow-50 text-yellow-700 border-yellow-200 text-xs"
+                                ? "bg-blue-50 text-blue-700 border-blue-200" 
+                                : "bg-yellow-50 text-yellow-700 border-yellow-200"
                             }
                           >
                             {(transaction.status === "PAID" || transaction.status === "LUNAS") ? "Lunas" : "Tertunda"}
@@ -591,24 +615,24 @@ export function DashboardContent() {
                           <div className="flex justify-end gap-1">
                             <Button 
                               variant="ghost" 
-                              size="icon"
-                              className="h-8 w-8 hover:bg-blue-50"
+                              size="sm" 
+                              className="hover:bg-blue-50"
                               onClick={() => handleViewTransaction(transaction)}
                             >
-                              <Eye className="h-4 w-4 text-blue-600" />
+                              <Eye className="h-4 w-4 text-gray-600" />
                             </Button>
                             <Button 
                               variant="ghost" 
-                              size="icon"
-                              className="h-8 w-8 hover:bg-gray-100"
+                              size="sm" 
+                              className="hover:bg-blue-50"
                               onClick={() => handleEditTransaction(transaction)}
                             >
                               <Edit className="h-4 w-4 text-gray-600" />
                             </Button>
                             <Button 
                               variant="ghost" 
-                              size="icon"
-                              className="h-8 w-8 hover:bg-red-50"
+                              size="sm" 
+                              className="hover:bg-red-50"
                               onClick={() => handleDeleteTransaction(transaction.id, transaction.description)}
                             >
                               <Trash2 className="h-4 w-4 text-red-600" />
@@ -645,6 +669,7 @@ export function DashboardContent() {
                   onValueChange={async (value) => {
                     setFormData({ ...formData, schoolId: value, categoryId: "" });
                     setSelectedSchoolId(value);
+                    // Fetch categories for selected school
                     try {
                       const response = await fetch(`/api/categories?schoolId=${value}`);
                       if (response.ok) {
@@ -693,6 +718,16 @@ export function DashboardContent() {
                   )}
                 </SelectContent>
               </Select>
+              {filteredCategories.length === 0 && formData.schoolId && (
+                <p className="text-xs text-amber-600">
+                  Tidak ada kategori untuk sekolah ini. Hubungi administrator untuk menambahkan kategori.
+                </p>
+              )}
+              {!formData.schoolId && schools.length > 0 && (
+                <p className="text-xs text-blue-600">
+                  Pilih sekolah terlebih dahulu untuk melihat kategori.
+                </p>
+              )}
             </div>
             <div className="grid gap-2">
               <Label htmlFor="amount">Nominal (Rp)</Label>

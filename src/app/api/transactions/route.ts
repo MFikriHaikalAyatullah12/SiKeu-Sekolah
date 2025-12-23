@@ -58,13 +58,16 @@ export async function GET(request: NextRequest) {
       where,
       orderBy: { date: 'desc' },
       include: {
+        category: {
+          select: { name: true, type: true }
+        },
         createdBy: {
           select: { name: true, email: true }
         }
       }
     })
 
-    return NextResponse.json(transactions)
+    return NextResponse.json({ transactions })
   } catch (error) {
     console.error('Error fetching transactions:', error)
     return NextResponse.json(
@@ -173,7 +176,7 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    return NextResponse.json(transaction, { status: 201 })
+    return NextResponse.json({ transaction }, { status: 201 })
   } catch (error) {
     if (error instanceof z.ZodError) {
       console.error('Validation error:', error.issues)

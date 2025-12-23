@@ -26,7 +26,7 @@ export default async function HomePage() {
   }
 
   return (
-    <div className="min-h-dvh relative overflow-hidden bg-gradient-to-b from-background via-background to-muted/40">
+    <div className="min-h-dvh relative overflow-hidden bg-gradient-to-b from-background via-background to-muted/40 flex flex-col">
       {/* Decorative blobs */}
       <div aria-hidden className="pointer-events-none absolute -top-24 -left-24 size-[420px] rounded-full bg-primary/10 blur-3xl" />
       <div aria-hidden className="pointer-events-none absolute -bottom-32 -right-24 size-[520px] rounded-full bg-secondary/40 blur-3xl" />
@@ -46,15 +46,19 @@ export default async function HomePage() {
           <span className="text-lg font-bold">SakuSekolah</span>
         </Link>
 
-        <div className="flex items-center gap-3 rounded-full border bg-background/60 p-1 backdrop-blur supports-[backdrop-filter]:bg-background/50">
-          <Button asChild variant="outline" className="bg-transparent">
+        <div className="flex items-center gap-3 rounded-full border bg-background/60 p-1 backdrop-blur supports-[backdrop-filter]:bg-background/100">
+          <Button
+            asChild
+            variant="outline"
+            className="rounded-full border-0 px-5 py-2 shadow-xs transition-all duration-200 ease-out hover:bg-primary hover:text-primary-foreground hover:shadow-sm motion-safe:hover:-translate-y-0.5 motion-safe:active:translate-y-0 active:shadow-xs"
+          >
             <Link href="/auth/signin">Masuk</Link>
           </Button>
         </div>
       </header>
 
       {/* Hero */}
-      <main className="container mx-auto px-4 relative">
+      <main className="container mx-auto px-4 relative flex-1">
         <section className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center py-10 md:py-16">
           <div className="space-y-7 max-w-2xl">
             <Badge variant="secondary" className="px-4 py-1.5 text-sm shadow-xs">
@@ -101,7 +105,7 @@ export default async function HomePage() {
       </main>
 
       {/* Footer */}
-      <footer className="container mx-auto px-4 py-8 text-center text-sm text-muted-foreground">
+      <footer className="container mx-auto px-4 py-8 text-center text-sm text-muted-foreground mt-auto">
         © {new Date().getFullYear()} SakuSekolah • Semua hak cipta.
       </footer>
     </div>

@@ -2,6 +2,7 @@
 
 import { useSession, signOut } from 'next-auth/react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,41 +12,51 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Bell, LogOut, Settings, User } from 'lucide-react'
+import { Bell, LogOut, Settings, User, Search, ChevronDown } from 'lucide-react'
 
 export function Header() {
   const { data: session } = useSession()
 
   const handleSignOut = () => {
-    signOut({ callbackUrl: '/login' })
+    signOut({ callbackUrl: '/auth/signin' })
   }
 
   return (
     <header className="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-40">
       <div className="flex items-center justify-between px-6 py-3">
-        <div className="flex items-center">
-          <h2 className="text-xl font-bold text-gray-900">
-            Dashboard Keuangan
-          </h2>
+        {/* Search Bar */}
+        <div className="flex-1 max-w-md">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Input 
+              type="text" 
+              placeholder="Cari transaksi atau siswa..." 
+              className="pl-10 bg-gray-50 border-gray-200 focus:bg-white"
+            />
+          </div>
         </div>
         
-        <div className="flex items-center space-x-3">
-          <Button variant="ghost" size="sm" className="relative hover:bg-gray-100">
+        <div className="flex items-center space-x-4">
+          {/* Notifications */}
+          <Button variant="ghost" size="icon" className="relative hover:bg-gray-100 rounded-full">
             <Bell className="h-5 w-5 text-gray-600" />
-            <span className="absolute -top-1 -right-1 h-4 w-4 bg-red-500 rounded-full text-[10px] text-white flex items-center justify-center font-semibold">
-              3
-            </span>
+            <span className="absolute top-1 right-1 h-2 w-2 bg-red-500 rounded-full"></span>
           </Button>
 
+          {/* User Profile Dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="relative h-10 w-10 rounded-full hover:ring-2 hover:ring-blue-500 transition-all">
-                <Avatar className="h-10 w-10">
+              <Button variant="ghost" className="flex items-center gap-2 hover:bg-gray-100 rounded-lg px-3">
+                <Avatar className="h-8 w-8">
                   <AvatarImage src={session?.user?.image || ''} alt={session?.user?.name || ''} />
-                  <AvatarFallback className="bg-blue-600 text-white font-semibold">
+                  <AvatarFallback className="bg-blue-600 text-white font-semibold text-sm">
                     {session?.user?.name?.charAt(0) || 'U'}
                   </AvatarFallback>
                 </Avatar>
+                <span className="text-sm font-medium text-gray-700 hidden sm:block">
+                  {session?.user?.name || 'Bendahara'}
+                </span>
+                <ChevronDown className="h-4 w-4 text-gray-500" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-64" align="end" forceMount>
@@ -68,16 +79,16 @@ export function Header() {
               <DropdownMenuSeparator />
               <DropdownMenuItem>
                 <User className="mr-2 h-4 w-4" />
-                <span>Profile</span>
+                <span>Profil</span>
               </DropdownMenuItem>
               <DropdownMenuItem>
                 <Settings className="mr-2 h-4 w-4" />
-                <span>Settings</span>
+                <span>Pengaturan</span>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleSignOut}>
+              <DropdownMenuItem onClick={handleSignOut} className="text-red-600">
                 <LogOut className="mr-2 h-4 w-4" />
-                <span>Log out</span>
+                <span>Keluar</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

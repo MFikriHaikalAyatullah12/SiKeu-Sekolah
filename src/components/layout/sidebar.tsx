@@ -3,6 +3,7 @@
 import { usePathname } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { cn } from '@/lib/utils'
 import {
   Home,
@@ -13,15 +14,16 @@ import {
   Menu,
   Building2,
   Shield,
+  Receipt,
 } from 'lucide-react'
+
+import appLogoImage from '@/image/icon_tampilan-sekolah1.png'
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: Home, roles: ['SUPER_ADMIN', 'ADMIN', 'TREASURER', 'USER'] },
   { name: 'Transaksi', href: '/dashboard/transactions', icon: TrendingUp, roles: ['SUPER_ADMIN', 'ADMIN', 'TREASURER'] },
   { name: 'Laporan', href: '/dashboard/reports', icon: FileText, roles: ['SUPER_ADMIN', 'ADMIN'] },
-  { name: 'Pengguna', href: '/dashboard/users', icon: Users, roles: ['SUPER_ADMIN', 'ADMIN'] },
-  { name: 'Pengaturan Sekolah', href: '/dashboard/school-settings', icon: Building2, roles: ['SUPER_ADMIN'] },
-  { name: 'Info Role', href: '/dashboard/role-info', icon: Shield, roles: ['SUPER_ADMIN', 'ADMIN', 'TREASURER', 'USER'] },
+  { name: 'Kwitansi', href: '/dashboard/receipts', icon: Receipt, roles: ['SUPER_ADMIN', 'ADMIN', 'TREASURER'] },
   { name: 'Pengaturan', href: '/dashboard/settings', icon: Settings, roles: ['SUPER_ADMIN', 'ADMIN', 'TREASURER', 'USER'] },
 ]
 
@@ -40,10 +42,15 @@ export function Sidebar() {
       <div className="flex flex-col flex-grow bg-gradient-to-b from-gray-900 to-gray-800 overflow-y-auto shadow-xl">
         <div className="flex items-center h-16 flex-shrink-0 px-6 bg-gray-900 border-b border-gray-700">
           <div className="flex items-center gap-2">
-            <div className="p-2 bg-blue-600 rounded-lg">
-              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
+            <div className="white flex items-center justify-center rounded-full bg-white/100 size-8">
+              <Image
+                src={appLogoImage}
+                alt="Logo SiKeu Sekolah"
+                width={24}
+                height={24}
+                className="h-6 w-6 object-contain"
+                priority
+              />
             </div>
             <h1 className="text-white text-lg font-bold">
               SiKeu Sekolah

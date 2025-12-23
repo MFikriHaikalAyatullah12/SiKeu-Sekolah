@@ -11,42 +11,59 @@ export const authOptions: NextAuthOptions = {
     CredentialsProvider({
       name: "credentials",
       credentials: {
-        email: { label: "Email", type: "email" },
+        email: { label: "Email atau Username", type: "text" },
         password: { label: "Password", type: "password" }
       },
       async authorize(credentials) {
-        console.log('🔐 Login attempt:', credentials?.email)
-        
-        if (!credentials?.email || !credentials?.password) {
-          console.log('❌ Missing credentials')
+        const identifier = credentials?.email?.trim()
+        console.log("🔐 Login attempt:", identifier)
+
+        if (!identifier || !credentials?.password) {
+          console.log("❌ Missing credentials")
           return null
         }
 
-        const user = await prisma.user.findUnique({
-          where: { email: credentials.email },
-        })
+        try {
+          // Login by email (unique) OR by name (treated as username for MVP)
+          const user = await prisma.user.findFirst({
+            where: {
+              OR: [
+                { email: { equals: identifier, mode: "insensitive" } },
+                { name: { equals: identifier, mode: "insensitive" } },
+              ],
+            },
+          })
 
-        console.log('👤 User found:', user ? `${user.email} (${user.role})` : 'NOT FOUND')
+          console.log(
+            "👤 User found:",
+            user ? `${user.email} (${user.role})` : "NOT FOUND"
+          )
 
-        if (!user || !user.password) {
-          console.log('❌ User not found or no password')
+          if (!user || !user.password) {
+            console.log("❌ User not found or no password")
+            return null
+          }
+
+          const passwordMatch = await bcrypt.compare(
+            credentials.password,
+            user.password
+          )
+          console.log("🔑 Password match:", passwordMatch ? "✅" : "❌")
+
+          if (!passwordMatch) return null
+
+          console.log("✅ Login successful:", user.email)
+          return {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            role: user.role,
+            schoolId: user.schoolProfileId ?? "",
+          }
+        } catch (err) {
+          // Common root cause in dev: DATABASE_URL missing or DB not reachable
+          console.error("❌ Auth authorize error:", err)
           return null
-        }
-
-        const passwordMatch = await bcrypt.compare(credentials.password, user.password)
-        console.log('🔑 Password match:', passwordMatch ? '✅' : '❌')
-
-        if (!passwordMatch) {
-          return null
-        }
-
-        console.log('✅ Login successful:', user.email)
-        return {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          role: user.role,
-          schoolId: user.schoolProfileId || '',
         }
       }
     }),
