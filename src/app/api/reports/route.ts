@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { getDateRangeForRole } from '@/lib/permissions'
 import { Decimal } from 'decimal.js'
 
 export async function GET(request: NextRequest) {
@@ -12,33 +13,43 @@ export async function GET(request: NextRequest) {
     }
 
     // Check role permission
-    if (session.user.role !== 'SUPER_ADMIN' && session.user.role !== 'ADMIN') {
+    if (session.user.role !== 'SUPER_ADMIN' && session.user.role !== 'BENDAHARA') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
     const { searchParams } = new URL(request.url)
     const period = searchParams.get('period') || 'thisMonth'
 
+    // Apply role-based date restrictions
+    const roleBasedDateRange = getDateRangeForRole(session.user.role)
+    
     let startDate: Date
     let endDate: Date = new Date()
 
-    switch (period) {
-      case 'thisMonth':
-        startDate = new Date(endDate.getFullYear(), endDate.getMonth(), 1)
-        break
-      case 'lastMonth':
-        startDate = new Date(endDate.getFullYear(), endDate.getMonth() - 1, 1)
-        endDate = new Date(endDate.getFullYear(), endDate.getMonth(), 0)
-        break
-      case 'thisYear':
-        startDate = new Date(endDate.getFullYear(), 0, 1)
-        break
-      case 'lastYear':
-        startDate = new Date(endDate.getFullYear() - 1, 0, 1)
-        endDate = new Date(endDate.getFullYear() - 1, 11, 31)
-        break
-      default:
-        startDate = new Date(endDate.getFullYear(), endDate.getMonth(), 1)
+    // Super Admin can choose any period
+    // Bendahara is restricted to max 3 months
+    if (roleBasedDateRange) {
+      startDate = roleBasedDateRange.startDate
+      endDate = roleBasedDateRange.endDate
+    } else {
+      switch (period) {
+        case 'thisMonth':
+          startDate = new Date(endDate.getFullYear(), endDate.getMonth(), 1)
+          break
+        case 'lastMonth':
+          startDate = new Date(endDate.getFullYear(), endDate.getMonth() - 1, 1)
+          endDate = new Date(endDate.getFullYear(), endDate.getMonth(), 0)
+          break
+        case 'thisYear':
+          startDate = new Date(endDate.getFullYear(), 0, 1)
+          break
+        case 'lastYear':
+          startDate = new Date(endDate.getFullYear() - 1, 0, 1)
+          endDate = new Date(endDate.getFullYear() - 1, 11, 31)
+          break
+        default:
+          startDate = new Date(endDate.getFullYear(), endDate.getMonth(), 1)
+      }
     }
 
     const where: any = {
@@ -52,19 +63,25 @@ export async function GET(request: NextRequest) {
     // Get income and expense by category
     const incomeTransactions = await prisma.transaction.findMany({
       where: { ...where, type: 'INCOME' },
-      include: { category: true },
+      include: { 
+        category: true,
+        coaAccount: true 
+      },
       orderBy: { date: 'desc' }
     })
 
     const expenseTransactions = await prisma.transaction.findMany({
       where: { ...where, type: 'EXPENSE' },
-      include: { category: true },
+      include: { 
+        category: true,
+        coaAccount: true 
+      },
       orderBy: { date: 'desc' }
     })
 
     // Group by category
     const incomeByCategory = incomeTransactions.reduce((acc: any, transaction) => {
-      const categoryName = transaction.category.name
+      const categoryName = transaction.category?.name || 'Uncategorized'
       if (!acc[categoryName]) {
         acc[categoryName] = new Decimal(0)
       }
@@ -73,7 +90,7 @@ export async function GET(request: NextRequest) {
     }, {})
 
     const expenseByCategory = expenseTransactions.reduce((acc: any, transaction) => {
-      const categoryName = transaction.category.name
+      const categoryName = transaction.category?.name || 'Uncategorized'
       if (!acc[categoryName]) {
         acc[categoryName] = new Decimal(0)
       }
@@ -137,6 +154,14 @@ export async function GET(request: NextRequest) {
       period: {
         start: startDate,
         end: endDate
+      },
+      dateRestrictions: roleBasedDateRange ? {
+        hasRestrictions: true,
+        maxMonths: 3,
+        role: session.user.role
+      } : {
+        hasRestrictions: false,
+        role: session.user.role
       }
     })
   } catch (error) {

@@ -2,17 +2,19 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { getDateRangeForRole } from '@/lib/permissions'
 import { z } from 'zod'
 
 const transactionSchema = z.object({
   type: z.enum(['INCOME', 'EXPENSE']),
   date: z.string(),
   amount: z.number().positive(),
-  categoryId: z.string(), // Changed from 'category' to 'categoryId'
+  categoryId: z.string(), // Category ID (required)
+  coaAccountId: z.string().optional(), // COA Account ID (optional for now)
   description: z.string(),
-  fromTo: z.string().optional(), // Made optional
-  paymentMethod: z.enum(['CASH', 'BANK_TRANSFER', 'QRIS']).optional(), // Made optional
-  status: z.enum(['PAID', 'PENDING', 'VOID']).optional(), // Fixed: removed COMPLETED
+  fromTo: z.string().optional(),
+  paymentMethod: z.enum(['CASH', 'BANK_TRANSFER', 'QRIS']).optional(),
+  status: z.enum(['PAID', 'PENDING', 'VOID']).optional(),
   receiptFileUrl: z.string().optional(),
   schoolId: z.string().optional(), // For Super Admin
 })
@@ -33,6 +35,15 @@ export async function GET(request: NextRequest) {
       schoolProfileId: session.user.schoolId,
     }
 
+    // Apply date range restrictions based on role
+    const dateRange = getDateRangeForRole(session.user.role)
+    if (dateRange) {
+      where.date = {
+        gte: dateRange.startDate,
+        lte: dateRange.endDate,
+      }
+    }
+
     if (type) {
       where.type = type
     }
@@ -41,7 +52,11 @@ export async function GET(request: NextRequest) {
       where.OR = [
         { description: { contains: search, mode: 'insensitive' } },
         { fromTo: { contains: search, mode: 'insensitive' } },
-        { category: { contains: search, mode: 'insensitive' } },
+        { 
+          chartOfAccount: { 
+            name: { contains: search, mode: 'insensitive' } 
+          } 
+        },
       ]
     }
 
@@ -58,8 +73,17 @@ export async function GET(request: NextRequest) {
       where,
       orderBy: { date: 'desc' },
       include: {
+        coaAccount: {
+          select: { 
+            code: true,
+            name: true
+          }
+        },
         category: {
-          select: { name: true, type: true }
+          select: {
+            name: true,
+            type: true
+          }
         },
         createdBy: {
           select: { name: true, email: true }
@@ -135,12 +159,27 @@ export async function POST(request: NextRequest) {
 
     const receiptNumber = `KW-${year}${month}-${String(counter).padStart(3, '0')}`
 
-    const { categoryId, schoolId: _, date, ...transactionData } = validatedData
+    const { categoryId, coaAccountId, schoolId: _, date, ...transactionData } = validatedData
+    
+    // Verify COA account if provided
+    if (coaAccountId) {
+      const coaAccount = await prisma.coaAccount.findUnique({
+        where: { id: coaAccountId }
+      })
+
+      if (!coaAccount || !coaAccount.isActive) {
+        return NextResponse.json(
+          { error: 'Invalid or inactive COA Account' },
+          { status: 400 }
+        )
+      }
+    }
     
     console.log("Creating transaction with:", {
       schoolId,
       userId: user.id,
       categoryId,
+      coaAccountId,
       receiptNumber
     })
 
@@ -152,12 +191,14 @@ export async function POST(request: NextRequest) {
         schoolProfileId: schoolId,
         createdById: user.id,
         categoryId: categoryId,
+        coaAccountId: coaAccountId || null,
         fromTo: transactionData.fromTo || 'N/A',
         paymentMethod: transactionData.paymentMethod || 'CASH',
         status: transactionData.status || 'PAID',
       },
       include: {
         category: true,
+        coaAccount: true,
         createdBy: {
           select: { name: true, email: true }
         }

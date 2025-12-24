@@ -22,9 +22,11 @@ async function main() {
 
   console.log('✅ Super Admin user ready:', superAdminUser.email)
 
-  // Create School Profile
-  const schoolProfile = await prisma.schoolProfile.create({
-    data: {
+  // Upsert School Profile
+  const schoolProfile = await prisma.schoolProfile.upsert({
+    where: { email: 'info@smanjakarta.sch.id' },
+    update: {},
+    create: {
       name: 'Sekolah Menengah Atas Negeri 1',
       address: 'Jl. Pendidikan No. 123, Jakarta',
       phone: '(021) 12345678',
@@ -34,10 +36,12 @@ async function main() {
 
   console.log('✅ School profile created:', schoolProfile.name)
 
-  // Create Admin User
+  // Upsert Admin User
   const adminPassword = await bcrypt.hash('admin123', 12)
-  const adminUser = await prisma.user.create({
-    data: {
+  const adminUser = await prisma.user.upsert({
+    where: { email: 'admin@smanjakarta.sch.id' },
+    update: {},
+    create: {
       email: 'admin@smanjakarta.sch.id',
       password: adminPassword,
       name: 'Administrator',
@@ -48,10 +52,12 @@ async function main() {
 
   console.log('✅ Admin user created:', adminUser.email)
 
-  // Create Bendahara User
+  // Upsert Bendahara User
   const bendaharaPassword = await bcrypt.hash('bendahara123', 12)
-  const bendaharaUser = await prisma.user.create({
-    data: {
+  const bendaharaUser = await prisma.user.upsert({
+    where: { email: 'bendahara@smanjakarta.sch.id' },
+    update: {},
+    create: {
       email: 'bendahara@smanjakarta.sch.id',
       password: bendaharaPassword,
       name: 'Bendahara Sekolah',
@@ -62,39 +68,106 @@ async function main() {
 
   console.log('✅ Bendahara user created:', bendaharaUser.email)
 
-  // Create categories first
-  const sppCategory = await prisma.category.create({
-    data: {
-      name: 'SPP Siswa',
+  // Upsert income categories - Chart of Accounts
+  const aktivaLancarCategory = await prisma.category.upsert({
+    where: {
+      name_type_schoolProfileId: {
+        name: 'Aktiva Lancar',
+        type: 'INCOME',
+        schoolProfileId: schoolProfile.id,
+      }
+    },
+    update: {},
+    create: {
+      name: 'Aktiva Lancar',
       type: 'INCOME',
-      description: 'Sumbangan Penyelenggaraan Pendidikan',
+      description: '1100 - Aktiva Lancar (Kas, Bank, Piutang)',
       schoolProfileId: schoolProfile.id,
     }
   })
 
-  const donationCategory = await prisma.category.create({
-    data: {
-      name: 'Donasi',
+  const aktivaTetapCategory = await prisma.category.upsert({
+    where: {
+      name_type_schoolProfileId: {
+        name: 'Aktiva Tetap',
+        type: 'INCOME',
+        schoolProfileId: schoolProfile.id,
+      }
+    },
+    update: {},
+    create: {
+      name: 'Aktiva Tetap',
       type: 'INCOME',
-      description: 'Donasi dari alumni dan masyarakat',
+      description: '1200 - Aktiva Tetap (Tanah, Bangunan, Peralatan)',
       schoolProfileId: schoolProfile.id,
     }
   })
 
-  const operationalCategory = await prisma.category.create({
-    data: {
-      name: 'Operasional Harian',
-      type: 'EXPENSE',
-      description: 'Pengeluaran operasional harian sekolah',
+  const modalCategory = await prisma.category.upsert({
+    where: {
+      name_type_schoolProfileId: {
+        name: 'Modal',
+        type: 'INCOME',
+        schoolProfileId: schoolProfile.id,
+      }
+    },
+    update: {},
+    create: {
+      name: 'Modal',
+      type: 'INCOME',
+      description: '3100 - Modal (Ekuitas)',
       schoolProfileId: schoolProfile.id,
     }
   })
 
-  const facilityCategory = await prisma.category.create({
-    data: {
-      name: 'Fasilitas Sekolah',
+  const pendapatanCategory = await prisma.category.upsert({
+    where: {
+      name_type_schoolProfileId: {
+        name: 'Pendapatan',
+        type: 'INCOME',
+        schoolProfileId: schoolProfile.id,
+      }
+    },
+    update: {},
+    create: {
+      name: 'Pendapatan',
+      type: 'INCOME',
+      description: '4100 - Pendapatan (Revenue)',
+      schoolProfileId: schoolProfile.id,
+    }
+  })
+
+  // Upsert expense categories - Chart of Accounts
+  const kewajibanCategory = await prisma.category.upsert({
+    where: {
+      name_type_schoolProfileId: {
+        name: 'Kewajiban',
+        type: 'EXPENSE',
+        schoolProfileId: schoolProfile.id,
+      }
+    },
+    update: {},
+    create: {
+      name: 'Kewajiban',
       type: 'EXPENSE',
-      description: 'Perbaikan dan pemeliharaan fasilitas',
+      description: '2100 - Kewajiban (Utang)',
+      schoolProfileId: schoolProfile.id,
+    }
+  })
+
+  const bebanCategory = await prisma.category.upsert({
+    where: {
+      name_type_schoolProfileId: {
+        name: 'Beban',
+        type: 'EXPENSE',
+        schoolProfileId: schoolProfile.id,
+      }
+    },
+    update: {},
+    create: {
+      name: 'Beban',
+      type: 'EXPENSE',
+      description: '5100 - Beban (Expenses)',
       schoolProfileId: schoolProfile.id,
     }
   })
@@ -108,8 +181,8 @@ async function main() {
       type: 'INCOME',
       date: new Date('2025-12-18'),
       amount: 1500000,
-      categoryId: sppCategory.id,
-      description: 'SPP Bulan Desember 2025',
+      categoryId: pendapatanCategory.id,
+      description: '4100 - Pendapatan SPP Siswa',
       fromTo: 'Budi Santoso (Kls 10A)',
       paymentMethod: 'CASH',
       status: 'PAID',
@@ -120,10 +193,10 @@ async function main() {
       receiptNumber: 'KW-202512-002',
       type: 'INCOME',
       date: new Date('2025-12-17'),
-      amount: 750000,
-      categoryId: sppCategory.id,
-      description: 'Uang Pangkal Siswa Baru',
-      fromTo: 'Siti Aminah (Kls 11B)',
+      amount: 10000000,
+      categoryId: modalCategory.id,
+      description: '3100 - Modal Awal Sekolah',
+      fromTo: 'Yayasan Pendidikan',
       paymentMethod: 'BANK_TRANSFER',
       status: 'PAID',
       createdById: bendaharaUser.id,
@@ -134,9 +207,9 @@ async function main() {
       type: 'INCOME',
       date: new Date('2025-12-16'),
       amount: 5000000,
-      categoryId: donationCategory.id,
-      description: 'Donasi Alumni Angkatan 2010',
-      fromTo: 'Alumni 2010',
+      categoryId: pendapatanCategory.id,
+      description: '4200 - Dana BOS',
+      fromTo: 'Pemerintah',
       paymentMethod: 'BANK_TRANSFER',
       status: 'PAID',
       createdById: adminUser.id,
@@ -147,10 +220,10 @@ async function main() {
       type: 'INCOME',
       date: new Date('2025-12-15'),
       amount: 1200000,
-      categoryId: sppCategory.id,
-      description: 'Uang Pangkal',
-      fromTo: 'Siti Aminah (11B)',
-      paymentMethod: 'QRIS',
+      categoryId: aktivaLancarCategory.id,
+      description: '1110 - Kas di Bendahara',
+      fromTo: 'Transfer Kas',
+      paymentMethod: 'CASH',
       status: 'PENDING',
       createdById: bendaharaUser.id,
       schoolProfileId: schoolProfile.id,
@@ -159,11 +232,11 @@ async function main() {
       receiptNumber: 'KW-202512-005',
       type: 'INCOME',
       date: new Date('2025-12-14'),
-      amount: 1500000,
-      categoryId: sppCategory.id,
-      description: 'SPP Bulan Desember 2025',
-      fromTo: 'Siti Aminah (Kls 11B)',
-      paymentMethod: 'CASH',
+      amount: 2500000,
+      categoryId: pendapatanCategory.id,
+      description: '4300 - Pendapatan Lain-lain (Donasi)',
+      fromTo: 'Alumni Sekolah',
+      paymentMethod: 'BANK_TRANSFER',
       status: 'PAID',
       createdById: bendaharaUser.id,
       schoolProfileId: schoolProfile.id,
@@ -185,9 +258,9 @@ async function main() {
       type: 'EXPENSE',
       date: new Date('2025-12-17'),
       amount: 750000,
-      categoryId: operationalCategory.id,
-      description: 'Pembelian ATK',
-      fromTo: 'Beli ATK',
+      categoryId: bebanCategory.id,
+      description: '5300 - Beban Perlengkapan (ATK)',
+      fromTo: 'Toko Sinar Jaya',
       paymentMethod: 'CASH',
       status: 'PAID',
       createdById: bendaharaUser.id,
@@ -198,9 +271,48 @@ async function main() {
       type: 'EXPENSE',
       date: new Date('2025-12-15'),
       amount: 2200000,
-      categoryId: facilityCategory.id,
-      description: 'Perbaikan AC Ruang Guru',
-      fromTo: 'Perbaikan AC',
+      categoryId: bebanCategory.id,
+      description: '5400 - Beban Pemeliharaan (Perbaikan AC)',
+      fromTo: 'CV Teknik AC',
+      paymentMethod: 'BANK_TRANSFER',
+      status: 'PAID',
+      createdById: adminUser.id,
+      schoolProfileId: schoolProfile.id,
+    },
+    {
+      receiptNumber: 'KW-202512-008',
+      type: 'EXPENSE',
+      date: new Date('2025-12-14'),
+      amount: 15000000,
+      categoryId: bebanCategory.id,
+      description: '5100 - Beban Gaji Guru',
+      fromTo: 'Transfer Gaji',
+      paymentMethod: 'BANK_TRANSFER',
+      status: 'PAID',
+      createdById: adminUser.id,
+      schoolProfileId: schoolProfile.id,
+    },
+    {
+      receiptNumber: 'KW-202512-009',
+      type: 'EXPENSE',
+      date: new Date('2025-12-13'),
+      amount: 3500000,
+      categoryId: bebanCategory.id,
+      description: '5200 - Beban Operasional (Listrik, Air)',
+      fromTo: 'PLN & PDAM',
+      paymentMethod: 'BANK_TRANSFER',
+      status: 'PAID',
+      createdById: bendaharaUser.id,
+      schoolProfileId: schoolProfile.id,
+    },
+    {
+      receiptNumber: 'KW-202512-010',
+      type: 'EXPENSE',
+      date: new Date('2025-12-12'),
+      amount: 1500000,
+      categoryId: kewajibanCategory.id,
+      description: '2110 - Utang Gaji Guru (Cicilan)',
+      fromTo: 'Pembayaran Utang',
       paymentMethod: 'BANK_TRANSFER',
       status: 'PAID',
       createdById: adminUser.id,

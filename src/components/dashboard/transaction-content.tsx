@@ -38,140 +38,78 @@ type TransactionType = "INCOME" | "EXPENSE";
 type PaymentMethod = "CASH" | "BANK_TRANSFER" | "E_WALLET";
 type PaymentStatus = "PAID" | "PENDING" | "VOID";
 
-// Kategori Pemasukan dengan Jenis terkait
+// Kategori Pemasukan dengan Jenis terkait (Chart of Accounts)
 const incomeCategories = [
   {
-    id: "spp",
-    name: "SPP / Iuran Bulanan",
+    id: "1100",
+    name: "1100 - Aktiva Lancar",
     types: [
-      { id: "spp-bulan-berjalan", name: "SPP Bulan Berjalan" },
-      { id: "tunggakan-spp", name: "Tunggakan SPP" },
-      { id: "denda-keterlambatan", name: "Denda Keterlambatan" },
-      { id: "spp-kegiatan-khusus", name: "SPP Kegiatan (khusus)" },
+      { id: "1110", name: "1110 - Kas di Bendahara" },
+      { id: "1120", name: "1120 - Bank (Bank Sekolah)" },
+      { id: "1130", name: "1130 - Piutang SPP Siswa" },
     ],
   },
   {
-    id: "iuran-kegiatan",
-    name: "Iuran Kegiatan / Event",
+    id: "1200",
+    name: "1200 - Aktiva Tetap",
     types: [
-      { id: "try-out", name: "Try Out" },
-      { id: "study-tour", name: "Study Tour" },
-      { id: "pramuka", name: "Pramuka" },
-      { id: "ekskul", name: "Ekstrakurikuler" },
-      { id: "lainnya", name: "Lainnya" },
+      { id: "1210", name: "1210 - Tanah" },
+      { id: "1220", name: "1220 - Bangunan" },
+      { id: "1230", name: "1230 - Peralatan dan Mesin" },
     ],
   },
   {
-    id: "uang-pangkal",
-    name: "Uang Pangkal / Pendaftaran",
+    id: "3100",
+    name: "3100 - Modal (Ekuitas)",
     types: [
-      { id: "pendaftaran-baru", name: "Pendaftaran Siswa Baru" },
-      { id: "daftar-ulang", name: "Daftar Ulang" },
-      { id: "uang-pangkal", name: "Uang Pangkal" },
+      { id: "3100", name: "3100 - Modal Awal Sekolah" },
+      { id: "3200", name: "3200 - Saldo Laba/Rugi" },
     ],
   },
   {
-    id: "donasi",
-    name: "Donasi / Sumbangan",
+    id: "4100",
+    name: "4100 - Pendapatan (Revenue)",
     types: [
-      { id: "donasi-alumni", name: "Donasi Alumni" },
-      { id: "donasi-wali", name: "Donasi Wali Murid" },
-      { id: "donasi-umum", name: "Donasi Umum" },
-      { id: "infaq", name: "Infaq / Sedekah" },
-    ],
-  },
-  {
-    id: "bantuan",
-    name: "Bantuan / Dana Pemerintah",
-    types: [
-      { id: "bos", name: "Dana BOS" },
-      { id: "bop", name: "Dana BOP" },
-      { id: "hibah", name: "Hibah Pemerintah" },
-      { id: "csr", name: "CSR Perusahaan" },
-    ],
-  },
-  {
-    id: "usaha-sekolah",
-    name: "Usaha Sekolah",
-    types: [
-      { id: "kantin", name: "Kantin" },
-      { id: "koperasi", name: "Koperasi" },
-      { id: "fotokopi", name: "Fotokopi" },
-      { id: "sewa-gedung", name: "Sewa Gedung" },
-    ],
-  },
-  {
-    id: "lain-lain",
-    name: "Lain-lain",
-    types: [
-      { id: "bunga-bank", name: "Bunga Bank" },
-      { id: "penjualan-aset", name: "Penjualan Aset" },
-      { id: "lainnya", name: "Lainnya" },
+      { id: "4100", name: "4100 - Pendapatan SPP Siswa" },
+      { id: "4200", name: "4200 - Dana Bantuan Operasional Sekolah (BOS)" },
+      { id: "4300", name: "4300 - Pendapatan Lain-lain (Donasi, Ekstrakurikuler)" },
     ],
   },
 ];
 
-// Kategori Pengeluaran dengan Jenis terkait
+// Kategori Pengeluaran dengan Jenis terkait (Chart of Accounts)
 const expenseCategories = [
   {
-    id: "operasional",
-    name: "Operasional Harian",
+    id: "2100",
+    name: "2100 - Kewajiban",
     types: [
-      { id: "listrik", name: "Listrik" },
-      { id: "air", name: "Air" },
-      { id: "internet", name: "Internet" },
-      { id: "atk", name: "ATK" },
-      { id: "kebersihan", name: "Kebersihan" },
+      { id: "2110", name: "2110 - Utang Gaji Guru" },
+      { id: "2120", name: "2120 - Utang Pemasok (ATK, dll.)" },
+      { id: "2210", name: "2210 - Utang Bank (Jika ada)" },
     ],
   },
   {
-    id: "gaji",
-    name: "Gaji Guru & Staf",
+    id: "5100",
+    name: "5100 - Beban",
     types: [
-      { id: "gaji-guru", name: "Gaji Guru" },
-      { id: "gaji-staf", name: "Gaji Staf" },
-      { id: "honor", name: "Honor" },
-      { id: "tunjangan", name: "Tunjangan" },
-    ],
-  },
-  {
-    id: "fasilitas",
-    name: "Fasilitas Sekolah",
-    types: [
-      { id: "perbaikan", name: "Perbaikan" },
-      { id: "pembelian-alat", name: "Pembelian Alat" },
-      { id: "renovasi", name: "Renovasi" },
-    ],
-  },
-  {
-    id: "kegiatan-siswa",
-    name: "Kegiatan Siswa",
-    types: [
-      { id: "lomba", name: "Lomba" },
-      { id: "study-tour-exp", name: "Study Tour" },
-      { id: "upacara", name: "Upacara" },
-    ],
-  },
-  {
-    id: "lain-lain-exp",
-    name: "Lain-lain",
-    types: [
-      { id: "pajak", name: "Pajak" },
-      { id: "asuransi", name: "Asuransi" },
-      { id: "lainnya-exp", name: "Lainnya" },
+      { id: "5100", name: "5100 - Beban Gaji dan Kesejahteraan Guru/Karyawan" },
+      { id: "5200", name: "5200 - Beban Operasional (Listrik, Air, Telepon)" },
+      { id: "5300", name: "5300 - Beban Perlengkapan (ATK, Kebersihan)" },
+      { id: "5400", name: "5400 - Beban Pemeliharaan (Gedung, Peralatan)" },
+      { id: "5500", name: "5500 - Beban Penyusutan Aktiva Tetap" },
     ],
   },
 ];
 
-// Sample data for the table
+// Sample data for the table - using COA codes
 const sampleIncomeData = [
   {
     id: "1",
     date: "2025-12-18",
-    categoryId: "spp",
-    categoryName: "SPP",
-    typeId: "spp-bulan-berjalan",
-    typeName: "SPP Bulan Berjalan",
+    categoryId: "4100",
+    categoryName: "4100 - Pendapatan",
+    typeId: "4100",
+    typeName: "4100 - Pendapatan SPP Siswa",
     name: "Budi Santoso",
     amount: 1500000,
     method: "CASH",
@@ -185,12 +123,12 @@ const sampleIncomeData = [
   {
     id: "2",
     date: "2025-12-17",
-    categoryId: "donasi",
-    categoryName: "Donasi",
-    typeId: "donasi-alumni",
-    typeName: "Donasi Alumni",
-    name: "Alumni 2010",
-    amount: 5000000,
+    categoryId: "3100",
+    categoryName: "3100 - Modal",
+    typeId: "3100",
+    typeName: "3100 - Modal Awal Sekolah",
+    name: "Yayasan Pendidikan",
+    amount: 10000000,
     method: "BANK_TRANSFER",
     status: "PAID",
     petugas: "Admin TU",
@@ -202,11 +140,11 @@ const sampleIncomeData = [
   {
     id: "3",
     date: "2025-12-16",
-    categoryId: "iuran-kegiatan",
-    categoryName: "Iuran Kegiatan",
-    typeId: "try-out",
-    typeName: "Try Out",
-    name: "Panitia Try Out",
+    categoryId: "1100",
+    categoryName: "1100 - Aktiva Lancar",
+    typeId: "1110",
+    typeName: "1110 - Kas di Bendahara",
+    name: "Dana Kas Awal Bulan",
     amount: 750000,
     method: "CASH",
     status: "PENDING",
@@ -219,10 +157,10 @@ const sampleIncomeData = [
   {
     id: "4",
     date: "2025-12-15",
-    categoryId: "usaha-sekolah",
-    categoryName: "Usaha Sekolah",
-    typeId: "kantin",
-    typeName: "Kantin",
+    categoryId: "4100",
+    categoryName: "4100 - Pendapatan",
+    typeId: "4300",
+    typeName: "4300 - Pendapatan Lain-lain",
     name: "Kantin Sekolah",
     amount: 300000,
     method: "CASH",
@@ -257,15 +195,16 @@ export function TransactionContent() {
   const [schools, setSchools] = useState<any[]>([]);
   const [selectedTransaction, setSelectedTransaction] = useState<any>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
+  const [mounted, setMounted] = useState(false);
   
-  // Form state
+  // Form state - initialize with empty values to prevent hydration mismatch
   const [formData, setFormData] = useState({
-    date: "2025-12-18",
-    amount: "1500000",
-    categoryId: "spp",
-    typeId: "spp-bulan-berjalan",
-    namaPembayar: "Budi Santoso",
-    periode: "2025-12",
+    date: "",
+    amount: "",
+    categoryId: "",
+    typeId: "",
+    namaPembayar: "",
+    periode: "",
     paymentMethod: "CASH" as PaymentMethod,
     status: "PAID" as PaymentStatus,
     proof: null as File | null,
@@ -278,11 +217,31 @@ export function TransactionContent() {
   const selectedCategory = currentCategories.find(cat => cat.id === formData.categoryId);
   const availableTypes = selectedCategory?.types || [];
 
+  // Set initial values on client-side only
   useEffect(() => {
-    fetchTransactions();
-    fetchCategories();
-    fetchSchools();
-  }, [activeTab]);
+    setMounted(true);
+    const today = new Date().toISOString().split("T")[0];
+    const currentMonth = new Date().toISOString().slice(0, 7);
+    setFormData(prev => ({
+      ...prev,
+      date: today,
+      periode: currentMonth,
+    }));
+  }, []);
+
+  useEffect(() => {
+    if (mounted) {
+      fetchTransactions();
+      fetchCategories();
+      fetchSchools();
+      // Reset category and type when tab changes
+      setFormData(prev => ({
+        ...prev,
+        categoryId: "",
+        typeId: ""
+      }));
+    }
+  }, [activeTab, mounted]);
 
   const fetchSchools = async () => {
     try {
@@ -386,19 +345,75 @@ export function TransactionContent() {
       const selectedCat = currentCategories.find(c => c.id === formData.categoryId);
       const selectedType = selectedCat?.types.find(t => t.id === formData.typeId);
       
+      // Map category ID to database name
+      const categoryMapping: Record<string, string> = {
+        '1100': 'Aktiva Lancar',
+        '1200': 'Aktiva Tetap',
+        '3100': 'Modal',
+        '4100': 'Pendapatan',
+        '2100': 'Kewajiban',
+        '5100': 'Beban'
+      };
+      
+      const categoryName = categoryMapping[formData.categoryId] || selectedCat?.name || 'Lainnya';
+      
+      // Find or create category in database
+      let categoryId = '';
+      
+      try {
+        const catResponse = await fetch("/api/categories");
+        if (catResponse.ok) {
+          const catData = await catResponse.json();
+          const existingCat = catData.categories?.find(
+            (c: any) => c.name === categoryName
+          );
+          if (existingCat) {
+            categoryId = existingCat.id;
+          } else {
+            // Create new category if not exists
+            const createCatResponse = await fetch("/api/categories", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                name: categoryName,
+                type: activeTab,
+                schoolId: formData.schoolId || undefined
+              })
+            });
+            if (createCatResponse.ok) {
+              const newCat = await createCatResponse.json();
+              categoryId = newCat.category?.id || newCat.id;
+            }
+          }
+        }
+      } catch (e) {
+        console.log("Category handling failed:", e);
+        toast.error("Gagal memproses kategori");
+        setLoading(false);
+        return;
+      }
+      
+      if (!categoryId) {
+        toast.error("Kategori tidak valid");
+        setLoading(false);
+        return;
+      }
+      
       const response = await fetch("/api/transactions", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          ...formData,
           type: activeTab,
+          date: formData.date,
           amount: parseFloat(formData.amount),
-          description: formData.namaPembayar,
+          categoryId: categoryId,
+          description: `${selectedCat?.name} - ${selectedType?.name || ''} - ${formData.namaPembayar}`,
           fromTo: formData.namaPembayar,
-          categoryName: selectedCat?.name,
-          typeName: selectedType?.name,
+          paymentMethod: formData.paymentMethod,
+          status: formData.status,
+          schoolId: formData.schoolId,
         }),
       });
 

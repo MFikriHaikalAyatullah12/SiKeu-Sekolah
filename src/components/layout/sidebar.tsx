@@ -15,21 +15,25 @@ import {
   Building2,
   Shield,
   Receipt,
+  BookOpen,
 } from 'lucide-react'
 
 import appLogoImage from '@/image/icon_tampilan-sekolah1.png'
 
 const navigation = [
-  { name: 'Dashboard', href: '/dashboard', icon: Home, roles: ['SUPER_ADMIN', 'ADMIN', 'TREASURER', 'USER'] },
-  { name: 'Transaksi', href: '/dashboard/transactions', icon: TrendingUp, roles: ['SUPER_ADMIN', 'ADMIN', 'TREASURER'] },
-  { name: 'Laporan', href: '/dashboard/reports', icon: FileText, roles: ['SUPER_ADMIN', 'ADMIN'] },
-  { name: 'Kwitansi', href: '/dashboard/receipts', icon: Receipt, roles: ['SUPER_ADMIN', 'ADMIN', 'TREASURER'] },
-  { name: 'Pengaturan', href: '/dashboard/settings', icon: Settings, roles: ['SUPER_ADMIN', 'ADMIN', 'TREASURER', 'USER'] },
+  { name: 'Dashboard', href: '/dashboard', icon: Home, roles: ['SUPER_ADMIN', 'BENDAHARA'] },
+  { name: 'Transaksi', href: '/dashboard/transactions', icon: TrendingUp, roles: ['SUPER_ADMIN', 'BENDAHARA'] },
+  { name: 'Laporan', href: '/dashboard/reports', icon: FileText, roles: ['SUPER_ADMIN', 'BENDAHARA'] },
+  { name: 'Kwitansi', href: '/dashboard/receipts', icon: Receipt, roles: ['SUPER_ADMIN', 'BENDAHARA'] },
+  { name: 'Chart of Accounts', href: '/dashboard/coa', icon: BookOpen, roles: ['SUPER_ADMIN'] },
+  { name: 'Manajemen User', href: '/dashboard/users', icon: Users, roles: ['SUPER_ADMIN'] },
+  { name: 'Pengaturan Sekolah', href: '/dashboard/school-settings', icon: Building2, roles: ['SUPER_ADMIN'] },
+  { name: 'Pengaturan', href: '/dashboard/settings', icon: Settings, roles: ['SUPER_ADMIN', 'BENDAHARA'] },
 ]
 
 export function Sidebar() {
   const pathname = usePathname()
-  const { data: session } = useSession()
+  const { data: session, status } = useSession()
 
   // Filter navigation berdasarkan role user
   const filteredNavigation = navigation.filter(item => {
@@ -37,8 +41,38 @@ export function Sidebar() {
     return item.roles.includes(session.user.role)
   })
 
+  // Always show sidebar structure even when loading
+  if (status === 'loading') {
+    return (
+      <div className="flex md:w-64 md:flex-col md:fixed md:inset-y-0 z-50">
+        <div className="flex flex-col flex-grow bg-gradient-to-b from-gray-900 to-gray-800 overflow-y-auto shadow-xl">
+          <div className="flex items-center h-16 flex-shrink-0 px-6 bg-gray-900 border-b border-gray-700">
+            <div className="flex items-center gap-2">
+              <div className="white flex items-center justify-center rounded-full bg-white/100 size-8">
+                <Image
+                  src={appLogoImage}
+                  alt="Logo SiKeu Sekolah"
+                  width={24}
+                  height={24}
+                  className="h-6 w-6 object-contain"
+                  priority
+                />
+              </div>
+              <h1 className="text-white text-lg font-bold">
+                SiKeu Sekolah
+              </h1>
+            </div>
+          </div>
+          <div className="flex-1 flex items-center justify-center">
+            <div className="text-gray-400 text-sm">Loading...</div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <div className="hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0 z-50">
+    <div className="flex md:w-64 md:flex-col md:fixed md:inset-y-0 z-50">
       <div className="flex flex-col flex-grow bg-gradient-to-b from-gray-900 to-gray-800 overflow-y-auto shadow-xl">
         <div className="flex items-center h-16 flex-shrink-0 px-6 bg-gray-900 border-b border-gray-700">
           <div className="flex items-center gap-2">
@@ -93,9 +127,8 @@ export function Sidebar() {
               </p>
               <p className="text-xs text-gray-400 truncate">
                 {session?.user?.role === 'SUPER_ADMIN' && '👑 Super Admin'}
-                {session?.user?.role === 'ADMIN' && '🔑 Admin'}
-                {session?.user?.role === 'TREASURER' && '💰 Bendahara'}
-                {session?.user?.role === 'USER' && '👤 User'}
+                {session?.user?.role === 'BENDAHARA' && '💰 Bendahara'}
+                {!['SUPER_ADMIN', 'BENDAHARA'].includes(session?.user?.role || '') && '👤 User'}
               </p>
             </div>
           </div>

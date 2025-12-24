@@ -12,18 +12,14 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    // Check permission
-    if (session.user.role !== "SUPER_ADMIN" && session.user.role !== "ADMIN") {
+    // Check permission - Only Super Admin can view all users
+    if (session.user.role !== "SUPER_ADMIN") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
     const where: any = {}
     
-    // Super admin can see all users, Admin only their school
-    if (session.user.role === "ADMIN") {
-      where.schoolProfileId = session.user.schoolId
-    }
-
+    // Super admin can see all users
     const users = await prisma.user.findMany({
       where,
       select: {
@@ -61,8 +57,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    // Check permission
-    if (session.user.role !== "SUPER_ADMIN" && session.user.role !== "ADMIN") {
+    // Check permission - Only Super Admin can create users
+    if (session.user.role !== "SUPER_ADMIN") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
@@ -73,6 +69,15 @@ export async function POST(request: Request) {
     if (!name || !email || !password || !role) {
       return NextResponse.json(
         { error: "Missing required fields" },
+        { status: 400 }
+      )
+    }
+
+    // Validate role
+    const validRoles = ["SUPER_ADMIN", "BENDAHARA"]
+    if (!validRoles.includes(role)) {
+      return NextResponse.json(
+        { error: "Invalid role. Valid roles: SUPER_ADMIN, BENDAHARA" },
         { status: 400 }
       )
     }
@@ -91,10 +96,7 @@ export async function POST(request: Request) {
 
     // Determine schoolId
     let finalSchoolId = schoolId
-    if (session.user.role === "ADMIN") {
-      // Admin can only create users for their school
-      finalSchoolId = session.user.schoolId
-    } else if (role !== "SUPER_ADMIN" && !schoolId) {
+    if (role !== "SUPER_ADMIN" && !schoolId) {
       return NextResponse.json(
         { error: "School ID is required for non-super admin users" },
         { status: 400 }

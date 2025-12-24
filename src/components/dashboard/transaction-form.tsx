@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
@@ -28,6 +28,7 @@ const transactionSchema = z.object({
   date: z.string().min(1, "Tanggal harus diisi"),
   amount: z.number().min(1, "Nominal harus lebih dari 0"),
   category: z.string().min(1, "Kategori harus dipilih"),
+  coaAccountId: z.string().optional(),
   fromTo: z.string().min(1, "Nama siswa/penerima harus diisi"),
   paymentMethod: z.enum(["CASH", "BANK_TRANSFER", "QRIS"]),
   status: z.enum(["PAID", "PENDING", "VOID"]),
@@ -91,6 +92,7 @@ export function TransactionForm({ transaction, type, onSubmit, onCancel }: Trans
       date: transaction.date.split('T')[0],
       amount: transaction.amount,
       category: transaction.category,
+      coaAccountId: (transaction as any).coaAccountId || "",
       fromTo: transaction.fromTo,
       paymentMethod: transaction.paymentMethod,
       status: transaction.status,
@@ -99,6 +101,7 @@ export function TransactionForm({ transaction, type, onSubmit, onCancel }: Trans
       date: new Date().toISOString().split('T')[0],
       amount: 0,
       category: "",
+      coaAccountId: "",
       fromTo: "",
       paymentMethod: "CASH",
       status: "PAID",
@@ -207,11 +210,11 @@ export function TransactionForm({ transaction, type, onSubmit, onCancel }: Trans
 
             <div className="space-y-2">
               <Label htmlFor="fromTo">
-                {type === "INCOME" ? "Dari/Penerima" : "Dari/Penerima"}
+                {type === "INCOME" ? "Dari/Penerima" : "Kepada"}
               </Label>
               <Input
                 id="fromTo"
-                placeholder={type === "INCOME" ? "Nama Siswa atau Donatur" : "Nama Siswa atau Donatur"}
+                placeholder={type === "INCOME" ? "Nama Siswa atau Donatur" : "Nama Vendor atau Penerima"}
                 {...register("fromTo")}
               />
               {errors.fromTo && (

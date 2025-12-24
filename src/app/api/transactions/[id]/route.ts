@@ -24,6 +24,18 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
       },
       include: {
+        category: {
+          select: {
+            name: true,
+            type: true
+          }
+        },
+        coaAccount: {
+          select: {
+            code: true,
+            name: true
+          }
+        },
         createdBy: {
           select: { name: true, email: true }
         }
@@ -71,6 +83,20 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       )
     }
 
+    // If coaAccountId is being updated, verify it
+    if (body.coaAccountId) {
+      const coaAccount = await prisma.coaAccount.findUnique({
+        where: { id: body.coaAccountId }
+      })
+
+      if (!coaAccount || !coaAccount.isActive) {
+        return NextResponse.json(
+          { error: 'Invalid or inactive COA Account' },
+          { status: 400 }
+        )
+      }
+    }
+
     const updatedTransaction = await prisma.transaction.update({
       where: { id: id },
       data: {
@@ -78,6 +104,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         updatedAt: new Date(),
       },
       include: {
+        category: true,
+        coaAccount: true,
         createdBy: {
           select: { name: true, email: true }
         }

@@ -42,3 +42,52 @@ export async function GET(request: Request) {
     )
   }
 }
+export async function POST(request: Request) {
+  try {
+    const session = await getServerSession(authOptions)
+    
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    const body = await request.json()
+    const { name, type, schoolId } = body
+
+    const targetSchoolId = schoolId || session.user.schoolId
+
+    if (!targetSchoolId) {
+      return NextResponse.json({ 
+        error: "School ID required" 
+      }, { status: 400 })
+    }
+
+    // Check if category already exists
+    const existing = await prisma.category.findFirst({
+      where: {
+        name,
+        schoolProfileId: targetSchoolId,
+      }
+    })
+
+    if (existing) {
+      return NextResponse.json({ category: existing })
+    }
+
+    // Create new category
+    const category = await prisma.category.create({
+      data: {
+        name,
+        type: type || "INCOME",
+        schoolProfileId: targetSchoolId,
+      }
+    })
+
+    return NextResponse.json({ category })
+  } catch (error) {
+    console.error("Create category error:", error)
+    return NextResponse.json(
+      { error: "Failed to create category" },
+      { status: 500 }
+    )
+  }
+}

@@ -15,8 +15,8 @@ export async function PUT(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    // Check permission
-    if (session.user.role !== "SUPER_ADMIN" && session.user.role !== "ADMIN") {
+    // Check permission - Only Super Admin can edit users
+    if (session.user.role !== "SUPER_ADMIN") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
@@ -32,9 +32,13 @@ export async function PUT(
       return NextResponse.json({ error: "User not found" }, { status: 404 })
     }
 
-    // Admin can only edit users from their school
-    if (session.user.role === "ADMIN" && existingUser.schoolProfileId !== session.user.schoolId) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    // Validate role
+    const validRoles = ["SUPER_ADMIN", "BENDAHARA"]
+    if (role && !validRoles.includes(role)) {
+      return NextResponse.json(
+        { error: "Invalid role. Valid roles: SUPER_ADMIN, BENDAHARA" },
+        { status: 400 }
+      )
     }
 
     // Check if email is being changed and already exists
@@ -63,8 +67,8 @@ export async function PUT(
       updateData.password = await bcrypt.hash(password, 10)
     }
 
-    // Update schoolId only if super admin
-    if (session.user.role === "SUPER_ADMIN" && schoolId !== undefined) {
+    // Update schoolId if provided
+    if (schoolId !== undefined) {
       updateData.schoolProfileId = schoolId
     }
 
@@ -107,8 +111,8 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    // Check permission
-    if (session.user.role !== "SUPER_ADMIN" && session.user.role !== "ADMIN") {
+    // Check permission - Only Super Admin can delete users
+    if (session.user.role !== "SUPER_ADMIN") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
@@ -127,11 +131,6 @@ export async function DELETE(
 
     if (!existingUser) {
       return NextResponse.json({ error: "User not found" }, { status: 404 })
-    }
-
-    // Admin can only delete users from their school
-    if (session.user.role === "ADMIN" && existingUser.schoolProfileId !== session.user.schoolId) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
     // Delete user

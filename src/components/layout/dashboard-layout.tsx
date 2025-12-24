@@ -10,9 +10,9 @@ interface DashboardLayoutProps {
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50" suppressHydrationWarning>
       <Sidebar />
-      <div className="md:pl-64">
+      <div className="md:pl-64" suppressHydrationWarning>
         <Header />
         <main className="p-4 sm:p-6 lg:p-8">
           <div className="max-w-7xl mx-auto">

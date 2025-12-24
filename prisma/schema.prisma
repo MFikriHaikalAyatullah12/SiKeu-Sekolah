@@ -113,6 +113,78 @@ model Category {
   @@map("categories")
 }
 
+// Model untuk Chart of Accounts (COA)
+model CoaCategory {
+  id          String       @id @default(cuid())
+  code        String       // 1xxx, 2xxx, 3xxx, 4xxx, 5xxx
+  name        String       // Aktiva, Kewajiban, Modal, Pendapatan, Beban
+  description String?
+  type        CoaType      // ASSET, LIABILITY, EQUITY, REVENUE, EXPENSE
+  isActive    Boolean      @default(true)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  // Relations
+  subCategories CoaSubCategory[]
+  
+  @@unique([code])
+  @@map("coa_categories")
+}
+
+model CoaSubCategory {
+  id            String       @id @default(cuid())
+  categoryId    String
+  code          String       // 11xx, 12xx, dll
+  name          String       // Aktiva Lancar, Aktiva Tetap
+  description   String?
+  isActive      Boolean      @default(true)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  // Relations
+  category    CoaCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  accounts    CoaAccount[]
+  
+  @@unique([code])
+  @@map("coa_sub_categories")
+}
+
+model CoaAccount {
+  id              String          @id @default(cuid())
+  subCategoryId   String
+  code            String          // 1110, 1120, dll
+  name            String          // Kas di Bendahara, Rekening Bank Sekolah
+  description     String?
+  isActive        Boolean         @default(true)
+  // Visibility control untuk Bendahara
+  visibleToTreasurer Boolean      @default(true)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  // Relations
+  subCategory     CoaSubCategory  @relation(fields: [subCategoryId], references: [id], onDelete: Cascade)
+  transactions    Transaction[]
+  
+  @@unique([code])
+  @@map("coa_accounts")
+}
+
+// Model untuk konfigurasi form yang bisa diatur Super Admin
+model FormConfiguration {
+  id                    String   @id @default(cuid())
+  formType              String   // "INCOME" atau "EXPENSE"
+  allowedCoaCategories  String[] // Array of COA category IDs
+  allowedCoaAccounts    String[] // Array of COA account IDs
+  requiredFields        String[] // Field yang wajib diisi
+  visibleFields         String[] // Field yang ditampilkan
+  treasurerCanEdit      Boolean  @default(true)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@unique([formType])
+  @@map("form_configurations")
+}
+
 model Transaction {
   id              String            @id @default(cuid())
   receiptNumber   String            @unique
@@ -122,6 +194,8 @@ model Transaction {
   updatedAt       DateTime          @updatedAt
   amount          Decimal           @db.Decimal(15, 2)
   categoryId      String
+  // Tambahan untuk COA
+  coaAccountId    String?
   description     String
   fromTo          String
   paymentMethod   PaymentMethod
@@ -135,6 +209,7 @@ model Transaction {
   createdBy     User          @relation("UserTransactions", fields: [createdById], references: [id])
   schoolProfile SchoolProfile @relation(fields: [schoolProfileId], references: [id])
   category      Category      @relation(fields: [categoryId], references: [id])
+  coaAccount    CoaAccount?   @relation(fields: [coaAccountId], references: [id])
 
   @@map("transactions")
 }
@@ -200,4 +275,12 @@ enum AuditAction {
   CREATE_TRANSACTION
   UPDATE_TRANSACTION
   DELETE_TRANSACTION
+}
+
+enum CoaType {
+  ASSET         // Aktiva
+  LIABILITY     // Kewajiban
+  EQUITY        // Modal/Ekuitas
+  REVENUE       // Pendapatan
+  EXPENSE       // Beban
 }

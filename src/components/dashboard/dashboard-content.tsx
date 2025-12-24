@@ -39,6 +39,69 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 
+// Chart of Accounts - Kategori Pemasukan
+const incomeCategories = [
+  {
+    id: "1100",
+    name: "1100 - Aktiva Lancar",
+    types: [
+      { id: "1110", name: "1110 - Kas di Bendahara" },
+      { id: "1120", name: "1120 - Bank (Rekening Sekolah)" },
+      { id: "1130", name: "1130 - Piutang SPP" },
+    ],
+  },
+  {
+    id: "1200",
+    name: "1200 - Aktiva Tetap",
+    types: [
+      { id: "1210", name: "1210 - Tanah" },
+      { id: "1220", name: "1220 - Bangunan Gedung Sekolah" },
+      { id: "1230", name: "1230 - Peralatan Sekolah" },
+    ],
+  },
+  {
+    id: "3100",
+    name: "3100 - Modal",
+    types: [
+      { id: "3100", name: "3100 - Modal Awal" },
+      { id: "3200", name: "3200 - Laba Ditahan" },
+    ],
+  },
+  {
+    id: "4100",
+    name: "4100 - Pendapatan",
+    types: [
+      { id: "4100", name: "4100 - Pendapatan SPP Siswa" },
+      { id: "4200", name: "4200 - Dana BOS" },
+      { id: "4300", name: "4300 - Pendapatan Lain-lain" },
+    ],
+  },
+];
+
+// Chart of Accounts - Kategori Pengeluaran
+const expenseCategories = [
+  {
+    id: "2100",
+    name: "2100 - Kewajiban",
+    types: [
+      { id: "2110", name: "2110 - Utang Gaji Guru" },
+      { id: "2120", name: "2120 - Utang Pemasok" },
+      { id: "2210", name: "2210 - Utang Bank" },
+    ],
+  },
+  {
+    id: "5100",
+    name: "5100 - Beban",
+    types: [
+      { id: "5100", name: "5100 - Beban Gaji Guru" },
+      { id: "5200", name: "5200 - Beban Operasional" },
+      { id: "5300", name: "5300 - Beban Perlengkapan" },
+      { id: "5400", name: "5400 - Beban Pemeliharaan" },
+      { id: "5500", name: "5500 - Beban Penyusutan" },
+    ],
+  },
+];
+
 export function DashboardContent() {
   const router = useRouter();
   const [selectedMonth, setSelectedMonth] = useState("Bulan Ini");
@@ -57,12 +120,18 @@ export function DashboardContent() {
   
   const [formData, setFormData] = useState({
     categoryId: "",
+    typeId: "",
     amount: "",
     description: "",
     date: new Date().toISOString().split("T")[0],
     status: "PAID",
     schoolId: ""
   });
+
+  // Get current COA categories based on transaction type
+  const coaCategories = transactionType === "INCOME" ? incomeCategories : expenseCategories;
+  const selectedCategory = coaCategories.find(cat => cat.id === formData.categoryId);
+  const availableTypes = selectedCategory?.types || [];
 
   useEffect(() => {
     fetchDashboardData(true);
@@ -136,6 +205,7 @@ export function DashboardContent() {
     setTransactionType(type);
     setFormData({
       categoryId: "",
+      typeId: "",
       amount: "",
       description: "",
       date: new Date().toISOString().split("T")[0],
@@ -149,6 +219,7 @@ export function DashboardContent() {
     setIsDialogOpen(false);
     setFormData({
       categoryId: "",
+      typeId: "",
       amount: "",
       description: "",
       date: new Date().toISOString().split("T")[0],
@@ -163,29 +234,33 @@ export function DashboardContent() {
       return;
     }
 
-    if (schools.length === 0 || formData.schoolId) {
-      if (filteredCategories.length === 0) {
-        toast.error("Tidak ada kategori tersedia untuk sekolah ini. Hubungi administrator untuk menambahkan kategori.");
-        return;
-      }
-    }
-
-    if (!formData.categoryId || !formData.amount || !formData.description) {
+    if (!formData.categoryId || !formData.typeId || !formData.amount || !formData.description) {
       toast.error("Mohon lengkapi semua field");
       return;
     }
 
     setLoading(true);
     try {
+      // Get category and type names for database
+      const selectedCat = coaCategories.find(c => c.id === formData.categoryId);
+      const selectedType = selectedCat?.types.find(t => t.id === formData.typeId);
+      
       const response = await fetch("/api/transactions", {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          ...formData,
           type: transactionType,
-          amount: parseFloat(formData.amount)
+          amount: parseFloat(formData.amount),
+          description: `${selectedType?.name || formData.categoryId} - ${formData.description}`,
+          date: formData.date,
+          status: formData.status,
+          schoolId: formData.schoolId || undefined,
+          categoryId: formData.categoryId,
+          categoryName: selectedCat?.name,
+          typeId: formData.typeId,
+          typeName: selectedType?.name
         })
       });
 
@@ -235,8 +310,6 @@ export function DashboardContent() {
       toast.error("Gagal menghapus transaksi");
     }
   };
-
-  const filteredCategories = categories.filter(cat => cat.type === transactionType);
 
   const formatCurrency = (amount: number) => {
     if (!amount || isNaN(amount)) return "Rp 0";
@@ -673,24 +746,36 @@ export function DashboardContent() {
               <Label htmlFor="category">Kategori</Label>
               <Select
                 value={formData.categoryId}
-                onValueChange={(value) => setFormData({ ...formData, categoryId: value })}
-                disabled={filteredCategories.length === 0}
+                onValueChange={(value) => setFormData({ ...formData, categoryId: value, typeId: "" })}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder={filteredCategories.length === 0 ? "Tidak ada kategori tersedia" : "Pilih kategori"} />
+                  <SelectValue placeholder="Pilih kategori" />
                 </SelectTrigger>
                 <SelectContent>
-                  {filteredCategories.length === 0 ? (
-                    <div className="p-2 text-sm text-gray-500 text-center">
-                      Tidak ada kategori tersedia
-                    </div>
-                  ) : (
-                    filteredCategories.map((category) => (
-                      <SelectItem key={category.id} value={category.id}>
-                        {category.name}
-                      </SelectItem>
-                    ))
-                  )}
+                  {coaCategories.map((category) => (
+                    <SelectItem key={category.id} value={category.id}>
+                      {category.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="type">Sub Kategori (Jenis)</Label>
+              <Select
+                value={formData.typeId}
+                onValueChange={(value) => setFormData({ ...formData, typeId: value })}
+                disabled={!formData.categoryId}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={formData.categoryId ? "Pilih sub kategori" : "Pilih kategori dulu"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableTypes.map((type) => (
+                    <SelectItem key={type.id} value={type.id}>
+                      {type.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
