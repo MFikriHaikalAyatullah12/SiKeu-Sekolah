@@ -24,6 +24,7 @@ import {
   User,
   Clock,
   Edit3,
+  Plus,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
@@ -32,6 +33,8 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
+  DialogFooter,
 } from "@/components/ui/dialog";
 
 type TransactionType = "INCOME" | "EXPENSE";
@@ -197,6 +200,19 @@ export function TransactionContent() {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [mounted, setMounted] = useState(false);
   
+  // State untuk dialog form transaksi seperti di dashboard
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [transactionType, setTransactionType] = useState<TransactionType>("INCOME");
+  const [dialogFormData, setDialogFormData] = useState({
+    categoryId: "",
+    typeId: "",
+    amount: "",
+    description: "",
+    date: "",
+    status: "PAID" as PaymentStatus,
+    schoolId: ""
+  });
+  
   // Form state - initialize with empty values to prevent hydration mismatch
   const [formData, setFormData] = useState({
     date: "",
@@ -216,6 +232,14 @@ export function TransactionContent() {
   const currentCategories = activeTab === "INCOME" ? incomeCategories : expenseCategories;
   const selectedCategory = currentCategories.find(cat => cat.id === formData.categoryId);
   const availableTypes = selectedCategory?.types || [];
+  
+  // Categories for dialog form
+  const dialogCategories = transactionType === "INCOME" ? incomeCategories : expenseCategories;
+
+  // Debug info
+  console.log("Categories from DB:", categories.length);
+  console.log("Dialog categories:", dialogCategories.length);
+  console.log("Transaction type:", transactionType);
 
   // Set initial values on client-side only
   useEffect(() => {
@@ -255,9 +279,10 @@ export function TransactionContent() {
     }
   };
 
-  const fetchTransactions = async () => {
+  const fetchTransactions = async (type?: string) => {
     try {
-      const response = await fetch(`/api/transactions?type=${activeTab}`);
+      const targetType = type || activeTab;
+      const response = await fetch(`/api/transactions?type=${targetType}`);
       if (response.ok) {
         const data = await response.json();
         setTransactions(data.transactions || []);
@@ -446,8 +471,17 @@ export function TransactionContent() {
           }
         }
 
+        // Langsung tambahkan transaksi ke state local tanpa menunggu fetch
+        const newTransaction = data.transaction;
+        if (newTransaction) {
+          setTransactions(prev => [newTransaction, ...prev]);
+        }
+        
         resetForm();
-        fetchTransactions();
+        // Force refresh data dengan delay singkat
+        setTimeout(() => {
+          fetchTransactions();
+        }, 100);
       } else {
         toast.error(data.error || "Gagal menambahkan transaksi");
       }
@@ -518,8 +552,10 @@ export function TransactionContent() {
     }
   };
 
-  // Combine API data with sample data for display
-  const displayTransactions = transactions.length > 0 ? transactions : sampleIncomeData;
+  // Filter transactions berdasarkan activeTab dan gunakan transactions state langsung
+  const displayTransactions = transactions.filter(transaction => 
+    transaction.type === activeTab
+  );
 
   const filteredTransactions = displayTransactions.filter((transaction) => {
     const searchLower = searchQuery.toLowerCase();
@@ -539,6 +575,189 @@ export function TransactionContent() {
   const handleViewTransaction = (transaction: any) => {
     setSelectedTransaction(transaction);
     setShowDetailModal(true);
+  };
+
+  // Fungsi untuk membuka dialog form transaksi seperti di dashboard
+  const handleOpenDialog = (type: TransactionType) => {
+    setTransactionType(type);
+    setDialogFormData({
+      categoryId: "",
+      typeId: "",
+      amount: "",
+      description: "",
+      date: new Date().toISOString().split("T")[0],
+      status: "PAID",
+      schoolId: schools.length > 0 ? schools[0].id : ""
+    });
+    setIsDialogOpen(true);
+  };
+
+  const handleCloseDialog = () => {
+    setIsDialogOpen(false);
+    // Reset form data
+    setDialogFormData({
+      categoryId: "",
+      typeId: "",
+      amount: "",
+      description: "",
+      date: new Date().toISOString().split("T")[0],
+      status: "PAID",
+      schoolId: ""
+    });
+  };
+
+  // Fungsi helper untuk mendapatkan atau membuat category di database
+  const getOrCreateCategoryId = async (hardCodedCategoryId: string, categoryType: string, schoolId?: string) => {
+    try {
+      // Map dari hard-coded ID ke nama category
+      const categoryMapping: Record<string, string> = {
+        '1100': 'Aktiva Lancar',
+        '1200': 'Aktiva Tetap', 
+        '3100': 'Modal',
+        '4100': 'Pendapatan',
+        '2100': 'Kewajiban',
+        '5100': 'Beban'
+      };
+
+      const categoryName = categoryMapping[hardCodedCategoryId];
+      if (!categoryName) {
+        console.error("Unknown category ID:", hardCodedCategoryId);
+        return null;
+      }
+
+      // Tentukan schoolId yang akan digunakan
+      const targetSchoolId = schoolId || (schools.length > 0 ? schools[0].id : '');
+      
+      if (!targetSchoolId) {
+        console.error("No school ID available");
+        return null;
+      }
+
+      console.log("Getting category:", categoryName, "type:", categoryType, "school:", targetSchoolId);
+
+      // Cari category di database berdasarkan nama dan type
+      const catResponse = await fetch(`/api/categories?schoolId=${targetSchoolId}`);
+      if (!catResponse.ok) {
+        console.error("Failed to fetch categories");
+        return null;
+      }
+
+      const catData = await catResponse.json();
+      let existingCat = catData.categories?.find(
+        (c: any) => c.name === categoryName && c.type === categoryType
+      );
+
+      if (existingCat) {
+        console.log("Found existing category:", existingCat.id);
+        return existingCat.id;
+      }
+
+      // Jika tidak ada, buat category baru
+      console.log("Creating new category:", categoryName);
+      const createCatResponse = await fetch("/api/categories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: categoryName,
+          type: categoryType,
+          schoolId: targetSchoolId
+        })
+      });
+
+      if (createCatResponse.ok) {
+        const newCatData = await createCatResponse.json();
+        console.log("Created new category:", newCatData.category.id);
+        return newCatData.category.id;
+      } else {
+        const errorData = await createCatResponse.json();
+        console.error("Failed to create category:", errorData);
+        return null;
+      }
+
+      return null;
+    } catch (error) {
+      console.error("Error in getOrCreateCategoryId:", error);
+      return null;
+    }
+  };
+
+  const handleSubmitDialog = async () => {
+    if (!dialogFormData.categoryId || !dialogFormData.amount) {
+      toast.error("Mohon lengkapi semua field yang diperlukan");
+      return;
+    }
+
+    // Validasi deskripsi - jika kosong, gunakan nama kategori sebagai default
+    const finalDescription = dialogFormData.description || "Transaksi";
+
+    setLoading(true);
+    try {
+      const selectedCat = dialogCategories.find(c => c.id === dialogFormData.categoryId);
+      const selectedType = selectedCat?.types.find(t => t.id === dialogFormData.typeId);
+
+      console.log("Form data:", dialogFormData);
+      console.log("Selected category:", selectedCat);
+      console.log("Transaction type:", transactionType);
+
+      // Dapatkan categoryId yang valid dari database
+      const validCategoryId = await getOrCreateCategoryId(dialogFormData.categoryId, transactionType, dialogFormData.schoolId);
+      
+      if (!validCategoryId) {
+        toast.error("Gagal menentukan kategori untuk database");
+        setLoading(false);
+        return;
+      }
+
+      console.log("Valid categoryId from database:", validCategoryId);
+
+      // Gunakan format yang sama persis seperti dashboard yang berhasil
+      const requestBody = {
+        type: transactionType,
+        amount: parseFloat(dialogFormData.amount),
+        description: `${selectedType?.name || selectedCat?.name} - ${finalDescription}`,
+        date: dialogFormData.date,
+        status: dialogFormData.status,
+        schoolId: dialogFormData.schoolId || undefined,
+        categoryId: validCategoryId, // Gunakan categoryId yang valid dari database
+        categoryName: selectedCat?.name,
+        typeId: dialogFormData.typeId,
+        typeName: selectedType?.name
+      };
+
+      console.log("Request body:", requestBody);
+
+      const response = await fetch("/api/transactions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(requestBody)
+      });
+
+      const data = await response.json();
+      console.log("API Response:", response.status, data);
+
+      if (response.ok) {
+        toast.success(`${transactionType === "INCOME" ? "Pemasukan" : "Pengeluaran"} berhasil ditambahkan`);
+        
+        // Langsung tambahkan transaksi ke state local tanpa menunggu fetch
+        const newTransaction = data.transaction;
+        if (newTransaction) {
+          setTransactions(prev => [newTransaction, ...prev]);
+        }
+        
+        handleCloseDialog();
+        setActiveTab(transactionType);
+      } else {
+        console.error("API Error:", data);
+        toast.error(data.error || data.message || "Gagal menambahkan transaksi");
+      }
+    } catch (error) {
+      console.error("Error adding transaction:", error);
+      toast.error("Terjadi kesalahan saat menambahkan transaksi");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const formatDateTime = (dateString: string) => {
@@ -565,6 +784,126 @@ export function TransactionContent() {
 
   return (
     <div className="p-6 space-y-6 bg-gray-50/80 min-h-screen">
+      {/* Recent Transactions */}
+      <Card className="border-0 shadow-sm">
+        <CardHeader className="flex flex-row items-center justify-between pb-4">
+          <div>
+            <CardTitle className="text-base font-semibold">Transaksi Terbaru</CardTitle>
+            <p className="text-xs text-gray-500 mt-1">
+              Menampilkan 1-5 dari {transactions.length} transaksi
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <Button 
+              size="sm"
+              className="bg-green-600 hover:bg-green-700 h-9"
+              onClick={() => handleOpenDialog("INCOME")}
+            >
+              <Plus className="h-4 w-4 mr-1" />
+              Tambah Pemasukan
+            </Button>
+            <Button 
+              size="sm"
+              variant="destructive"
+              className="h-9"
+              onClick={() => handleOpenDialog("EXPENSE")}
+            >
+              <Plus className="h-4 w-4 mr-1" />
+              Tambah Pengeluaran
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="px-0">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-gray-50 hover:bg-gray-50">
+                  <TableHead className="font-semibold text-gray-700">Tanggal</TableHead>
+                  <TableHead className="font-semibold text-gray-700">Tipe</TableHead>
+                  <TableHead className="font-semibold text-gray-700">Kategori</TableHead>
+                  <TableHead className="font-semibold text-gray-700">Nama</TableHead>
+                  <TableHead className="font-semibold text-gray-700">Nominal</TableHead>
+                  <TableHead className="font-semibold text-gray-700">Status</TableHead>
+                  <TableHead className="text-right font-semibold text-gray-700">Aksi</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredTransactions.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center py-12 text-gray-500">
+                      <div className="flex flex-col items-center gap-2">
+                        <FileText className="h-12 w-12 text-gray-300" />
+                        <p className="font-medium">Belum ada transaksi</p>
+                        <p className="text-sm">Klik tombol di atas untuk menambahkan transaksi</p>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredTransactions.slice(0, 5).map((transaction) => {
+                    const formattedDate = transaction.date 
+                      ? new Date(transaction.date).toLocaleDateString("id-ID", {
+                          day: "numeric",
+                          month: "short",
+                          year: "numeric"
+                        })
+                      : "Tidak ada tanggal";
+                    
+                    return (
+                      <TableRow key={transaction.id} className="hover:bg-gray-50">
+                        <TableCell className="font-medium text-sm">
+                          {formattedDate}
+                        </TableCell>
+                        <TableCell>
+                          <Badge 
+                            variant="outline"
+                            className={
+                              transaction.type === "INCOME"
+                                ? "bg-green-50 text-green-700 border-green-200 text-xs" 
+                                : "bg-red-50 text-red-700 border-red-200 text-xs"
+                            }
+                          >
+                            {transaction.type === "INCOME" ? "Pemasukan" : "Pengeluaran"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-sm">{transaction.categoryName || "Tidak ada kategori"}</TableCell>
+                        <TableCell className="text-sm text-gray-600">{transaction.name || "Tidak ada deskripsi"}</TableCell>
+                        <TableCell className="font-semibold text-sm">
+                          {formatCurrency(Number(transaction.amount))}
+                        </TableCell>
+                        <TableCell>
+                          <Badge 
+                            variant="outline"
+                            className={
+                              transaction.status === "PAID"
+                                ? "bg-blue-50 text-blue-700 border-blue-200 text-xs" 
+                                : "bg-yellow-50 text-yellow-700 border-yellow-200 text-xs"
+                            }
+                          >
+                            {transaction.status === "PAID" ? "Lunas" : "Tertunda"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-1">
+                            <Button 
+                              variant="ghost" 
+                              size="icon"
+                              className="h-8 w-8 hover:bg-blue-50"
+                              onClick={() => handleViewTransaction(transaction)}
+                            >
+                              <Eye className="h-4 w-4 text-blue-600" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Header */}
       <div>
         <h1 className="text-3xl font-bold text-gray-900">Transaksi</h1>
@@ -1164,6 +1503,145 @@ export function TransactionContent() {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog Form Transaksi */}
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              Tambah {transactionType === "INCOME" ? "Pemasukan" : "Pengeluaran"}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-3 py-4">
+            {schools.length > 0 && (
+              <div className="grid gap-2">
+                <Label htmlFor="school" className="text-sm font-medium">Sekolah</Label>
+                <Select
+                  value={dialogFormData.schoolId}
+                  onValueChange={(value) => setDialogFormData({ ...dialogFormData, schoolId: value })}
+                >
+                  <SelectTrigger className="h-9">
+                    <SelectValue placeholder="Pilih sekolah" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {schools.map((school: any) => (
+                      <SelectItem key={school.id} value={school.id}>
+                        {school.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            
+            {/* Row 1: Kategori dan Sub Kategori */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="grid gap-2">
+                <Label htmlFor="category" className="text-sm font-medium">Kategori</Label>
+                <Select
+                  value={dialogFormData.categoryId}
+                  onValueChange={(value) => setDialogFormData({ ...dialogFormData, categoryId: value, typeId: "" })}
+                >
+                  <SelectTrigger className="h-9">
+                    <SelectValue placeholder="Pilih kategori" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {dialogCategories.map((category) => (
+                      <SelectItem key={category.id} value={category.id}>
+                        {category.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="type" className="text-sm font-medium">Sub Kategori (Jenis)</Label>
+                <Select
+                  value={dialogFormData.typeId}
+                  onValueChange={(value) => setDialogFormData({ ...dialogFormData, typeId: value })}
+                  disabled={!dialogFormData.categoryId}
+                >
+                  <SelectTrigger className="h-9">
+                    <SelectValue placeholder={dialogFormData.categoryId ? "Pilih sub kategori" : "Pilih kategori dulu"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {dialogCategories
+                      .find(c => c.id === dialogFormData.categoryId)
+                      ?.types.map((type) => (
+                        <SelectItem key={type.id} value={type.id}>
+                          {type.name}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            
+            {/* Row 2: Nominal dan Status */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="grid gap-2">
+                <Label htmlFor="amount" className="text-sm font-medium">Nominal (Rp)</Label>
+                <Input
+                  id="amount"
+                  type="number"
+                  placeholder="Masukkan jumlah"
+                  value={dialogFormData.amount}
+                  onChange={(e) => setDialogFormData({ ...dialogFormData, amount: e.target.value })}
+                  className="h-9"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="status" className="text-sm font-medium">Status</Label>
+                <Select
+                  value={dialogFormData.status}
+                  onValueChange={(value) => setDialogFormData({ ...dialogFormData, status: value as PaymentStatus })}
+                >
+                  <SelectTrigger className="h-9">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="PAID">Lunas</SelectItem>
+                    <SelectItem value="PENDING">Tertunda</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            
+            {/* Row 3: Tanggal dan Deskripsi */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="grid gap-2">
+                <Label htmlFor="date" className="text-sm font-medium">Tanggal</Label>
+                <Input
+                  id="date"
+                  type="date"
+                  value={dialogFormData.date}
+                  onChange={(e) => setDialogFormData({ ...dialogFormData, date: e.target.value })}
+                  className="h-9"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="description" className="text-sm font-medium">Deskripsi</Label>
+                <Input
+                  id="description"
+                  placeholder="Masukkan deskripsi transaksi"
+                  value={dialogFormData.description}
+                  onChange={(e) => setDialogFormData({ ...dialogFormData, description: e.target.value })}
+                  className="h-9"
+                />
+              </div>
+            </div>
+          </div>
+          <div className="flex gap-2 justify-end pt-2">
+            <Button variant="outline" onClick={handleCloseDialog} className="h-9">
+              Batal
+            </Button>
+            <Button onClick={handleSubmitDialog} disabled={loading} className="h-9">
+              {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Simpan
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
