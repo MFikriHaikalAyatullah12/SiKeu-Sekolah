@@ -1,6 +1,7 @@
 'use client'
 
 import { useSession, signOut } from 'next-auth/react'
+import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -16,9 +17,24 @@ import { Bell, LogOut, Settings, User, Search, ChevronDown } from 'lucide-react'
 
 export function Header() {
   const { data: session } = useSession()
+  const router = useRouter()
 
-  const handleSignOut = () => {
-    signOut({ callbackUrl: '/auth/signin' })
+  const handleSignOut = async () => {
+    try {
+      // Langsung navigate ke login sambil clear session
+      router.push('/auth/signin')
+      
+      // SignOut tanpa redirect untuk menghindari tampilan blank
+      await signOut({ redirect: false })
+      
+      // Clear storage
+      localStorage.clear()
+      sessionStorage.clear()
+    } catch (error) {
+      console.error('Logout error:', error)
+      // Fallback: langsung ke login page
+      window.location.href = '/auth/signin'
+    }
   }
 
   return (

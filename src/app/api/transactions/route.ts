@@ -26,14 +26,41 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    console.log("GET transactions - Session user:", {
+      id: session.user.id,
+      email: session.user.email,
+      role: session.user.role,
+      schoolId: session.user.schoolId
+    })
+
     const { searchParams } = new URL(request.url)
     const type = searchParams.get('type')
     const search = searchParams.get('search')
     const month = searchParams.get('month')
 
-    const where: any = {
-      schoolProfileId: session.user.schoolId,
+    // CRITICAL FIX: Handle case where schoolId might be null/undefined
+    let schoolId: string | null = session.user.schoolId || null
+    
+    if (!schoolId) {
+      console.log("⚠️  No schoolId in session, looking up user in database...")
+      const user = await prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: { schoolProfileId: true }
+      })
+      schoolId = user?.schoolProfileId || null
+      console.log("📍 Found schoolId from database:", schoolId)
     }
+    
+    if (!schoolId) {
+      console.error("❌ No school ID found for user")
+      return NextResponse.json({ transactions: [] })
+    }
+
+    const where: any = {
+      schoolProfileId: schoolId,
+    }
+
+    console.log("🔍 Querying transactions with schoolId:", schoolId)
 
     // Apply date range restrictions based on role
     const dateRange = getDateRangeForRole(session.user.role)
@@ -73,12 +100,6 @@ export async function GET(request: NextRequest) {
       where,
       orderBy: { date: 'desc' },
       include: {
-        coaAccount: {
-          select: { 
-            code: true,
-            name: true
-          }
-        },
         category: {
           select: {
             name: true,
@@ -90,8 +111,28 @@ export async function GET(request: NextRequest) {
         }
       }
     })
+    
+    // Transform data untuk memastikan struktur yang konsisten
+    const formattedTransactions = transactions.map(transaction => ({
+      ...transaction,
+      categoryName: transaction.category?.name || 'Tidak ada kategori',
+      name: transaction.fromTo || transaction.description || 'Tidak ada nama',
+      // Pastikan amount dalam format yang benar
+      amount: Number(transaction.amount)
+    }))
 
-    return NextResponse.json({ transactions })
+    console.log(`✅ Returning ${formattedTransactions.length} transactions for school ${schoolId}`)
+    if (formattedTransactions.length > 0) {
+      console.log("📄 Sample transaction:", {
+        id: formattedTransactions[0].id,
+        type: formattedTransactions[0].type,
+        amount: formattedTransactions[0].amount,
+        description: formattedTransactions[0].description,
+        categoryName: formattedTransactions[0].categoryName
+      })
+    }
+
+    return NextResponse.json({ transactions: formattedTransactions })
   } catch (error) {
     console.error('Error fetching transactions:', error)
     return NextResponse.json(
@@ -111,10 +152,18 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     console.log("Transaction POST body:", body)
     
-    const validatedData = transactionSchema.parse(body)
-
-    // Determine schoolId - use provided schoolId (for Super Admin) or user's schoolId
-    const schoolId = validatedData.schoolId || session.user.schoolId
+    // Get schoolId from body first, then session, then database lookup
+    let schoolId: string | null = body.schoolId || session.user.schoolId || null
+    
+    if (!schoolId) {
+      console.log("⚠️  No schoolId in body or session, looking up user in database...")
+      const user = await prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: { schoolProfileId: true }
+      })
+      schoolId = user?.schoolProfileId || null
+      console.log("📍 Found schoolId from database:", schoolId)
+    }
     
     if (!schoolId) {
       return NextResponse.json(
@@ -122,6 +171,65 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
+    
+    // Handle category mapping for hard-coded IDs
+    let categoryId = body.categoryId;
+    
+    if (['1100', '1200', '3100', '4100', '2100', '5100'].includes(categoryId)) {
+      // Map hard-coded IDs to database category names
+      const categoryMapping: Record<string, string> = {
+        '1100': 'Aktiva Lancar',
+        '1200': 'Aktiva Tetap',
+        '3100': 'Modal',
+        '4100': 'Pendapatan',
+        '2100': 'Kewajiban',
+        '5100': 'Beban'
+      };
+      
+      const categoryName = categoryMapping[categoryId];
+      
+      if (!categoryName) {
+        return NextResponse.json(
+          { error: 'Invalid category ID' },
+          { status: 400 }
+        )
+      }
+      
+      console.log("🏷️  Mapping category:", categoryId, "->", categoryName, "for school:", schoolId)
+      
+      // Find or create category in database
+      let category = await prisma.category.findFirst({
+        where: {
+          name: categoryName,
+          type: body.type,
+          schoolProfileId: schoolId
+        }
+      });
+      
+      if (!category) {
+        // Create new category
+        console.log("🆕 Creating new category:", categoryName)
+        category = await prisma.category.create({
+          data: {
+            name: categoryName,
+            type: body.type,
+            schoolProfileId: schoolId
+          }
+        });
+        console.log("✅ Created category with ID:", category.id)
+      } else {
+        console.log("♻️  Using existing category with ID:", category.id)
+      }
+      
+      categoryId = category.id;
+    }
+    
+    const validatedData = transactionSchema.parse({
+      ...body,
+      categoryId: categoryId
+    });
+
+    console.log("✅ Validated transaction data for school:", schoolId)
 
     // Verify user exists in database
     const user = await prisma.user.findUnique({
@@ -159,7 +267,7 @@ export async function POST(request: NextRequest) {
 
     const receiptNumber = `KW-${year}${month}-${String(counter).padStart(3, '0')}`
 
-    const { categoryId, coaAccountId, schoolId: _, date, ...transactionData } = validatedData
+    const { coaAccountId, schoolId: __, date, ...transactionData } = validatedData
     
     // Verify COA account if provided
     if (coaAccountId) {
@@ -178,7 +286,7 @@ export async function POST(request: NextRequest) {
     console.log("Creating transaction with:", {
       schoolId,
       userId: user.id,
-      categoryId,
+      categoryId: categoryId,
       coaAccountId,
       receiptNumber
     })
@@ -190,9 +298,9 @@ export async function POST(request: NextRequest) {
         receiptNumber,
         schoolProfileId: schoolId,
         createdById: user.id,
-        categoryId: categoryId,
+        categoryId: categoryId, // Use the resolved categoryId
         coaAccountId: coaAccountId || null,
-        fromTo: transactionData.fromTo || 'N/A',
+        fromTo: transactionData.fromTo || transactionData.description || 'N/A',
         paymentMethod: transactionData.paymentMethod || 'CASH',
         status: transactionData.status || 'PAID',
       },

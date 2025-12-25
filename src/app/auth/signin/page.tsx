@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { signIn } from "next-auth/react"
+import { signIn, signOut } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import Image from "next/image"
@@ -27,6 +27,18 @@ export default function SignInPage() {
   const router = useRouter()
 
   useEffect(() => {
+    // SECURITY: Hapus session lama untuk memaksa login ulang
+    signOut({ redirect: false })
+    
+    // Hapus semua data session dari storage
+    try {
+      localStorage.clear()
+      sessionStorage.clear()
+    } catch (error) {
+      console.log("Unable to clear storage:", error)
+    }
+
+    // Load remember me data
     try {
       const savedRemember = window.localStorage.getItem("sikeu.rememberMe")
       const savedIdentifier = window.localStorage.getItem("sikeu.identifier")

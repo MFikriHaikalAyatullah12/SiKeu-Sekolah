@@ -25,6 +25,7 @@ import {
   Clock,
   Edit3,
   Plus,
+  Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
@@ -243,6 +244,7 @@ export function TransactionContent() {
 
   // Set initial values on client-side only
   useEffect(() => {
+    console.log("Component mounting, setting mounted to true");
     setMounted(true);
     const today = new Date().toISOString().split("T")[0];
     const currentMonth = new Date().toISOString().slice(0, 7);
@@ -254,10 +256,13 @@ export function TransactionContent() {
   }, []);
 
   useEffect(() => {
+    console.log("Main useEffect triggered - mounted:", mounted, "activeTab:", activeTab);
     if (mounted) {
+      console.log("Calling fetchTransactions, fetchCategories, fetchSchools...");
       fetchTransactions();
       fetchCategories();
       fetchSchools();
+      
       // Reset category and type when tab changes
       setFormData(prev => ({
         ...prev,
@@ -266,6 +271,18 @@ export function TransactionContent() {
       }));
     }
   }, [activeTab, mounted]);
+  
+  // Separate effect for periodic refresh
+  useEffect(() => {
+    if (mounted) {
+      const interval = setInterval(() => {
+        console.log("Periodic refresh of transactions");
+        fetchTransactions();
+      }, 30000); // Refresh every 30 seconds
+      
+      return () => clearInterval(interval);
+    }
+  }, [mounted]); // Removed fetchTransactions from dependencies to prevent infinite loop
 
   const fetchSchools = async () => {
     try {
@@ -279,16 +296,31 @@ export function TransactionContent() {
     }
   };
 
-  const fetchTransactions = async (type?: string) => {
+  const fetchTransactions = async () => {
     try {
-      const targetType = type || activeTab;
-      const response = await fetch(`/api/transactions?type=${targetType}`);
+      setLoading(true);
+      console.log("🔄 Fetching all transactions");
+      
+      // Fetch semua transaksi tanpa filter type di API
+      const response = await fetch(`/api/transactions`);
       if (response.ok) {
         const data = await response.json();
+        console.log("✅ Fetched transactions:", data.transactions?.length || 0);
+        console.log("📊 Transaction data sample:", data.transactions?.slice(0, 2)); // Log first 2 transactions for debug
+        console.log("🏢 Current active tab:", activeTab);
         setTransactions(data.transactions || []);
+      } else {
+        console.error("❌ Failed to fetch transactions:", response.status);
+        const errorData = await response.json();
+        console.error("❌ Error data:", errorData);
+        setTransactions([]);
       }
     } catch (error) {
-      console.error("Failed to fetch transactions:", error);
+      console.error("❌ Failed to fetch transactions:", error);
+      toast.error("Gagal mengambil data transaksi");
+      setTransactions([]);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -370,60 +402,6 @@ export function TransactionContent() {
       const selectedCat = currentCategories.find(c => c.id === formData.categoryId);
       const selectedType = selectedCat?.types.find(t => t.id === formData.typeId);
       
-      // Map category ID to database name
-      const categoryMapping: Record<string, string> = {
-        '1100': 'Aktiva Lancar',
-        '1200': 'Aktiva Tetap',
-        '3100': 'Modal',
-        '4100': 'Pendapatan',
-        '2100': 'Kewajiban',
-        '5100': 'Beban'
-      };
-      
-      const categoryName = categoryMapping[formData.categoryId] || selectedCat?.name || 'Lainnya';
-      
-      // Find or create category in database
-      let categoryId = '';
-      
-      try {
-        const catResponse = await fetch("/api/categories");
-        if (catResponse.ok) {
-          const catData = await catResponse.json();
-          const existingCat = catData.categories?.find(
-            (c: any) => c.name === categoryName
-          );
-          if (existingCat) {
-            categoryId = existingCat.id;
-          } else {
-            // Create new category if not exists
-            const createCatResponse = await fetch("/api/categories", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                name: categoryName,
-                type: activeTab,
-                schoolId: formData.schoolId || undefined
-              })
-            });
-            if (createCatResponse.ok) {
-              const newCat = await createCatResponse.json();
-              categoryId = newCat.category?.id || newCat.id;
-            }
-          }
-        }
-      } catch (e) {
-        console.log("Category handling failed:", e);
-        toast.error("Gagal memproses kategori");
-        setLoading(false);
-        return;
-      }
-      
-      if (!categoryId) {
-        toast.error("Kategori tidak valid");
-        setLoading(false);
-        return;
-      }
-      
       const response = await fetch("/api/transactions", {
         method: "POST",
         headers: {
@@ -432,8 +410,8 @@ export function TransactionContent() {
         body: JSON.stringify({
           type: activeTab,
           date: formData.date,
-          amount: parseFloat(formData.amount),
-          categoryId: categoryId,
+          amount: parseInt(formData.amount) || 0, // Pastikan sebagai integer penuh
+          categoryId: formData.categoryId, // Gunakan categoryId langsung seperti dashboard
           description: `${selectedCat?.name} - ${selectedType?.name || ''} - ${formData.namaPembayar}`,
           fromTo: formData.namaPembayar,
           paymentMethod: formData.paymentMethod,
@@ -471,33 +449,31 @@ export function TransactionContent() {
           }
         }
 
-        // Langsung tambahkan transaksi ke state local tanpa menunggu fetch
-        const newTransaction = data.transaction;
-        if (newTransaction) {
-          setTransactions(prev => [newTransaction, ...prev]);
-        }
-        
         resetForm();
-        // Force refresh data dengan delay singkat
-        setTimeout(() => {
-          fetchTransactions();
-        }, 100);
+        // FORCE refresh data dari database dengan delay
+        setTimeout(async () => {
+          console.log("Force refreshing transactions after form submit...");
+          await fetchTransactions();
+        }, 500);
       } else {
+        console.error("API Error:", data);
         toast.error(data.error || "Gagal menambahkan transaksi");
       }
     } catch (error) {
+      console.error("Error in handleSubmit:", error);
       toast.error("Gagal menambahkan transaksi");
     } finally {
       setLoading(false);
     }
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("id-ID", {
-      style: "currency",
-      currency: "IDR",
-      minimumFractionDigits: 0,
-    }).format(amount);
+  const formatCurrency = (amount: number | string) => {
+    // Konversi ke number dan pastikan valid
+    const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
+    if (!numAmount || isNaN(numAmount) || numAmount === 0) return "Rp 0";
+    
+    // Format dengan pemisah titik untuk ribuan Indonesia
+    return `Rp ${numAmount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')}`;
   };
 
   const formatDate = (dateString: string) => {
@@ -552,10 +528,15 @@ export function TransactionContent() {
     }
   };
 
-  // Filter transactions berdasarkan activeTab dan gunakan transactions state langsung
-  const displayTransactions = transactions.filter(transaction => 
-    transaction.type === activeTab
-  );
+  // Filter transactions berdasarkan activeTab - pastikan filtering benar
+  const displayTransactions = transactions.filter(transaction => {
+    const matches = transaction.type === activeTab;
+    console.log(`Transaction ${transaction.id} type: ${transaction.type}, activeTab: ${activeTab}, matches: ${matches}`);
+    return matches;
+  });
+  
+  console.log("Total transactions:", transactions.length);
+  console.log("Display transactions for", activeTab + ":", displayTransactions.length);
 
   const filteredTransactions = displayTransactions.filter((transaction) => {
     const searchLower = searchQuery.toLowerCase();
@@ -575,6 +556,35 @@ export function TransactionContent() {
   const handleViewTransaction = (transaction: any) => {
     setSelectedTransaction(transaction);
     setShowDetailModal(true);
+  };
+
+  const handleDeleteTransaction = async (transaction: any) => {
+    if (!confirm(`Apakah Anda yakin ingin menghapus transaksi ini?\n\nNominal: ${formatCurrency(transaction.amount)}\nTanggal: ${formatDate(transaction.date)}`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/transactions/${transaction.id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        toast.success('Transaksi berhasil dihapus');
+        // Langsung hapus dari state tanpa refresh halaman
+        setTransactions(prevTransactions => 
+          prevTransactions.filter(t => t.id !== transaction.id)
+        );
+      } else {
+        const errorData = await response.json();
+        toast.error(errorData.message || 'Gagal menghapus transaksi');
+      }
+    } catch (error) {
+      console.error('Error deleting transaction:', error);
+      toast.error('Terjadi kesalahan saat menghapus transaksi');
+    }
   };
 
   // Fungsi untuk membuka dialog form transaksi seperti di dashboard
@@ -606,80 +616,7 @@ export function TransactionContent() {
     });
   };
 
-  // Fungsi helper untuk mendapatkan atau membuat category di database
-  const getOrCreateCategoryId = async (hardCodedCategoryId: string, categoryType: string, schoolId?: string) => {
-    try {
-      // Map dari hard-coded ID ke nama category
-      const categoryMapping: Record<string, string> = {
-        '1100': 'Aktiva Lancar',
-        '1200': 'Aktiva Tetap', 
-        '3100': 'Modal',
-        '4100': 'Pendapatan',
-        '2100': 'Kewajiban',
-        '5100': 'Beban'
-      };
 
-      const categoryName = categoryMapping[hardCodedCategoryId];
-      if (!categoryName) {
-        console.error("Unknown category ID:", hardCodedCategoryId);
-        return null;
-      }
-
-      // Tentukan schoolId yang akan digunakan
-      const targetSchoolId = schoolId || (schools.length > 0 ? schools[0].id : '');
-      
-      if (!targetSchoolId) {
-        console.error("No school ID available");
-        return null;
-      }
-
-      console.log("Getting category:", categoryName, "type:", categoryType, "school:", targetSchoolId);
-
-      // Cari category di database berdasarkan nama dan type
-      const catResponse = await fetch(`/api/categories?schoolId=${targetSchoolId}`);
-      if (!catResponse.ok) {
-        console.error("Failed to fetch categories");
-        return null;
-      }
-
-      const catData = await catResponse.json();
-      let existingCat = catData.categories?.find(
-        (c: any) => c.name === categoryName && c.type === categoryType
-      );
-
-      if (existingCat) {
-        console.log("Found existing category:", existingCat.id);
-        return existingCat.id;
-      }
-
-      // Jika tidak ada, buat category baru
-      console.log("Creating new category:", categoryName);
-      const createCatResponse = await fetch("/api/categories", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: categoryName,
-          type: categoryType,
-          schoolId: targetSchoolId
-        })
-      });
-
-      if (createCatResponse.ok) {
-        const newCatData = await createCatResponse.json();
-        console.log("Created new category:", newCatData.category.id);
-        return newCatData.category.id;
-      } else {
-        const errorData = await createCatResponse.json();
-        console.error("Failed to create category:", errorData);
-        return null;
-      }
-
-      return null;
-    } catch (error) {
-      console.error("Error in getOrCreateCategoryId:", error);
-      return null;
-    }
-  };
 
   const handleSubmitDialog = async () => {
     if (!dialogFormData.categoryId || !dialogFormData.amount) {
@@ -699,29 +636,17 @@ export function TransactionContent() {
       console.log("Selected category:", selectedCat);
       console.log("Transaction type:", transactionType);
 
-      // Dapatkan categoryId yang valid dari database
-      const validCategoryId = await getOrCreateCategoryId(dialogFormData.categoryId, transactionType, dialogFormData.schoolId);
-      
-      if (!validCategoryId) {
-        toast.error("Gagal menentukan kategori untuk database");
-        setLoading(false);
-        return;
-      }
-
-      console.log("Valid categoryId from database:", validCategoryId);
-
-      // Gunakan format yang sama persis seperti dashboard yang berhasil
+      // Gunakan format yang sama seperti dashboard yang berhasil - SIMPLIFIED
       const requestBody = {
         type: transactionType,
         amount: parseFloat(dialogFormData.amount),
         description: `${selectedType?.name || selectedCat?.name} - ${finalDescription}`,
         date: dialogFormData.date,
         status: dialogFormData.status,
+        fromTo: finalDescription,
+        paymentMethod: "CASH",
         schoolId: dialogFormData.schoolId || undefined,
-        categoryId: validCategoryId, // Gunakan categoryId yang valid dari database
-        categoryName: selectedCat?.name,
-        typeId: dialogFormData.typeId,
-        typeName: selectedType?.name
+        categoryId: dialogFormData.categoryId // Gunakan categoryId langsung - API akan handle mapping
       };
 
       console.log("Request body:", requestBody);
@@ -740,14 +665,15 @@ export function TransactionContent() {
       if (response.ok) {
         toast.success(`${transactionType === "INCOME" ? "Pemasukan" : "Pengeluaran"} berhasil ditambahkan`);
         
-        // Langsung tambahkan transaksi ke state local tanpa menunggu fetch
-        const newTransaction = data.transaction;
-        if (newTransaction) {
-          setTransactions(prev => [newTransaction, ...prev]);
-        }
-        
+        // Tutup dialog dan switch tab
         handleCloseDialog();
         setActiveTab(transactionType);
+        
+        // FORCE REFETCH data dari database dengan delay untuk memastikan data sudah tersimpan
+        setTimeout(async () => {
+          console.log("Force refreshing transactions after dialog submit...");
+          await fetchTransactions();
+        }, 500);
       } else {
         console.error("API Error:", data);
         toast.error(data.error || data.message || "Gagal menambahkan transaksi");
@@ -782,8 +708,21 @@ export function TransactionContent() {
     currentPage * itemsPerPage
   );
 
+  // Prevent hydration mismatch by not rendering until mounted
+  if (!mounted) {
+    return (
+      <div className="p-4 sm:p-6 space-y-4 sm:space-y-6 bg-gray-50/80 min-h-screen">
+        <div className="animate-pulse space-y-6">
+          <div className="h-8 bg-gray-200 rounded w-48 sm:w-64"></div>
+          <div className="h-32 bg-gray-200 rounded"></div>
+          <div className="h-64 bg-gray-200 rounded"></div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="p-6 space-y-6 bg-gray-50/80 min-h-screen">
+    <div className="p-4 sm:p-6 space-y-4 sm:space-y-6 bg-gray-50/80 min-h-screen">
       {/* Recent Transactions */}
       <Card className="border-0 shadow-sm">
         <CardHeader className="flex flex-row items-center justify-between pb-4">
@@ -865,8 +804,8 @@ export function TransactionContent() {
                             {transaction.type === "INCOME" ? "Pemasukan" : "Pengeluaran"}
                           </Badge>
                         </TableCell>
-                        <TableCell className="text-sm">{transaction.categoryName || "Tidak ada kategori"}</TableCell>
-                        <TableCell className="text-sm text-gray-600">{transaction.name || "Tidak ada deskripsi"}</TableCell>
+                        <TableCell className="text-sm">{transaction.category?.name || transaction.categoryName || "Tidak ada kategori"}</TableCell>
+                        <TableCell className="text-sm text-gray-600">{transaction.fromTo || transaction.description || transaction.name || "Tidak ada deskripsi"}</TableCell>
                         <TableCell className="font-semibold text-sm">
                           {formatCurrency(Number(transaction.amount))}
                         </TableCell>
@@ -889,8 +828,18 @@ export function TransactionContent() {
                               size="icon"
                               className="h-8 w-8 hover:bg-blue-50"
                               onClick={() => handleViewTransaction(transaction)}
+                              title="Lihat Detail"
                             >
                               <Eye className="h-4 w-4 text-blue-600" />
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="icon"
+                              className="h-8 w-8 hover:bg-red-50"
+                              onClick={() => handleDeleteTransaction(transaction)}
+                              title="Hapus Transaksi"
+                            >
+                              <Trash2 className="h-4 w-4 text-red-600" />
                             </Button>
                           </div>
                         </TableCell>
@@ -910,28 +859,32 @@ export function TransactionContent() {
       </div>
 
       {/* Tabs - Pill Style */}
-      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as TransactionType)}>
+      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as TransactionType)} key={`transaction-tabs-${activeTab}`}>
         <TabsList className="inline-flex h-11 items-center justify-center rounded-full bg-gray-100 p-1">
           <TabsTrigger
+            key="tab-income"
             value="INCOME"
             className="inline-flex items-center justify-center whitespace-nowrap rounded-full px-6 py-2 text-sm font-medium transition-all data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-sm"
+            suppressHydrationWarning
           >
             Pemasukan
           </TabsTrigger>
           <TabsTrigger
+            key="tab-expense"
             value="EXPENSE"
             className="inline-flex items-center justify-center whitespace-nowrap rounded-full px-6 py-2 text-sm font-medium transition-all data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-sm"
+            suppressHydrationWarning
           >
             Pengeluaran
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value={activeTab} className="mt-6">
-          {/* Two Column Grid - 56% / 44% */}
-          <div className="grid grid-cols-1 lg:grid-cols-[56fr_44fr] gap-6">
+          {/* Two Column Grid - Better responsive layout */}
+          <div className="grid grid-cols-1 xl:grid-cols-[56fr_44fr] gap-4 sm:gap-6">
             {/* Left Side - Form Card */}
-            <Card className="rounded-2xl border-0 shadow-sm bg-white">
-              <CardHeader className="pb-2">
+            <Card className="rounded-2xl border-0 shadow-sm bg-white order-2 xl:order-1">
+              <CardHeader className="pb-4 px-6">
                 <CardTitle className="text-lg font-semibold">
                   {activeTab === "INCOME" ? "Input Pemasukan" : "Input Pengeluaran"}
                 </CardTitle>
@@ -941,42 +894,53 @@ export function TransactionContent() {
                     : "Catat transaksi pengeluaran sekolah"}
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-5 px-6">
                 {/* Row 1: Tanggal & Nominal */}
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="date" className="text-sm font-medium text-gray-700">
-                      Tanggal
-                    </Label>
-                    <div className="relative">
-                      <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                      <Input
-                        id="date"
-                        type="date"
-                        value={formData.date}
-                        onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                        className="pl-10 h-11 rounded-lg border-gray-200"
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="amount" className="text-sm font-medium text-gray-700">
-                      Nominal
-                    </Label>
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500 font-medium bg-gray-100 px-2 py-0.5 rounded">
-                        Rp
-                      </span>
-                      <Input
-                        id="amount"
-                        type="text"
-                        value={formData.amount ? Number(formData.amount).toLocaleString('id-ID') : ''}
-                        onChange={(e) => {
-                          const value = e.target.value.replace(/\D/g, '');
-                          setFormData({ ...formData, amount: value });
-                        }}
-                        placeholder="0"
-                        className="pl-14 h-11 rounded-lg border-gray-200"
+                            Tanggal Transaksi
+                          </Label>
+                          <div className="relative">
+                            <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                            <Input
+                              id="date"
+                              type="date"
+                              value={formData.date}
+                              onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                              className="pl-10 h-11 rounded-lg border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                            />
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="amount" className="text-sm font-medium text-gray-700">
+                            Nominal (Rupiah)
+                          </Label>
+                          <div className="relative">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500 font-medium bg-gray-100 px-2 py-0.5 rounded">
+                              Rp
+                            </span>
+                            <Input
+                              id="amount"
+                              type="text"
+                              value={formData.amount ? Number(formData.amount).toLocaleString('id-ID').replace(/,/g, '.') : ''}
+                              onChange={(e) => {
+                                // Hapus semua karakter selain angka untuk mendapat raw value
+                                const rawValue = e.target.value.replace(/[^0-9]/g, '');
+                                // Update state dengan raw value, tapi display akan terformat otomatis
+                                setFormData({ ...formData, amount: rawValue });
+                              }}
+                              onFocus={(e) => {
+                                // Saat focus, tampilkan raw value untuk editing
+                                e.target.value = formData.amount;
+                              }}
+                              onBlur={(e) => {
+                                // Saat blur, kembali ke format display
+                                const rawValue = e.target.value.replace(/[^0-9]/g, '');
+                                setFormData({ ...formData, amount: rawValue });
+                              }}
+                              placeholder="0"
+                              className="pl-14 h-11 rounded-lg border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
                       />
                     </div>
                   </div>
@@ -1079,43 +1043,29 @@ export function TransactionContent() {
                   </div>
                 </div>
 
-                {/* Row 5: Status Chips */}
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium text-gray-700">Status</Label>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setFormData({ ...formData, status: "PAID" })}
-                      className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                        formData.status === "PAID"
-                          ? "bg-green-500 text-white"
-                          : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                      }`}
-                    >
-                      Lunas
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setFormData({ ...formData, status: "PENDING" })}
-                      className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                        formData.status === "PENDING"
-                          ? "bg-gray-500 text-white"
-                          : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                      }`}
-                    >
-                      Menunggu
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setFormData({ ...formData, status: "VOID" })}
-                      className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                        formData.status === "VOID"
-                          ? "bg-gray-700 text-white"
-                          : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                      }`}
-                    >
-                      Void
-                    </button>
+                {/* Row 5: Status Selection */}
+                <div className="space-y-3">
+                  <Label className="text-sm font-medium text-gray-700">Status Pembayaran</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      { key: "PAID", label: "Lunas", bgClass: "bg-green-500", hoverClass: "hover:bg-green-600" },
+                      { key: "PENDING", label: "Menunggu", bgClass: "bg-yellow-500", hoverClass: "hover:bg-yellow-600" },
+                      { key: "VOID", label: "Void", bgClass: "bg-gray-500", hoverClass: "hover:bg-gray-600" }
+                    ].map((status, index) => (
+                      <button
+                        key={`status-button-${status.key}-${index}`}
+                        type="button"
+                        onClick={() => setFormData({ ...formData, status: status.key as PaymentStatus })}
+                        className={`px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
+                          formData.status === status.key
+                            ? `${status.bgClass} text-white shadow-md transform scale-105`
+                            : `bg-gray-100 text-gray-600 hover:bg-gray-200 ${status.hoverClass} hover:text-white`
+                        }`}
+                        suppressHydrationWarning
+                      >
+                        {status.label}
+                      </button>
+                    ))}
                   </div>
                 </div>
 
@@ -1204,124 +1154,149 @@ export function TransactionContent() {
             </Card>
 
             {/* Right Side - Transaction History Card */}
-            <Card className="rounded-2xl border-0 shadow-sm bg-white">
-              <CardHeader className="pb-4">
-                <CardTitle className="text-lg font-semibold">
-                  Riwayat {activeTab === "INCOME" ? "Pemasukan" : "Pengeluaran"}
-                </CardTitle>
+            <Card className="rounded-2xl border-0 shadow-sm bg-white order-1 xl:order-2">
+              <CardHeader className="pb-4 px-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-lg font-semibold">
+                      Riwayat {activeTab === "INCOME" ? "Pemasukan" : "Pengeluaran"}
+                    </CardTitle>
+                    <CardDescription className="text-sm text-gray-500 mt-1">
+                      Data transaksi terbaru
+                    </CardDescription>
+                  </div>
+                  <Badge variant="outline" className="px-3 py-1 text-xs">
+                    {filteredTransactions.length} Data
+                  </Badge>
+                </div>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-4 px-6">
                 {/* Search and Filter */}
-                <div className="flex flex-wrap gap-3">
-                  <div className="relative flex-1 min-w-[180px]">
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <div className="relative flex-1 min-w-[200px]">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                     <Input
                       placeholder="Cari nama/nomor..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="pl-10 h-10 rounded-lg border-gray-200"
+                      className="pl-10 h-10 rounded-lg border-gray-200 focus:border-blue-500"
                     />
                   </div>
-                  <Select value={filterPetugas} onValueChange={setFilterPetugas}>
-                    <SelectTrigger className="w-[140px] h-10 rounded-lg border-gray-200">
-                      <User className="h-4 w-4 mr-2 text-gray-400" />
-                      <SelectValue placeholder="Petugas" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {petugasList.map((petugas) => (
-                        <SelectItem key={petugas.id} value={petugas.id}>
-                          {petugas.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Select value={filterPeriod} onValueChange={setFilterPeriod}>
-                    <SelectTrigger className="w-[130px] h-10 rounded-lg border-gray-200">
-                      <Filter className="h-4 w-4 mr-2 text-gray-400" />
-                      <SelectValue placeholder="Filter" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="bulan-ini">Bulan ini</SelectItem>
-                      <SelectItem value="minggu-ini">Minggu ini</SelectItem>
-                      <SelectItem value="hari-ini">Hari ini</SelectItem>
-                      <SelectItem value="semua">Semua</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <div className="flex gap-2 sm:w-auto w-full">
+                    <Select value={filterPetugas} onValueChange={setFilterPetugas}>
+                      <SelectTrigger className="flex-1 sm:w-[140px] h-10 rounded-lg border-gray-200">
+                        <User className="h-4 w-4 mr-2 text-gray-400" />
+                        <SelectValue placeholder="Petugas" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {petugasList.map((petugas) => (
+                          <SelectItem key={petugas.id} value={petugas.id}>
+                            {petugas.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Select value={filterPeriod} onValueChange={setFilterPeriod}>
+                      <SelectTrigger className="flex-1 sm:w-[130px] h-10 rounded-lg border-gray-200">
+                        <Filter className="h-4 w-4 mr-2 text-gray-400" />
+                        <SelectValue placeholder="Filter" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="bulan-ini">Bulan ini</SelectItem>
+                        <SelectItem value="minggu-ini">Minggu ini</SelectItem>
+                        <SelectItem value="hari-ini">Hari ini</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
 
-                {/* Table */}
-                <div className="border rounded-xl overflow-hidden">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="bg-gray-50 hover:bg-gray-50">
-                        <TableHead className="font-semibold text-xs text-gray-600 py-3">Tanggal</TableHead>
-                        <TableHead className="font-semibold text-xs text-gray-600">Kategori</TableHead>
-                        <TableHead className="font-semibold text-xs text-gray-600">Jenis</TableHead>
-                        <TableHead className="font-semibold text-xs text-gray-600">Nama</TableHead>
-                        <TableHead className="font-semibold text-xs text-gray-600">Nominal</TableHead>
-                        <TableHead className="font-semibold text-xs text-gray-600">Metode</TableHead>
-                        <TableHead className="font-semibold text-xs text-gray-600">Petugas</TableHead>
-                        <TableHead className="font-semibold text-xs text-gray-600">Status</TableHead>
-                        <TableHead className="font-semibold text-xs text-gray-600 text-center">Aksi</TableHead>
-                      </TableRow>
-                    </TableHeader>
+                {/* Table - ULTRA COMPACT */}
+                <div className="border rounded-lg overflow-hidden bg-white shadow-sm">
+                  <div className="w-full">
+                    <Table className="w-full table-fixed text-xs">
+                      <TableHeader>
+                        <TableRow className="bg-gray-100 hover:bg-gray-100 border-b h-6">
+                          <TableHead className="font-bold text-[10px] text-gray-900 py-0.5 px-1 h-6 bg-gray-100 w-16">Tgl</TableHead>
+                          <TableHead className="font-bold text-[10px] text-gray-900 px-1 h-6 bg-gray-100 w-12">Tipe</TableHead>
+                          <TableHead className="font-bold text-[10px] text-gray-900 px-1 h-6 bg-gray-100 w-20">Kategori</TableHead>
+                          <TableHead className="font-bold text-[10px] text-gray-900 px-1 h-6 bg-gray-100 w-16">Nama</TableHead>
+                          <TableHead className="font-bold text-[10px] text-gray-900 px-1 text-right h-6 bg-gray-100 w-20">Nominal</TableHead>
+                          <TableHead className="font-bold text-[10px] text-gray-900 px-1 h-6 bg-gray-100 w-12">Bayar</TableHead>
+                          <TableHead className="font-bold text-[10px] text-gray-900 px-1 h-6 bg-gray-100 w-12">Status</TableHead>
+                          <TableHead className="font-bold text-[10px] text-gray-900 px-1 text-center h-6 bg-gray-100 w-8">Act</TableHead>
+                        </TableRow>
+                      </TableHeader>
                     <TableBody>
                       {paginatedTransactions.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={9} className="text-center py-8 text-gray-500">
-                            <FileText className="h-10 w-10 text-gray-300 mx-auto mb-2" />
-                            <p className="text-sm">Belum ada transaksi</p>
+                          <TableCell colSpan={8} className="text-center py-4 text-gray-500">
+                            <FileText className="h-8 w-8 text-gray-300 mx-auto mb-2" />
+                            <p className="text-xs">Belum ada transaksi</p>
                           </TableCell>
                         </TableRow>
                       ) : (
                         paginatedTransactions.map((transaction) => (
-                          <TableRow key={transaction.id} className="hover:bg-gray-50/50">
-                            <TableCell className="text-sm py-3">
-                              {formatDate(transaction.date)}
+                          <TableRow key={transaction.id} className="hover:bg-blue-50/50 border-b border-gray-200 h-7">
+                            <TableCell className="text-[10px] py-0.5 px-1 h-7 border-r border-gray-200 font-medium">
+                              {formatDate(transaction.date).split('/')[0]}/{formatDate(transaction.date).split('/')[1]}
                             </TableCell>
-                            <TableCell className="text-sm">
-                              {transaction.categoryName || transaction.category?.name || "-"}
-                            </TableCell>
-                            <TableCell className="text-sm max-w-[100px] truncate">
-                              {transaction.typeName || transaction.description || "-"}
-                            </TableCell>
-                            <TableCell className="text-sm">
-                              {transaction.name || transaction.fromTo || "-"}
-                            </TableCell>
-                            <TableCell className="text-sm font-medium">
-                              {formatCurrency(parseFloat(transaction.amount))}
-                            </TableCell>
-                            <TableCell className="text-sm">
-                              {getPaymentMethodLabel(transaction.method || transaction.paymentMethod || "CASH")}
-                            </TableCell>
-                            <TableCell className="text-sm">
-                              <span className="inline-flex items-center gap-1 text-gray-600">
-                                <User className="h-3 w-3" />
-                                {transaction.petugas || "Bendahara"}
+                            <TableCell className="text-[10px] py-0.5 px-1 h-7 border-r border-gray-200">
+                              <span className={`text-[9px] px-1 py-0.5 rounded-sm font-bold ${
+                                transaction.type === 'INCOME' ? 'bg-green-200 text-green-800' : 'bg-red-200 text-red-800'
+                              }`}>
+                                {transaction.type === 'INCOME' ? 'IN' : 'OUT'}
                               </span>
                             </TableCell>
-                            <TableCell>
+                            <TableCell className="text-[10px] py-0.5 px-1 h-7 border-r border-gray-200">
+                              <div className="text-[10px] truncate">
+                                {(transaction.categoryName || transaction.category?.name || "-").substring(0, 6)}
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-[10px] py-0.5 px-1 h-7 border-r border-gray-200">
+                              <div className="text-[10px] truncate">
+                                {(transaction.name || transaction.fromTo || "N/A").substring(0, 6)}
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-[10px] font-bold text-right py-0.5 px-1 h-7 border-r border-gray-200 text-green-800">
+                              {formatCurrency(transaction.amount)}
+                            </TableCell>
+                            <TableCell className="text-[10px] py-0.5 px-1 h-7 border-r border-gray-200">
+                              <span className="text-[9px] px-0.5 py-0.5 bg-blue-200 rounded-sm text-blue-800 font-medium">
+                                {getPaymentMethodLabel(transaction.method || transaction.paymentMethod || "CASH").substring(0, 3)}
+                              </span>
+                            </TableCell>
+                            <TableCell className="py-0.5 px-1 h-7 border-r border-gray-200">
                               <Badge
                                 variant="outline"
-                                className={`text-xs px-2 py-0.5 rounded-md ${getStatusBadgeClass(transaction.status)}`}
+                                className={`text-[9px] px-0.5 py-0.5 rounded-sm border font-bold ${getStatusBadgeClass(transaction.status)}`}
                               >
-                                {getStatusLabel(transaction.status)}
+                                {getStatusLabel(transaction.status).substring(0, 4)}
                               </Badge>
                             </TableCell>
-                            <TableCell className="text-center">
-                              <button 
-                                onClick={() => handleViewTransaction(transaction)}
-                                className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-700 text-xs font-medium"
-                              >
-                                <Eye className="h-3 w-3" />
-                                Lihat
-                              </button>
+                            <TableCell className="text-center py-0.5 px-0.5 h-7">
+                              <div className="flex items-center justify-center gap-1">
+                                <button 
+                                  onClick={() => handleViewTransaction(transaction)}
+                                  className="inline-flex items-center justify-center w-4 h-4 text-blue-700 hover:text-blue-900 hover:bg-blue-200 rounded-sm transition-all duration-150"
+                                  title="Lihat Detail"
+                                >
+                                  <Eye className="h-2.5 w-2.5" />
+                                </button>
+                                <button 
+                                  onClick={() => handleDeleteTransaction(transaction)}
+                                  className="inline-flex items-center justify-center w-4 h-4 text-red-700 hover:text-red-900 hover:bg-red-200 rounded-sm transition-all duration-150"
+                                  title="Hapus Transaksi"
+                                >
+                                  <Trash2 className="h-2.5 w-2.5" />
+                                </button>
+                              </div>
                             </TableCell>
                           </TableRow>
                         ))
                       )}
                     </TableBody>
                   </Table>
+                  </div>
                 </div>
 
                 {/* Pagination */}
@@ -1387,7 +1362,7 @@ export function TransactionContent() {
                   <div>
                     <p className="text-xs text-gray-500 mb-1">Nominal</p>
                     <p className="text-sm font-bold text-blue-600">
-                      {formatCurrency(parseFloat(selectedTransaction.amount))}
+                      {formatCurrency(selectedTransaction.amount)}
                     </p>
                   </div>
                 </div>
@@ -1585,10 +1560,15 @@ export function TransactionContent() {
                 <Label htmlFor="amount" className="text-sm font-medium">Nominal (Rp)</Label>
                 <Input
                   id="amount"
-                  type="number"
+                  type="text"
                   placeholder="Masukkan jumlah"
-                  value={dialogFormData.amount}
-                  onChange={(e) => setDialogFormData({ ...dialogFormData, amount: e.target.value })}
+                  value={dialogFormData.amount ? Number(dialogFormData.amount).toLocaleString('id-ID').replace(/,/g, '.') : ''}
+                  onChange={(e) => {
+                    // Hapus semua karakter selain angka untuk mendapat raw value
+                    const rawValue = e.target.value.replace(/[^0-9]/g, '');
+                    // Update state dengan raw value, tapi display akan terformat otomatis
+                    setDialogFormData({ ...dialogFormData, amount: rawValue });
+                  }}
                   className="h-9"
                 />
               </div>

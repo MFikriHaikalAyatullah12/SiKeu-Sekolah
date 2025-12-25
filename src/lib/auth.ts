@@ -53,12 +53,13 @@ export const authOptions: NextAuthOptions = {
           if (!passwordMatch) return null
 
           console.log("✅ Login successful:", user.email)
+          console.log("🏢 User school ID:", user.schoolProfileId)
           return {
             id: user.id,
             email: user.email,
             name: user.name,
             role: user.role,
-            schoolId: user.schoolProfileId ?? "",
+            schoolId: user.schoolProfileId || "", // Use empty string instead of null
           }
         } catch (err) {
           // Common root cause in dev: DATABASE_URL missing or DB not reachable
@@ -74,13 +75,25 @@ export const authOptions: NextAuthOptions = {
   ],
   session: {
     strategy: "jwt",
+    maxAge: 30 * 60, // 30 menit (1800 seconds)
+    updateAge: 5 * 60, // Update session setiap 5 menit
   },
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
+        console.log("🔐 JWT callback - User from login:", {
+          id: user.id,
+          schoolId: user.schoolId,
+          role: user.role
+        })
         token.role = user.role
         token.schoolId = user.schoolId
       }
+      console.log("🎫 JWT token:", {
+        sub: token.sub,
+        role: token.role,
+        schoolId: token.schoolId
+      })
       return token
     },
     async session({ session, token }) {
@@ -88,6 +101,27 @@ export const authOptions: NextAuthOptions = {
         session.user.id = token.sub!
         session.user.role = token.role as string
         session.user.schoolId = token.schoolId as string
+        
+        // CRITICAL FIX: If schoolId is empty or null, fetch from database
+        if (!session.user.schoolId || session.user.schoolId === "") {
+          console.log("🔍 School ID missing in session, fetching from database...")
+          try {
+            const user = await prisma.user.findUnique({
+              where: { id: session.user.id },
+              select: { schoolProfileId: true }
+            })
+            if (user?.schoolProfileId) {
+              session.user.schoolId = user.schoolProfileId
+              console.log("✅ Updated session with schoolId from database:", session.user.schoolId)
+            } else {
+              console.log("⚠️  No schoolProfileId found in database for user:", session.user.id)
+            }
+          } catch (error) {
+            console.error("❌ Error fetching school ID from database:", error)
+          }
+        }
+        
+        console.log("📋 Final session - User ID:", session.user.id, "School ID:", session.user.schoolId)
       }
       return session
     },
@@ -95,5 +129,17 @@ export const authOptions: NextAuthOptions = {
   pages: {
     signIn: "/auth/signin",
     error: "/auth/error",
+  },
+  cookies: {
+    sessionToken: {
+      name: "next-auth.session-token",
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: process.env.NODE_ENV === "production",
+        // Tidak ada maxAge - cookie akan hilang saat browser ditutup
+      },
+    },
   },
 }
