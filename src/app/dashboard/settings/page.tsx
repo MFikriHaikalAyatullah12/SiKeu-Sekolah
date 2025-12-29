@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
+import { useSchool } from "@/contexts/school-context"
 import { DashboardLayout } from "@/components/layout/dashboard-layout"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -11,11 +12,12 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Settings, User, Bell, Shield, Building2, Save, Loader2 } from "lucide-react"
+import { Settings, User, Bell, Shield, Building2, Save, Loader2, Upload, X, Camera } from "lucide-react"
 import { toast } from "sonner"
 
 export default function SettingsPage() {
   const { data: session, status } = useSession()
+  const { school, isLoading: schoolLoading, updateSchool, refetch } = useSchool()
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [profileData, setProfileData] = useState({
@@ -27,6 +29,15 @@ export default function SettingsPage() {
     newPassword: "",
     confirmPassword: ""
   })
+  const [schoolData, setSchoolData] = useState({
+    name: "",
+    address: "",
+    phone: "",
+    email: "",
+    logoUrl: ""
+  })
+  const [logoFile, setLogoFile] = useState<File | null>(null)
+  const [logoPreview, setLogoPreview] = useState<string>("")
 
   useEffect(() => {
     if (status === "loading") return
@@ -38,6 +49,20 @@ export default function SettingsPage() {
 
     fetchProfile()
   }, [session, status, router])
+
+  // Load school data when available
+  useEffect(() => {
+    if (school) {
+      setSchoolData({
+        name: school.name || "",
+        address: school.address || "",
+        phone: school.phone || "",
+        email: school.email || "",
+        logoUrl: school.logoUrl || ""
+      })
+      setLogoPreview(school.logoUrl || "")
+    }
+  }, [school])
 
   const fetchProfile = async () => {
     try {
@@ -120,6 +145,79 @@ export default function SettingsPage() {
       }
     } catch (error) {
       toast.error("Gagal mengubah password")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      // Validasi file
+      if (!file.type.startsWith('image/')) {
+        toast.error("File harus berupa gambar")
+        return
+      }
+      
+      if (file.size > 2 * 1024 * 1024) { // 2MB
+        toast.error("Ukuran file maksimal 2MB")
+        return
+      }
+
+      setLogoFile(file)
+      
+      // Create preview
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        setLogoPreview(e.target?.result as string)
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  const removeLogo = () => {
+    setLogoFile(null)
+    setLogoPreview("")
+    setSchoolData({ ...schoolData, logoUrl: "" })
+  }
+
+  const handleSaveSchool = async () => {
+    if (!schoolData.name || !schoolData.address || !schoolData.phone || !schoolData.email) {
+      toast.error("Semua field sekolah harus diisi")
+      return
+    }
+
+    // Validasi email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(schoolData.email)) {
+      toast.error("Format email sekolah tidak valid")
+      return
+    }
+
+    setLoading(true)
+    try {
+      let finalLogoUrl = schoolData.logoUrl
+
+      // Upload logo if there's a new file (placeholder for now)
+      if (logoFile) {
+        // For now, we'll just use the preview URL
+        // In production, implement proper file upload
+        finalLogoUrl = logoPreview
+      }
+
+      const success = await updateSchool({
+        ...schoolData,
+        logoUrl: finalLogoUrl
+      })
+
+      if (success) {
+        toast.success("Data sekolah berhasil diperbarui")
+        setLogoFile(null)
+        await refetch()
+      }
+    } catch (error) {
+      console.error("Update school error:", error)
+      toast.error("Terjadi kesalahan saat menyimpan data sekolah")
     } finally {
       setLoading(false)
     }
@@ -312,45 +410,139 @@ export default function SettingsPage() {
               <CardHeader>
                 <CardTitle>Informasi Sekolah</CardTitle>
                 <CardDescription>
-                  {session?.user?.role === "SUPER_ADMIN" 
-                    ? "Informasi ini hanya bisa diubah melalui halaman Pengaturan Sekolah"
-                    : "Informasi ini hanya bisa diubah oleh Super Admin"}
+                  {["ADMIN", "SUPER_ADMIN"].includes(session?.user?.role || "") 
+                    ? "Kelola identitas dan informasi sekolah Anda"
+                    : "Informasi sekolah - hanya dapat diubah oleh Admin"}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
+                {/* Logo Upload */}
+                {["ADMIN", "SUPER_ADMIN"].includes(session?.user?.role || "") && (
+                  <div className="space-y-3">
+                    <Label>Logo Sekolah</Label>
+                    <div className="flex items-center gap-4">
+                      <div className="relative">
+                        {logoPreview ? (
+                          <div className="relative w-16 h-16 rounded-lg border-2 border-gray-200 overflow-hidden">
+                            <img 
+                              src={logoPreview} 
+                              alt="Logo Preview" 
+                              className="w-full h-full object-cover"
+                            />
+                            <button
+                              type="button"
+                              onClick={removeLogo}
+                              className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="w-16 h-16 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center">
+                            <Camera className="h-6 w-6 text-gray-400" />
+                          </div>
+                        )}
+                      </div>
+                      <div>
+                        <input
+                          type="file"
+                          id="school-logo-upload"
+                          accept="image/*"
+                          onChange={handleLogoUpload}
+                          className="hidden"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => document.getElementById('school-logo-upload')?.click()}
+                        >
+                          <Upload className="h-4 w-4 mr-2" />
+                          {logoPreview ? "Ganti" : "Upload"}
+                        </Button>
+                        <p className="text-xs text-gray-500 mt-1">
+                          JPG, PNG. Max 2MB
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 <div className="space-y-2">
                   <Label htmlFor="school-name">Nama Sekolah</Label>
                   <Input
                     id="school-name"
-                    defaultValue="Sekolah Menengah Atas Negeri 1"
-                    disabled
+                    value={schoolData.name}
+                    onChange={(e) => setSchoolData({ ...schoolData, name: e.target.value })}
+                    placeholder={schoolLoading ? "Memuat..." : "Nama sekolah"}
+                    disabled={!["ADMIN", "SUPER_ADMIN"].includes(session?.user?.role || "") || schoolLoading}
                   />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="school-address">Alamat Sekolah</Label>
                   <Textarea
                     id="school-address"
-                    defaultValue="Jl. Pendidikan No. 123, Jakarta"
-                    disabled
+                    value={schoolData.address}
+                    onChange={(e) => setSchoolData({ ...schoolData, address: e.target.value })}
+                    placeholder={schoolLoading ? "Memuat..." : "Alamat lengkap sekolah"}
+                    disabled={!["ADMIN", "SUPER_ADMIN"].includes(session?.user?.role || "") || schoolLoading}
                     rows={3}
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="school-phone">Telepon Sekolah</Label>
-                  <Input
-                    id="school-phone"
-                    defaultValue="(021) 12345678"
-                    disabled
-                  />
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="school-phone">Telepon Sekolah</Label>
+                    <Input
+                      id="school-phone"
+                      value={schoolData.phone}
+                      onChange={(e) => setSchoolData({ ...schoolData, phone: e.target.value })}
+                      placeholder={schoolLoading ? "Memuat..." : "(021) 12345678"}
+                      disabled={!["ADMIN", "SUPER_ADMIN"].includes(session?.user?.role || "") || schoolLoading}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="school-email">Email Sekolah</Label>
+                    <Input
+                      id="school-email"
+                      type="email"
+                      value={schoolData.email}
+                      onChange={(e) => setSchoolData({ ...schoolData, email: e.target.value })}
+                      placeholder={schoolLoading ? "Memuat..." : "email@sekolah.sch.id"}
+                      disabled={!["ADMIN", "SUPER_ADMIN"].includes(session?.user?.role || "") || schoolLoading}
+                    />
+                  </div>
                 </div>
+                
+                {["ADMIN", "SUPER_ADMIN"].includes(session?.user?.role || "") && (
+                  <div className="flex justify-end pt-4 border-t">
+                    <Button 
+                      onClick={handleSaveSchool} 
+                      disabled={loading || schoolLoading}
+                    >
+                      {loading ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Menyimpan...
+                        </>
+                      ) : (
+                        <>
+                          <Save className="mr-2 h-4 w-4" />
+                          Simpan Perubahan
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                )}
+
                 {session?.user?.role === "SUPER_ADMIN" && (
-                  <div className="flex justify-end">
+                  <div className="flex justify-center pt-2">
                     <Button 
                       variant="outline"
+                      size="sm"
                       onClick={() => router.push("/dashboard/school-settings")}
                     >
                       <Building2 className="mr-2 h-4 w-4" />
-                      Buka Pengaturan Sekolah
+                      Buka Pengaturan Lanjutan
                     </Button>
                   </div>
                 )}

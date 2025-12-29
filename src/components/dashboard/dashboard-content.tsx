@@ -110,6 +110,8 @@ export function DashboardContent() {
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [dashboardLoading, setDashboardLoading] = useState(true);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [categories, setCategories] = useState<any[]>([]);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [stats, setStats] = useState<any>(null);
@@ -134,8 +136,15 @@ export function DashboardContent() {
   const availableTypes = selectedCategory?.types || [];
 
   useEffect(() => {
-    fetchDashboardData(true);
+    fetchDashboardData(true, true);
     fetchSchools();
+    
+    // Auto refresh data setiap 15 detik untuk data yang lebih real-time
+    const interval = setInterval(() => {
+      fetchDashboardData(false, false);
+    }, 15000);
+    
+    return () => clearInterval(interval);
   }, []);
 
   const fetchSchools = async () => {
@@ -150,12 +159,15 @@ export function DashboardContent() {
     }
   };
 
-  const fetchDashboardData = async (showToast = false) => {
+  const fetchDashboardData = async (showToast = false, isInitial = false) => {
     try {
-      const [categoriesRes, transactionsRes, statsRes] = await Promise.all([
+      if (isInitial) setDashboardLoading(true);
+      
+      const [categoriesRes, transactionsRes, statsRes, chartDataRes] = await Promise.all([
         fetch("/api/categories"),
         fetch("/api/transactions?limit=5"),
-        fetch("/api/dashboard/stats")
+        fetch("/api/dashboard/stats"),
+        fetch("/api/transactions?chart=true") // Fetch chart data from API
       ]);
 
       if (categoriesRes.ok) {
@@ -177,27 +189,55 @@ export function DashboardContent() {
       if (statsRes.ok) {
         const data = await statsRes.json();
         setStats(data.stats);
+        
+        // Set chart data based on real stats
+        if (data.stats && data.stats.monthlyData) {
+          setChartData(data.stats.monthlyData);
+        } else {
+          // Fallback with current month data if no monthly data
+          const currentMonth = new Date().toLocaleDateString('id-ID', { month: 'short', year: 'numeric' });
+          setChartData([
+            { 
+              month: currentMonth, 
+              pemasukan: Math.round((data.stats?.totalIncome || 0) / 1000000), 
+              pengeluaran: Math.round((data.stats?.totalExpense || 0) / 1000000) 
+            }
+          ]);
+        }
+
+        // Set pie data based on category breakdown
+        if (data.stats && data.stats.categoryBreakdown) {
+          setPieData(data.stats.categoryBreakdown);
+        } else {
+          // Calculate pie data from transactions if no category breakdown
+          const categoryTotals: { [key: string]: number } = {};
+          if (transactionsRes.ok) {
+            const transactionData = await transactionsRes.json();
+            (transactionData.transactions || []).forEach((transaction: any) => {
+              if (transaction.type === 'EXPENSE') {
+                const categoryName = transaction.categoryName || transaction.category?.name || 'Lainnya';
+                categoryTotals[categoryName] = (categoryTotals[categoryName] || 0) + transaction.amount;
+              }
+            });
+            
+            const total = Object.values(categoryTotals).reduce((sum: number, value: number) => sum + value, 0);
+            const pieChartData = Object.entries(categoryTotals).map(([name, value], index) => ({
+              name,
+              value: total > 0 ? Math.round((value as number / total) * 100) : 0,
+              color: ['#3b82f6', '#f59e0b', '#10b981', '#8b5cf6', '#6b7280'][index % 5]
+            }));
+            
+            setPieData(pieChartData);
+          }
+        }
       }
 
-      // Mock chart data - replace with real API data
-      setChartData([
-        { month: "Jun 2024", pemasukan: 80, pengeluaran: 65 },
-        { month: "Jul 2024", pemasukan: 200, pengeluaran: 95 },
-        { month: "Agust 2024", pemasukan: 190, pengeluaran: 160 },
-        { month: "Sept 2024", pemasukan: 310, pengeluaran: 150 },
-        { month: "Okt 2024", pemasukan: 270, pengeluaran: 180 },
-        { month: "Nov 2024", pemasukan: 370, pengeluaran: 200 },
-      ]);
-
-      setPieData([
-        { name: "Gaji Guru & Staf", value: 45, color: "#3b82f6" },
-        { name: "Fasilitas Sekolah", value: 25, color: "#f59e0b" },
-        { name: "Operasional Harian", value: 15, color: "#10b981" },
-        { name: "Kegiatan Siswa", value: 10, color: "#8b5cf6" },
-        { name: "Lainnya", value: 5, color: "#6b7280" },
-      ]);
+      setLastUpdated(new Date());
     } catch (error) {
       console.error("Failed to fetch dashboard data:", error);
+      toast.error("Gagal memuat data dashboard");
+    } finally {
+      if (isInitial) setDashboardLoading(false);
     }
   };
 
@@ -269,7 +309,7 @@ export function DashboardContent() {
       if (response.ok) {
         toast.success(`${transactionType === "INCOME" ? "Pemasukan" : "Pengeluaran"} berhasil ditambahkan`);
         handleCloseDialog();
-        await fetchDashboardData(false);
+        await fetchDashboardData(false, false);
       } else {
         toast.error(data.error || "Gagal menambahkan transaksi");
       }
@@ -301,7 +341,7 @@ export function DashboardContent() {
 
       if (response.ok) {
         toast.success("Transaksi berhasil dihapus");
-        fetchDashboardData(false);
+        fetchDashboardData(false, false);
       } else {
         const data = await response.json();
         toast.error(data.error || "Gagal menghapus transaksi");
@@ -340,10 +380,39 @@ export function DashboardContent() {
 
   return (
     <div className="space-y-6 p-6 bg-gray-50/50">
+      {/* Header dengan indikator refresh */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+          {lastUpdated && (
+            <p className="text-sm text-gray-500">
+              Terakhir diperbarui: {lastUpdated.toLocaleString('id-ID')}
+            </p>
+          )}
+        </div>
+        <div className="flex items-center space-x-2">
+          {dashboardLoading && (
+            <div className="flex items-center space-x-2 text-sm text-gray-500">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span>Memuat...</span>
+            </div>
+          )}
+          <Button 
+            onClick={() => fetchDashboardData(false, false)} 
+            variant="outline" 
+            size="sm"
+            disabled={dashboardLoading}
+          >
+            <TrendingUp className="h-4 w-4 mr-1" />
+            Refresh
+          </Button>
+        </div>
+      </div>
+
       {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Saldo Saat Ini */}
-        <Card className="border-0 shadow-sm hover:shadow-md transition-shadow">
+        <Card className={`border-0 shadow-sm hover:shadow-md transition-shadow ${dashboardLoading ? 'opacity-50' : ''}`}>
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-2">
               <div className="p-2.5 bg-green-100 rounded-lg">
@@ -352,18 +421,25 @@ export function DashboardContent() {
             </div>
             <div className="space-y-1">
               <p className="text-sm text-gray-600">Saldo Saat Ini</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {stats ? formatNumber(stats.balance) : "Rp 2.550.000.000"}
-              </p>
+              <div className="text-2xl font-bold text-gray-900">
+                {dashboardLoading ? (
+                  <div className="flex items-center space-x-2">
+                    <Loader2 className="h-6 w-6 animate-spin" />
+                    <span>Loading...</span>
+                  </div>
+                ) : (
+                  stats ? formatNumber(stats.balance) : "Rp 0"
+                )}
+              </div>
               <p className="text-xs text-green-600">
-                +Rp 150.000.000 (Bulan ini)
+                {stats ? (stats.balance >= 0 ? `+${formatCurrency(stats.balance)}` : formatCurrency(stats.balance)) : "Tidak ada data"} (Bulan ini)
               </p>
             </div>
           </CardContent>
         </Card>
 
         {/* Pemasukan Bulan Ini */}
-        <Card className="border-0 shadow-sm hover:shadow-md transition-shadow">
+        <Card className={`border-0 shadow-sm hover:shadow-md transition-shadow ${dashboardLoading ? 'opacity-50' : ''}`}>
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-2">
               <div className="p-2.5 bg-blue-100 rounded-lg">
@@ -372,18 +448,25 @@ export function DashboardContent() {
             </div>
             <div className="space-y-1">
               <p className="text-sm text-gray-600">Pemasukan Bulan Ini</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {stats ? formatNumber(stats.totalIncome) : "Rp 450.000.000"}
-              </p>
+              <div className="text-2xl font-bold text-gray-900">
+                {dashboardLoading ? (
+                  <div className="flex items-center space-x-2">
+                    <Loader2 className="h-6 w-6 animate-spin" />
+                    <span>Loading...</span>
+                  </div>
+                ) : (
+                  stats ? formatNumber(stats.totalIncome) : "Rp 0"
+                )}
+              </div>
               <p className="text-xs text-gray-500">
-                Berdasarkan {stats ? stats.incomeCount || 0 : 125} transaksi
+                Berdasarkan {stats ? stats.incomeCount || 0 : 0} transaksi
               </p>
             </div>
           </CardContent>
         </Card>
 
         {/* Pengeluaran Bulan Ini */}
-        <Card className="border-0 shadow-sm hover:shadow-md transition-shadow">
+        <Card className={`border-0 shadow-sm hover:shadow-md transition-shadow ${dashboardLoading ? 'opacity-50' : ''}`}>
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-2">
               <div className="p-2.5 bg-red-100 rounded-lg">
@@ -392,18 +475,25 @@ export function DashboardContent() {
             </div>
             <div className="space-y-1">
               <p className="text-sm text-gray-600">Pengeluaran Bulan Ini</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {stats ? formatNumber(stats.totalExpense) : "Rp 300.000.000"}
-              </p>
+              <div className="text-2xl font-bold text-gray-900">
+                {dashboardLoading ? (
+                  <div className="flex items-center space-x-2">
+                    <Loader2 className="h-6 w-6 animate-spin" />
+                    <span>Loading...</span>
+                  </div>
+                ) : (
+                  stats ? formatNumber(stats.totalExpense) : "Rp 0"
+                )}
+              </div>
               <p className="text-xs text-gray-500">
-                Berdasarkan {stats ? stats.expenseCount || 0 : 80} transaksi
+                Berdasarkan {stats ? stats.expenseCount || 0 : 0} transaksi
               </p>
             </div>
           </CardContent>
         </Card>
 
         {/* Surplus/Defisit */}
-        <Card className="border-0 shadow-sm hover:shadow-md transition-shadow">
+        <Card className={`border-0 shadow-sm hover:shadow-md transition-shadow ${dashboardLoading ? 'opacity-50' : ''}`}>
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-2">
               <div className="p-2.5 bg-purple-100 rounded-lg">
@@ -412,11 +502,18 @@ export function DashboardContent() {
             </div>
             <div className="space-y-1">
               <p className="text-sm text-gray-600">Surplus/Defisit</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {stats ? (stats.balance >= 0 ? '+' : '') + formatNumber(Math.abs(stats.balance)) : "+Rp 150.000.000"}
-              </p>
+              <div className="text-2xl font-bold text-gray-900">
+                {dashboardLoading ? (
+                  <div className="flex items-center space-x-2">
+                    <Loader2 className="h-6 w-6 animate-spin" />
+                    <span>Loading...</span>
+                  </div>
+                ) : (
+                  stats ? (stats.balance >= 0 ? '+' : '') + formatNumber(Math.abs(stats.balance)) : "Rp 0"
+                )}
+              </div>
               <p className="text-xs text-gray-500">
-                Surplus (Bulan ini)
+                {stats ? (stats.balance >= 0 ? 'Surplus' : 'Defisit') : 'Tidak ada data'} (Bulan ini)
               </p>
             </div>
           </CardContent>
@@ -538,6 +635,95 @@ export function DashboardContent() {
                 </div>
               ))}
             </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Quick Actions */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Card className="border-0 shadow-sm">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-base font-semibold flex items-center">
+              <Plus className="h-5 w-5 mr-2 text-green-600" />
+              Tambah Transaksi
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <Button
+              onClick={() => handleOpenDialog("INCOME")}
+              className="w-full bg-green-600 hover:bg-green-700"
+              disabled={loading}
+            >
+              <ArrowUpIcon className="h-4 w-4 mr-2" />
+              Tambah Pemasukan
+            </Button>
+            <Button
+              onClick={() => handleOpenDialog("EXPENSE")}
+              variant="outline"
+              className="w-full border-red-200 text-red-600 hover:bg-red-50"
+              disabled={loading}
+            >
+              <ArrowDownIcon className="h-4 w-4 mr-2" />
+              Tambah Pengeluaran
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* Recent Transactions */}
+        <Card className="border-0 shadow-sm">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-base font-semibold flex items-center">
+              <Calendar className="h-5 w-5 mr-2 text-blue-600" />
+              Transaksi Terbaru
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {transactions.length === 0 ? (
+              <div className="text-center py-4 text-gray-500">
+                <p className="text-sm">Belum ada transaksi</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {transactions.slice(0, 3).map((transaction) => (
+                  <div key={transaction.id} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+                    <div className="flex items-center space-x-3">
+                      <div className={`p-1.5 rounded-full ${
+                        transaction.type === 'INCOME' ? 'bg-green-100' : 'bg-red-100'
+                      }`}>
+                        {transaction.type === 'INCOME' ? (
+                          <ArrowUpIcon className="h-3 w-3 text-green-600" />
+                        ) : (
+                          <ArrowDownIcon className="h-3 w-3 text-red-600" />
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-gray-900 truncate max-w-[150px]">
+                          {transaction.description}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {new Date(transaction.date).toLocaleDateString('id-ID')}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className={`text-sm font-semibold ${
+                        transaction.type === 'INCOME' ? 'text-green-600' : 'text-red-600'
+                      }`}>
+                        {formatCurrency(transaction.amount)}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full text-blue-600 hover:text-blue-700"
+                  onClick={() => router.push('/dashboard/transactions')}
+                >
+                  Lihat Semua Transaksi
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

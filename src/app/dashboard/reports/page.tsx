@@ -162,11 +162,13 @@ export default function ReportsPage() {
   }
 
   const formatCurrency = (amount: number) => {
+    if (!amount || isNaN(amount) || amount === null || amount === undefined) return "Rp 0";
     return new Intl.NumberFormat("id-ID", {
       style: "currency",
       currency: "IDR",
       minimumFractionDigits: 0,
-    }).format(amount)
+      maximumFractionDigits: 0,
+    }).format(amount);
   }
 
   const formatDate = (dateString: string) => {
@@ -185,12 +187,17 @@ export default function ReportsPage() {
     return <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100 border-0">Menunggu</Badge>
   }
 
-  // Summary data (use API data if available, otherwise use defaults)
-  const summaryData = reportData?.summary || {
-    totalIncome: 75000000,
-    totalExpense: 42000000,
-    balance: 33000000,
-    finalBalance: 120000000,
+  // Summary data with safe number conversion to prevent NaN
+  const summaryData = {
+    totalIncome: Number(reportData?.summary?.totalIncome || 0) || 0,
+    totalExpense: Number(reportData?.summary?.totalExpense || 0) || 0,
+    balance: Number(reportData?.summary?.balance || 0) || 0,
+    finalBalance: Number(reportData?.summary?.finalBalance || 0) || 0,
+  }
+  
+  // Calculate balance in case not provided by API
+  if (summaryData.totalIncome && summaryData.totalExpense) {
+    summaryData.balance = summaryData.totalIncome - summaryData.totalExpense;
   }
 
   if (loading && !reportData) {

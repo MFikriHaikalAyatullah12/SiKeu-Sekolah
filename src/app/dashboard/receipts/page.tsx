@@ -141,11 +141,13 @@ export default function ReceiptsPage() {
   }, [session, status, router])
 
   const formatCurrency = (amount: number) => {
+    if (!amount || isNaN(amount) || amount === null || amount === undefined) return "Rp 0";
     return new Intl.NumberFormat("id-ID", {
       style: "currency",
       currency: "IDR",
       minimumFractionDigits: 0,
-    }).format(amount)
+      maximumFractionDigits: 0,
+    }).format(amount);
   }
 
   const formatDate = (dateString: string) => {
@@ -254,10 +256,10 @@ export default function ReceiptsPage() {
           </div>
         </div>
 
-        {/* Filter Bar */}
+        {/* Filter Bar - Simplified */}
         <Card className="rounded-2xl border-0 shadow-sm">
           <CardContent className="p-4">
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="flex flex-col sm:flex-row gap-4">
               {/* Search */}
               <div className="relative flex-1 min-w-[250px]">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -269,342 +271,148 @@ export default function ReceiptsPage() {
                 />
               </div>
 
-              {/* Date Range */}
-              <Select value={filterDate} onValueChange={setFilterDate}>
-                <SelectTrigger className="w-[140px] h-10 rounded-lg border-gray-200">
-                  <Calendar className="h-4 w-4 mr-2 text-gray-400" />
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="hari-ini">Hari ini</SelectItem>
-                  <SelectItem value="minggu-ini">Minggu ini</SelectItem>
-                  <SelectItem value="bulan-ini">Bulan ini</SelectItem>
-                  <SelectItem value="bulan-lalu">Bulan lalu</SelectItem>
-                  <SelectItem value="semua">Semua</SelectItem>
-                </SelectContent>
-              </Select>
+              {/* Quick Filters */}
+              <div className="flex gap-3">
+                <Select value={filterDate} onValueChange={setFilterDate}>
+                  <SelectTrigger className="w-[140px] h-10 rounded-lg border-gray-200">
+                    <Calendar className="h-4 w-4 mr-2 text-gray-400" />
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="bulan-ini">Bulan ini</SelectItem>
+                    <SelectItem value="minggu-ini">Minggu ini</SelectItem>
+                    <SelectItem value="hari-ini">Hari ini</SelectItem>
+                    <SelectItem value="semua">Semua</SelectItem>
+                  </SelectContent>
+                </Select>
 
-              {/* Status */}
-              <Select value={filterStatus} onValueChange={setFilterStatus}>
-                <SelectTrigger className="w-[180px] h-10 rounded-lg border-gray-200">
-                  <CheckCircle className="h-4 w-4 mr-2 text-gray-400" />
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="semua">Lunas / Menunggu / Void</SelectItem>
-                  <SelectItem value="lunas">Lunas</SelectItem>
-                  <SelectItem value="menunggu">Menunggu</SelectItem>
-                  <SelectItem value="void">Void</SelectItem>
-                </SelectContent>
-              </Select>
-
-              {/* Kategori */}
-              <Select value={filterKategori} onValueChange={setFilterKategori}>
-                <SelectTrigger className="w-[200px] h-10 rounded-lg border-gray-200">
-                  <Filter className="h-4 w-4 mr-2 text-gray-400" />
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="semua">SPP / Donasi / Iuran Kegiatan ...</SelectItem>
-                  <SelectItem value="spp">SPP</SelectItem>
-                  <SelectItem value="donasi">Donasi</SelectItem>
-                  <SelectItem value="iuran-kegiatan">Iuran Kegiatan</SelectItem>
-                  <SelectItem value="usaha-sekolah">Usaha Sekolah</SelectItem>
-                </SelectContent>
-              </Select>
-
-              {/* Petugas */}
-              <Select value={filterPetugas} onValueChange={setFilterPetugas}>
-                <SelectTrigger className="w-[160px] h-10 rounded-lg border-gray-200">
-                  <User className="h-4 w-4 mr-2 text-gray-400" />
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="semua">Semua Petugas</SelectItem>
-                  <SelectItem value="bendahara">Bendahara</SelectItem>
-                  <SelectItem value="admin-tu">Admin TU</SelectItem>
-                  <SelectItem value="superuser">Superuser</SelectItem>
-                </SelectContent>
-              </Select>
-
-              {/* Sort */}
-              <Select value={sortBy} onValueChange={setSortBy}>
-                <SelectTrigger className="w-[130px] h-10 rounded-lg border-gray-200">
-                  <ArrowUpDown className="h-4 w-4 mr-2 text-gray-400" />
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="terbaru">Terbaru</SelectItem>
-                  <SelectItem value="terlama">Terlama</SelectItem>
-                  <SelectItem value="nominal-tinggi">Nominal ↓</SelectItem>
-                  <SelectItem value="nominal-rendah">Nominal ↑</SelectItem>
-                </SelectContent>
-              </Select>
+                <Select value={filterStatus} onValueChange={setFilterStatus}>
+                  <SelectTrigger className="w-[120px] h-10 rounded-lg border-gray-200">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="semua">Semua Status</SelectItem>
+                    <SelectItem value="lunas">Lunas</SelectItem>
+                    <SelectItem value="menunggu">Menunggu</SelectItem>
+                    <SelectItem value="void">Void</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Main Layout - Split View */}
-        <div className="text-xs text-gray-400 uppercase tracking-wide font-medium">
-          MAIN LAYOUT (SPLIT VIEW)
-        </div>
-        
-        <div className="grid grid-cols-1 lg:grid-cols-[55fr_45fr] gap-6">
-          {/* Left Column - Receipt List */}
-          <Card className="rounded-2xl border-0 shadow-sm">
-            <CardHeader className="pb-4">
-              <CardTitle className="text-base font-semibold">Daftar Kwitansi</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="border rounded-xl overflow-hidden">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-gray-50 hover:bg-gray-50">
-                      <TableHead className="font-semibold text-xs text-gray-600 py-3">Nomor</TableHead>
-                      <TableHead className="font-semibold text-xs text-gray-600">Nama Pembayar</TableHead>
-                      <TableHead className="font-semibold text-xs text-gray-600">Tanggal</TableHead>
-                      <TableHead className="font-semibold text-xs text-gray-600">Nominal</TableHead>
-                      <TableHead className="font-semibold text-xs text-gray-600">Status</TableHead>
-                      <TableHead className="font-semibold text-xs text-gray-600">Petugas</TableHead>
-                      <TableHead className="font-semibold text-xs text-gray-600 text-center">Aksi</TableHead>
+        {/* Main Content - Single View Table */}
+        <Card className="rounded-2xl border-0 shadow-sm">
+          <CardHeader className="pb-4 px-6">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-lg font-semibold">Daftar Kwitansi</CardTitle>
+              <Badge variant="outline" className="px-3 py-1 text-xs">
+                {filteredReceipts.length} Data
+              </Badge>
+            </div>
+          </CardHeader>
+          <CardContent className="px-6">
+            <div className="border rounded-xl overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-gray-50 hover:bg-gray-50">
+                    <TableHead className="font-semibold text-sm text-gray-700 py-4">Nomor</TableHead>
+                    <TableHead className="font-semibold text-sm text-gray-700">Nama Pembayar</TableHead>
+                    <TableHead className="font-semibold text-sm text-gray-700">Tanggal</TableHead>
+                    <TableHead className="font-semibold text-sm text-gray-700">Nominal</TableHead>
+                    <TableHead className="font-semibold text-sm text-gray-700">Status</TableHead>
+                    <TableHead className="font-semibold text-sm text-gray-700">Petugas</TableHead>
+                    <TableHead className="font-semibold text-sm text-gray-700 text-center">Aksi</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredReceipts.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center py-8 text-gray-500">
+                        <FileText className="h-8 w-8 text-gray-300 mx-auto mb-2" />
+                        <p className="text-sm">Tidak ada kwitansi ditemukan</p>
+                      </TableCell>
                     </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredReceipts.map((receipt) => (
+                  ) : (
+                    filteredReceipts.map((receipt) => (
                       <TableRow 
                         key={receipt.id} 
-                        className={`hover:bg-gray-50/50 cursor-pointer ${selectedReceipt?.id === receipt.id ? 'bg-blue-50/50' : ''}`}
-                        onClick={() => handlePreview(receipt)}
+                        className="hover:bg-gray-50/50"
                       >
-                        <TableCell className="text-sm py-3 font-mono text-blue-600">
+                        <TableCell className="text-sm py-4 font-mono text-blue-600 font-medium">
                           {receipt.nomor}
                         </TableCell>
-                        <TableCell className="text-sm">{receipt.namaPembayar}</TableCell>
+                        <TableCell className="text-sm font-medium">{receipt.namaPembayar}</TableCell>
                         <TableCell className="text-sm">{formatDate(receipt.tanggal)}</TableCell>
-                        <TableCell className="text-sm font-medium">
+                        <TableCell className="text-sm font-medium text-green-700">
                           {formatCurrency(receipt.nominal)}
                         </TableCell>
                         <TableCell>{getStatusBadge(receipt.status)}</TableCell>
                         <TableCell className="text-sm text-gray-600">{receipt.petugas}</TableCell>
                         <TableCell className="text-center">
-                          <button 
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              handlePreview(receipt)
-                            }}
-                            className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-700 text-xs font-medium"
-                          >
-                            <Eye className="h-3 w-3" />
-                            Preview
-                          </button>
+                          <div className="flex items-center justify-center gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handlePreview(receipt)}
+                              className="h-8 px-3 text-xs"
+                            >
+                              <Eye className="h-3 w-3 mr-1" />
+                              Preview
+                            </Button>
+                            <Button
+                              size="sm"
+                              onClick={() => handleDownloadPDF()}
+                              className="h-8 px-3 text-xs bg-blue-600 hover:bg-blue-700"
+                            >
+                              <Download className="h-3 w-3 mr-1" />
+                              Download
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-
-              {/* Pagination */}
-              <div className="flex items-center justify-center gap-1 pt-4">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  disabled={currentPage === 1}
-                  className="text-xs text-gray-500 hover:text-gray-700"
-                >
-                  Previous
-                </Button>
-                {[1, 2, 3].map((page) => (
-                  <Button
-                    key={page}
-                    variant={currentPage === page ? "default" : "ghost"}
-                    size="sm"
-                    className={`w-8 h-8 p-0 text-xs ${
-                      currentPage === page
-                        ? "bg-blue-600 text-white hover:bg-blue-700"
-                        : "text-gray-600 hover:bg-gray-100"
-                    }`}
-                    onClick={() => setCurrentPage(page)}
-                  >
-                    {page}
-                  </Button>
-                ))}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-xs text-gray-500 hover:text-gray-700"
-                >
-                  Next
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Right Column - Preview Panel */}
-          <div className="space-y-4">
-            <div className="text-xs text-gray-400 uppercase tracking-wide font-medium">
-              PREVIEW PANEL
+                    ))
+                  )}
+                </TableBody>
+              </Table>
             </div>
             
-            {selectedReceipt && (
-              <>
-                {/* A4 Receipt Preview */}
-                <Card className="rounded-2xl border-0 shadow-sm">
-                  <CardContent className="p-6">
-                    {/* Receipt Preview - A4 Style */}
-                    <div className="bg-white border rounded-xl p-6 shadow-sm">
-                      {/* Header */}
-                      <div className="flex items-start gap-4 pb-4 border-b">
-                        <div className="w-14 h-14 bg-blue-100 rounded-xl flex items-center justify-center">
-                          <FileText className="h-7 w-7 text-blue-600" />
-                        </div>
-                        <div className="flex-1">
-                          <h3 className="font-bold text-gray-900">SMA Negeri Contoh</h3>
-                          <p className="text-xs text-gray-500">Jl. Pendidikan No. 123, Kota Contoh</p>
-                          <p className="text-xs text-gray-500">(021) 12345678 / info@smancontoh.sch.id</p>
-                        </div>
-                      </div>
-
-                      {/* Title */}
-                      <div className="text-center py-4">
-                        <h2 className="text-xl font-bold text-gray-900 tracking-wide">KWITANSI</h2>
-                        <div className="text-sm text-gray-600 mt-1">
-                          <span className="text-gray-500">Nomor:</span>{" "}
-                          <span className="font-mono font-medium">{selectedReceipt.nomor}</span>
-                        </div>
-                        <div className="text-sm text-gray-500">
-                          Tanggal: {formatDate(selectedReceipt.tanggal)}
-                        </div>
-                      </div>
-
-                      {/* Details */}
-                      <div className="space-y-3 py-4 border-t border-b">
-                        <div className="flex">
-                          <span className="w-36 text-sm text-gray-500">Telah diterima dari</span>
-                          <span className="text-sm font-medium">: {selectedReceipt.namaPembayar}</span>
-                        </div>
-                        <div className="flex">
-                          <span className="w-36 text-sm text-gray-500">Untuk pembayaran</span>
-                          <span className="text-sm font-medium">: {selectedReceipt.untukPembayaran}</span>
-                        </div>
-                        <div className="flex">
-                          <span className="w-36 text-sm text-gray-500">Nominal</span>
-                          <span className="text-sm font-bold text-blue-600">: {formatCurrency(selectedReceipt.nominal)}</span>
-                        </div>
-                        <div className="flex">
-                          <span className="w-36 text-sm text-gray-500">Terbilang</span>
-                          <span className="text-sm italic">: {selectedReceipt.terbilang}</span>
-                        </div>
-                        <div className="flex">
-                          <span className="w-36 text-sm text-gray-500">Metode pembayaran</span>
-                          <span className="text-sm">: {selectedReceipt.metodePembayaran}</span>
-                        </div>
-                      </div>
-
-                      {/* Footer with QR and Signature */}
-                      <div className="flex justify-between items-end pt-4">
-                        {/* QR Code */}
-                        <div className="text-center">
-                          <div className="w-20 h-20 bg-gray-100 border rounded-lg flex items-center justify-center mb-1">
-                            <div className="grid grid-cols-4 gap-0.5">
-                              {Array(16).fill(0).map((_, i) => (
-                                <div 
-                                  key={i} 
-                                  className={`w-3 h-3 ${Math.random() > 0.5 ? 'bg-gray-800' : 'bg-white'}`}
-                                />
-                              ))}
-                            </div>
-                          </div>
-                          <p className="text-[10px] text-gray-400">Verifikasi</p>
-                        </div>
-
-                        {/* Signature */}
-                        <div className="text-center">
-                          <p className="text-sm text-gray-600 mb-10">Bendahara</p>
-                          <div className="border-b border-gray-300 w-32 mb-1"></div>
-                          <p className="text-xs text-gray-500">(Nama Bendahara)</p>
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Info Sistem */}
-                <Card className="rounded-2xl border-0 shadow-sm">
-                  <CardContent className="p-4">
-                    <h4 className="text-sm font-semibold text-gray-700 flex items-center gap-2 mb-3">
-                      <Clock className="h-4 w-4" />
-                      Info Sistem
-                    </h4>
-                    
-                    <div className="space-y-2 text-sm">
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-500">Dibuat oleh</span>
-                        <span className="font-medium text-gray-700">{selectedReceipt.createdBy}</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-500">Dibuat pada</span>
-                        <span className="text-gray-700">{formatDateTime(selectedReceipt.createdAt)}</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-500">Diterbitkan oleh</span>
-                        <span className="font-medium text-gray-700">{selectedReceipt.publishedBy || "-"}</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-500">Diterbitkan pada</span>
-                        <span className="text-gray-700">{formatDateTime(selectedReceipt.publishedAt)}</span>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Action Buttons */}
-                <div className="flex gap-3">
-                  <Button
-                    onClick={handleDownloadPDF}
-                    className="flex-1 h-10 bg-blue-600 hover:bg-blue-700 rounded-lg"
-                  >
-                    <Download className="h-4 w-4 mr-2" />
-                    Unduh PDF
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={handlePrint}
-                    className="h-10 rounded-lg border-gray-200"
-                  >
-                    <Printer className="h-4 w-4 mr-2" />
-                    Cetak
-                  </Button>
-                  <Button
-                    onClick={handleSendWhatsApp}
-                    className="h-10 bg-green-600 hover:bg-green-700 rounded-lg"
-                  >
-                    <Send className="h-4 w-4 mr-2" />
-                    Kirim WhatsApp
-                  </Button>
-                </div>
-
-                {/* Void Warning */}
-                {selectedReceipt.status !== "VOID" && (
-                  <div className="flex items-center justify-between p-3 bg-amber-50 rounded-lg border border-amber-200">
-                    <p className="text-xs text-amber-700">
-                      Void akan tercatat di Audit Log.
-                    </p>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleVoid(selectedReceipt)}
-                      className="text-red-600 hover:text-red-700 hover:bg-red-50 text-xs"
-                    >
-                      <Ban className="h-3 w-3 mr-1" />
-                      Void Kwitansi
-                    </Button>
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-        </div>
+            {/* Pagination */}
+            <div className="flex items-center justify-center gap-1 pt-6">
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={currentPage === 1}
+                className="text-xs text-gray-500 hover:text-gray-700"
+              >
+                Previous
+              </Button>
+              {[1, 2, 3].map((page) => (
+                <Button
+                  key={page}
+                  variant={currentPage === page ? "default" : "ghost"}
+                  size="sm"
+                  className={`w-8 h-8 p-0 text-xs ${
+                    currentPage === page
+                      ? "bg-blue-600 text-white hover:bg-blue-700"
+                      : "text-gray-600 hover:bg-gray-100"
+                  }`}
+                  onClick={() => setCurrentPage(page)}
+                >
+                  {page}
+                </Button>
+              ))}
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs text-gray-500 hover:text-gray-700"
+              >
+                Next
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </DashboardLayout>
   )
