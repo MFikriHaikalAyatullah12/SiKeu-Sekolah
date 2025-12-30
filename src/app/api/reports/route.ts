@@ -104,12 +104,12 @@ export async function GET(request: NextRequest) {
     // Get aggregated income and expense
     const [incomeAgg, expenseAgg, transactions] = await Promise.all([
       prisma.transaction.aggregate({
-        where: { ...where, type: 'INCOME' },
+        where: { ...where, type: 'INCOME', status: 'PAID' },
         _sum: { amount: true },
         _count: true
       }),
       prisma.transaction.aggregate({
-        where: { ...where, type: 'EXPENSE' },
+        where: { ...where, type: 'EXPENSE', status: 'PAID' },
         _sum: { amount: true },
         _count: true
       }),
@@ -164,11 +164,11 @@ export async function GET(request: NextRequest) {
 
       const [monthIncome, monthExpense] = await Promise.all([
         prisma.transaction.aggregate({
-          where: { ...monthWhere, type: 'INCOME' },
+          where: { ...monthWhere, type: 'INCOME', status: 'PAID' },
           _sum: { amount: true }
         }),
         prisma.transaction.aggregate({
-          where: { ...monthWhere, type: 'EXPENSE' },
+          where: { ...monthWhere, type: 'EXPENSE', status: 'PAID' },
           _sum: { amount: true }
         })
       ])

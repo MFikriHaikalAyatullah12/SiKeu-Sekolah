@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -92,6 +93,8 @@ const accountDestinations = [
 
 export function TransactionContent() {
   const { data: session } = useSession();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState<TransactionType>("INCOME");
   const [loading, setLoading] = useState(false);
   const [transactions, setTransactions] = useState<any[]>([]);
@@ -110,13 +113,30 @@ export function TransactionContent() {
     notes: "",
     proof: null as File | null,
   });
+  
+  const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
 
   const currentCOA = activeTab === "INCOME" ? incomeCOA : expenseCOA;
   const selectedCategory = currentCOA.find(cat => cat.code === formData.categoryCode);
   const availableTypes = selectedCategory?.types || [];
 
+  // Baca query parameter tab dari URL saat component mount
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (tab === 'INCOME' || tab === 'EXPENSE') {
+      setActiveTab(tab);
+    }
+  }, [searchParams]);
+
   useEffect(() => {
     fetchTransactions();
+    
+    // Auto-refresh setiap 5 detik untuk sinkronisasi dengan database
+    const interval = setInterval(() => {
+      fetchTransactions();
+    }, 5000);
+    
+    return () => clearInterval(interval);
   }, [activeTab]);
 
   const fetchTransactions = async () => {
@@ -217,6 +237,29 @@ export function TransactionContent() {
       month: "short",
       year: "numeric",
     });
+  };
+
+  const handleStatusChange = async (transactionId: string, newStatus: string) => {
+    setUpdatingStatus(transactionId);
+    try {
+      const response = await fetch(`/api/transactions/${transactionId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
+      });
+
+      if (response.ok) {
+        toast.success(`Status transaksi berhasil diubah ke ${newStatus === 'PAID' ? 'Lunas' : 'Menunggu'}`);
+        fetchTransactions();
+      } else {
+        const data = await response.json();
+        toast.error(data.error || "Gagal mengubah status");
+      }
+    } catch (error) {
+      toast.error("Gagal mengubah status transaksi");
+    } finally {
+      setUpdatingStatus(null);
+    }
   };
 
   return (
@@ -523,7 +566,6 @@ export function TransactionContent() {
                       <TableRow className="bg-gray-50 hover:bg-gray-50">
                         <TableHead className="text-xs font-semibold text-gray-600 py-3">Tanggal</TableHead>
                         <TableHead className="text-xs font-semibold text-gray-600">Kategori Akun</TableHead>
-                        <TableHead className="text-xs font-semibold text-gray-600">Jenis Akun</TableHead>
                         <TableHead className="text-xs font-semibold text-gray-600">Nama</TableHead>
                         <TableHead className="text-xs font-semibold text-gray-600">Nominal</TableHead>
                         <TableHead className="text-xs font-semibold text-gray-600">Akun Masuk</TableHead>
@@ -543,9 +585,6 @@ export function TransactionContent() {
                               {transaction.category?.name || 'N/A'}
                             </TableCell>
                             <TableCell className="text-sm">
-                              {transaction.categoryId || 'N/A'}
-                            </TableCell>
-                            <TableCell className="text-sm">
                               {transaction.fromTo || transaction.description?.split(' - ')[0] || 'N/A'}
                             </TableCell>
                             <TableCell className="text-sm font-medium">
@@ -555,19 +594,35 @@ export function TransactionContent() {
                               {transaction.coaAccount?.name || 'N/A'}
                             </TableCell>
                             <TableCell>
-                              <Badge 
-                                variant="outline"
-                                className={`text-xs border-0 ${
+                              <Select
+                                value={transaction.status}
+                                onValueChange={(value) => handleStatusChange(transaction.id, value)}
+                                disabled={updatingStatus === transaction.id}
+                              >
+                                <SelectTrigger className={`w-[110px] h-7 text-xs border-0 ${
                                   transaction.status === 'PAID' 
                                     ? 'bg-green-100 text-green-700' 
                                     : transaction.status === 'PENDING'
                                     ? 'bg-yellow-100 text-yellow-700'
                                     : 'bg-gray-100 text-gray-700'
-                                }`}
-                              >
-                                {transaction.status === 'PAID' ? 'Lunas' : 
-                                 transaction.status === 'PENDING' ? 'Menunggu' : 'Void'}
-                              </Badge>
+                                }`}>
+                                  <SelectValue>
+                                    {transaction.status === 'PAID' ? 'Lunas' : 
+                                     transaction.status === 'PENDING' ? 'Menunggu' : 'Void'}
+                                  </SelectValue>
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="PENDING" className="text-xs">
+                                    Menunggu
+                                  </SelectItem>
+                                  <SelectItem value="PAID" className="text-xs">
+                                    Lunas
+                                  </SelectItem>
+                                  <SelectItem value="VOID" className="text-xs">
+                                    Void
+                                  </SelectItem>
+                                </SelectContent>
+                              </Select>
                             </TableCell>
                             <TableCell className="text-sm">
                               {transaction.createdBy?.name || 'Admin TU'}

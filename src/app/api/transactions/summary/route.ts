@@ -29,11 +29,11 @@ export async function GET(request: NextRequest) {
 
     const [incomeSum, expenseSum, transactionCount] = await Promise.all([
       prisma.transaction.aggregate({
-        where: { ...where, type: 'INCOME' },
+        where: { ...where, type: 'INCOME', status: 'PAID' },
         _sum: { amount: true }
       }),
       prisma.transaction.aggregate({
-        where: { ...where, type: 'EXPENSE' },
+        where: { ...where, type: 'EXPENSE', status: 'PAID' },
         _sum: { amount: true }
       }),
       prisma.transaction.count({ where })

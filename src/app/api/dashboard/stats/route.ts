@@ -67,12 +67,12 @@ export async function GET(request: Request) {
     // Get transactions
     const [income, expense, transactions, monthlyStats, categoryStats] = await Promise.all([
       prisma.transaction.aggregate({
-        where: { ...where, type: "INCOME" },
+        where: { ...where, type: "INCOME", status: "PAID" },
         _sum: { amount: true },
         _count: true
       }),
       prisma.transaction.aggregate({
-        where: { ...where, type: "EXPENSE" },
+        where: { ...where, type: "EXPENSE", status: "PAID" },
         _sum: { amount: true },
         _count: true
       }),
@@ -90,8 +90,8 @@ export async function GET(request: Request) {
           SELECT 
             EXTRACT(YEAR FROM date) as year,
             EXTRACT(MONTH FROM date) as month,
-            SUM(CASE WHEN type = 'INCOME' THEN amount ELSE 0 END) as pemasukan,
-            SUM(CASE WHEN type = 'EXPENSE' THEN amount ELSE 0 END) as pengeluaran
+            SUM(CASE WHEN type = 'INCOME' AND status = 'PAID' THEN amount ELSE 0 END) as pemasukan,
+            SUM(CASE WHEN type = 'EXPENSE' AND status = 'PAID' THEN amount ELSE 0 END) as pengeluaran
           FROM "transactions" 
           WHERE "schoolProfileId" = ${session.user.schoolId}
             AND date >= NOW() - INTERVAL '6 months'
@@ -103,8 +103,8 @@ export async function GET(request: Request) {
           SELECT 
             EXTRACT(YEAR FROM date) as year,
             EXTRACT(MONTH FROM date) as month,
-            SUM(CASE WHEN type = 'INCOME' THEN amount ELSE 0 END) as pemasukan,
-            SUM(CASE WHEN type = 'EXPENSE' THEN amount ELSE 0 END) as pengeluaran
+            SUM(CASE WHEN type = 'INCOME' AND status = 'PAID' THEN amount ELSE 0 END) as pemasukan,
+            SUM(CASE WHEN type = 'EXPENSE' AND status = 'PAID' THEN amount ELSE 0 END) as pengeluaran
           FROM "transactions" 
           WHERE date >= NOW() - INTERVAL '6 months'
           GROUP BY EXTRACT(YEAR FROM date), EXTRACT(MONTH FROM date)
@@ -114,7 +114,7 @@ export async function GET(request: Request) {
       // Get category breakdown for expenses
       prisma.transaction.groupBy({
         by: ['categoryId'],
-        where: { ...where, type: 'EXPENSE' },
+        where: { ...where, type: 'EXPENSE', status: 'PAID' },
         _sum: { amount: true },
         orderBy: {
           _sum: {

@@ -132,7 +132,12 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    return NextResponse.json({ transactions: formattedTransactions })
+    const response = NextResponse.json({ transactions: formattedTransactions })
+    // Disable caching untuk memastikan data selalu fresh dari database
+    response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate')
+    response.headers.set('Pragma', 'no-cache')
+    response.headers.set('Expires', '0')
+    return response
   } catch (error) {
     console.error('Error fetching transactions:', error)
     return NextResponse.json(

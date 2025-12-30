@@ -662,7 +662,7 @@ export function DashboardContent() {
           </CardHeader>
           <CardContent className="space-y-3">
             <Button
-              onClick={() => handleOpenDialog("INCOME")}
+              onClick={() => router.push('/dashboard/transactions?tab=INCOME')}
               className="w-full bg-green-600 hover:bg-green-700"
               disabled={loading}
             >
@@ -670,7 +670,7 @@ export function DashboardContent() {
               Tambah Pemasukan
             </Button>
             <Button
-              onClick={() => handleOpenDialog("EXPENSE")}
+              onClick={() => router.push('/dashboard/transactions?tab=EXPENSE')}
               variant="outline"
               className="w-full border-red-200 text-red-600 hover:bg-red-50"
               disabled={loading}
