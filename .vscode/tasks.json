@@ -1,0 +1,16 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "seed-db",
+			"type": "shell",
+			"command": "npx",
+			"args": [
+				"db",
+				"seed"
+			],
+			"isBackground": false,
+			"group": "db"
+		}
+	]
+}

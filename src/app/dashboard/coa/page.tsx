@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { toast } from "sonner"
 import { Plus, Pencil, Trash2 } from "lucide-react"
+import { DashboardLayout } from "@/components/layout/dashboard-layout"
 
 interface ChartOfAccount {
   id: string
@@ -99,7 +100,11 @@ export default function COAManagementPage() {
   }
 
   if (loading || session?.user?.role !== "SUPER_ADMIN") {
-    return <div className="flex items-center justify-center h-screen">Loading...</div>
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-screen">Loading...</div>
+      </DashboardLayout>
+    )
   }
 
   const groupedByCategory = coaList.reduce((acc, coa) => {
@@ -111,7 +116,8 @@ export default function COAManagementPage() {
   }, {} as Record<string, ChartOfAccount[]>)
 
   return (
-    <div className="container mx-auto p-6">
+    <DashboardLayout>
+      <div className="container mx-auto p-6">
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -218,5 +224,6 @@ export default function COAManagementPage() {
         </CardContent>
       </Card>
     </div>
+    </DashboardLayout>
   )
 }

@@ -126,14 +126,37 @@ export default function ReportsPage() {
   const fetchReportData = async () => {
     setLoading(true)
     try {
-      const response = await fetch(`/api/reports?period=thisMonth`)
+      // Map dateRange to API period parameter
+      const periodMap: Record<string, string> = {
+        'hari-ini': 'today',
+        'minggu-ini': 'thisWeek',
+        'bulan-ini': 'thisMonth',
+        'bulan-lalu': 'lastMonth',
+        'tahun-ini': 'thisYear'
+      }
+      
+      const period = periodMap[dateRange] || 'thisMonth'
+      const url = `/api/reports?period=${period}&_t=${Date.now()}`
+      
+      console.log("📊 Fetching report data:", url)
+      const response = await fetch(url, { cache: 'no-store' })
       const data = await response.json()
+      
+      console.log("📈 Report data received:", {
+        totalIncome: data.summary?.totalIncome,
+        totalExpense: data.summary?.totalExpense,
+        balance: data.summary?.balance
+      })
       
       if (response.ok) {
         setReportData(data)
+      } else {
+        console.error("Failed to fetch report data:", data.error)
+        toast.error(data.error || "Gagal memuat data laporan")
       }
     } catch (error) {
       console.error("Failed to fetch report data:", error)
+      toast.error("Gagal memuat data laporan")
     } finally {
       setLoading(false)
     }
@@ -147,17 +170,18 @@ export default function ReportsPage() {
     toast.success("Laporan Excel berhasil diunduh")
   }
 
-  const handleApplyFilters = () => {
+  const handleApplyFilters = async () => {
+    await fetchReportData()
     toast.success("Filter berhasil diterapkan")
-    fetchReportData()
   }
 
-  const handleResetFilters = () => {
+  const handleResetFilters = async () => {
     setDateRange("bulan-ini")
     setFilterType("semua")
     setFilterCategory("semua")
     setFilterMethod("semua")
     setFilterStatus("semua")
+    await fetchReportData()
     toast.success("Filter berhasil direset")
   }
 
@@ -192,13 +216,41 @@ export default function ReportsPage() {
     totalIncome: Number(reportData?.summary?.totalIncome || 0) || 0,
     totalExpense: Number(reportData?.summary?.totalExpense || 0) || 0,
     balance: Number(reportData?.summary?.balance || 0) || 0,
-    finalBalance: Number(reportData?.summary?.finalBalance || 0) || 0,
+    finalBalance: Number(reportData?.summary?.balance || 0) || 0, // Use balance as final balance
   }
   
-  // Calculate balance in case not provided by API
-  if (summaryData.totalIncome && summaryData.totalExpense) {
-    summaryData.balance = summaryData.totalIncome - summaryData.totalExpense;
+  // Calculate balance if not provided by API
+  if (!summaryData.balance && summaryData.totalIncome && summaryData.totalExpense) {
+    summaryData.balance = summaryData.totalIncome - summaryData.totalExpense
+    summaryData.finalBalance = summaryData.balance
   }
+  
+  console.log("💰 Summary data for display:", summaryData)
+
+  // Get monthly trend data from API
+  const monthlyData = reportData?.monthlyTrend || []
+  
+  // Get expense by category data from API and convert to chart format
+  const expenseByCategory = reportData?.expenseByCategory || {}
+  const totalExpenseForChart = Object.values(expenseByCategory).reduce((sum: number, val: any) => sum + Number(val), 0)
+  
+  const categoryChartData = Object.entries(expenseByCategory)
+    .map(([name, amount], index) => ({
+      name,
+      value: Number(amount),
+      percentage: totalExpenseForChart > 0 ? Math.round((Number(amount) / totalExpenseForChart) * 100) : 0,
+      color: ['#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899', '#6B7280'][index % 6]
+    }))
+    .filter(item => item.value > 0)
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 5) // Top 5 categories
+
+  // If no expense data, show placeholder
+  const displayCategoryData = categoryChartData.length > 0 ? categoryChartData : [
+    { name: "Belum ada data", value: 100, percentage: 100, color: "#E5E7EB" }
+  ]
+
+  console.log("📊 Chart data:", { monthlyData, categoryChartData })
 
   if (loading && !reportData) {
     return (
@@ -440,92 +492,114 @@ export default function ReportsPage() {
             <CardContent>
               {/* Simple SVG Line Chart */}
               <div className="h-[250px] relative">
-                <svg viewBox="0 0 600 200" className="w-full h-full">
-                  {/* Grid lines */}
-                  <g className="text-gray-200">
-                    {[0, 50, 100, 150, 200].map((y, i) => (
-                      <line key={i} x1="40" y1={200 - y} x2="580" y2={200 - y} stroke="currentColor" strokeDasharray="4" />
-                    ))}
-                  </g>
-                  
-                  {/* Y-axis labels */}
-                  <g className="text-xs fill-gray-400">
-                    <text x="30" y="200" textAnchor="end">0</text>
-                    <text x="30" y="150" textAnchor="end">150</text>
-                    <text x="30" y="100" textAnchor="end">300</text>
-                    <text x="30" y="50" textAnchor="end">450</text>
-                    <text x="30" y="10" textAnchor="end">500</text>
-                  </g>
-                  
-                  {/* Income line (green) */}
-                  <path
-                    d="M 60 160 L 150 140 L 240 120 L 330 90 L 420 60 L 510 20"
-                    fill="none"
-                    stroke="#10B981"
-                    strokeWidth="3"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                  
-                  {/* Expense line (red) */}
-                  <path
-                    d="M 60 180 L 150 170 L 240 160 L 330 155 L 420 160 L 510 170"
-                    fill="none"
-                    stroke="#F87171"
-                    strokeWidth="3"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                  
-                  {/* Income area fill */}
-                  <path
-                    d="M 60 160 L 150 140 L 240 120 L 330 90 L 420 60 L 510 20 L 510 200 L 60 200 Z"
-                    fill="url(#incomeGradient)"
-                    opacity="0.2"
-                  />
-                  
-                  {/* Data points - Income */}
-                  {[
-                    { x: 60, y: 160 },
-                    { x: 150, y: 140 },
-                    { x: 240, y: 120 },
-                    { x: 330, y: 90 },
-                    { x: 420, y: 60 },
-                    { x: 510, y: 20 },
-                  ].map((point, i) => (
-                    <circle key={`income-${i}`} cx={point.x} cy={point.y} r="5" fill="#10B981" />
-                  ))}
-                  
-                  {/* Data points - Expense */}
-                  {[
-                    { x: 60, y: 180 },
-                    { x: 150, y: 170 },
-                    { x: 240, y: 160 },
-                    { x: 330, y: 155 },
-                    { x: 420, y: 160 },
-                    { x: 510, y: 170 },
-                  ].map((point, i) => (
-                    <circle key={`expense-${i}`} cx={point.x} cy={point.y} r="5" fill="#F87171" />
-                  ))}
-                  
-                  {/* X-axis labels */}
-                  <g className="text-xs fill-gray-500">
-                    <text x="60" y="220" textAnchor="middle">Jul 2025</text>
-                    <text x="150" y="220" textAnchor="middle">Agu 2025</text>
-                    <text x="240" y="220" textAnchor="middle">Sep 2025</text>
-                    <text x="330" y="220" textAnchor="middle">Okt 2025</text>
-                    <text x="420" y="220" textAnchor="middle">Nov 2025</text>
-                    <text x="510" y="220" textAnchor="middle">Des 2025</text>
-                  </g>
-                  
-                  {/* Gradient definitions */}
-                  <defs>
-                    <linearGradient id="incomeGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                      <stop offset="0%" stopColor="#10B981" stopOpacity="0.3" />
-                      <stop offset="100%" stopColor="#10B981" stopOpacity="0" />
-                    </linearGradient>
-                  </defs>
-                </svg>
+                {monthlyData.length > 0 ? (
+                  <svg viewBox="0 0 600 200" className="w-full h-full">
+                    {/* Grid lines */}
+                    <g className="text-gray-200">
+                      {[0, 50, 100, 150, 200].map((y, i) => (
+                        <line key={i} x1="40" y1={200 - y} x2="580" y2={200 - y} stroke="currentColor" strokeDasharray="4" />
+                      ))}
+                    </g>
+                    
+                    {/* Calculate max value for scaling */}
+                    {(() => {
+                      const maxValue = Math.max(
+                        ...monthlyData.map((d: any) => Math.max(Number(d.income) || 0, Number(d.expense) || 0))
+                      )
+                      const scale = maxValue > 0 ? 180 / maxValue : 1
+                      const yAxisMax = Math.ceil(maxValue / 100000000) * 100 // Round to nearest 100M
+                      
+                      const incomePoints = monthlyData.map((d: any, i: number) => {
+                        const x = 60 + (i * 90)
+                        const y = 190 - (Number(d.income) * scale)
+                        return { x, y, value: Number(d.income) }
+                      })
+                      
+                      const expensePoints = monthlyData.map((d: any, i: number) => {
+                        const x = 60 + (i * 90)
+                        const y = 190 - (Number(d.expense) * scale)
+                        return { x, y, value: Number(d.expense) }
+                      })
+                      
+                      return (
+                        <>
+                          {/* Y-axis labels */}
+                          <g className="text-xs fill-gray-400">
+                            <text x="30" y="195" textAnchor="end">0</text>
+                            <text x="30" y="150" textAnchor="end">{(yAxisMax * 0.25).toFixed(0)}M</text>
+                            <text x="30" y="100" textAnchor="end">{(yAxisMax * 0.5).toFixed(0)}M</text>
+                            <text x="30" y="50" textAnchor="end">{(yAxisMax * 0.75).toFixed(0)}M</text>
+                            <text x="30" y="10" textAnchor="end">{yAxisMax}M</text>
+                          </g>
+                          
+                          {/* Income line (green) */}
+                          {incomePoints.length > 1 && (
+                            <path
+                              d={`M ${incomePoints.map((p: any) => `${p.x} ${p.y}`).join(' L ')}`}
+                              fill="none"
+                              stroke="#10B981"
+                              strokeWidth="3"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          )}
+                          
+                          {/* Expense line (red) */}
+                          {expensePoints.length > 1 && (
+                            <path
+                              d={`M ${expensePoints.map((p: any) => `${p.x} ${p.y}`).join(' L ')}`}
+                              fill="none"
+                              stroke="#F87171"
+                              strokeWidth="3"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          )}
+                          
+                          {/* Income area fill */}
+                          {incomePoints.length > 1 && (
+                            <path
+                              d={`M ${incomePoints.map((p: any) => `${p.x} ${p.y}`).join(' L ')} L ${incomePoints[incomePoints.length - 1].x} 190 L ${incomePoints[0].x} 190 Z`}
+                              fill="url(#incomeGradient)"
+                              opacity="0.2"
+                            />
+                          )}
+                          
+                          {/* Data points - Income */}
+                          {incomePoints.map((point: any, i: number) => (
+                            <circle key={`income-${i}`} cx={point.x} cy={point.y} r="4" fill="#10B981" />
+                          ))}
+                          
+                          {/* Data points - Expense */}
+                          {expensePoints.map((point: any, i: number) => (
+                            <circle key={`expense-${i}`} cx={point.x} cy={point.y} r="4" fill="#F87171" />
+                          ))}
+                          
+                          {/* X-axis labels */}
+                          <g className="text-xs fill-gray-500">
+                            {monthlyData.map((d: any, i: number) => (
+                              <text key={i} x={60 + (i * 90)} y="220" textAnchor="middle">
+                                {d.month}
+                              </text>
+                            ))}
+                          </g>
+                        </>
+                      )
+                    })()}
+                    
+                    {/* Gradient definitions */}
+                    <defs>
+                      <linearGradient id="incomeGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" stopColor="#10B981" stopOpacity="0.3" />
+                        <stop offset="100%" stopColor="#10B981" stopOpacity="0" />
+                      </linearGradient>
+                    </defs>
+                  </svg>
+                ) : (
+                  <div className="flex items-center justify-center h-full text-gray-400">
+                    <p>Belum ada data transaksi</p>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -539,7 +613,7 @@ export default function ReportsPage() {
               <div className="flex items-center gap-6">
                 {/* Legend */}
                 <div className="space-y-3 text-sm">
-                  {categoryData.map((item, index) => (
+                  {displayCategoryData.map((item, index) => (
                     <div key={index} className="flex items-center gap-2">
                       <span 
                         className="w-3 h-3 rounded-full" 
@@ -559,7 +633,7 @@ export default function ReportsPage() {
                     {/* Segments */}
                     {(() => {
                       let cumulativeOffset = 0;
-                      return categoryData.map((item, index) => {
+                      return displayCategoryData.map((item, index) => {
                         const circumference = 2 * Math.PI * 40;
                         const strokeDasharray = `${(item.percentage / 100) * circumference} ${circumference}`;
                         const strokeDashoffset = -cumulativeOffset * circumference / 100;
@@ -585,8 +659,18 @@ export default function ReportsPage() {
                   {/* Percentage labels overlay */}
                   <div className="absolute inset-0 flex items-center justify-center">
                     <div className="text-center">
-                      <span className="text-2xl font-bold text-blue-600">45%</span>
-                      <p className="text-[10px] text-gray-500 mt-0.5">Gaji Guru & Staf</p>
+                      {displayCategoryData.length > 0 && displayCategoryData[0].name !== "Belum ada data" ? (
+                        <>
+                          <span className="text-2xl font-bold" style={{ color: displayCategoryData[0].color }}>
+                            {displayCategoryData[0].percentage}%
+                          </span>
+                          <p className="text-[10px] text-gray-500 mt-0.5 max-w-[100px] truncate">
+                            {displayCategoryData[0].name}
+                          </p>
+                        </>
+                      ) : (
+                        <span className="text-sm text-gray-400">Belum ada data</span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -616,38 +700,50 @@ export default function ReportsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {sampleTransactions.map((transaction) => (
-                    <TableRow key={transaction.id} className="hover:bg-gray-50/50">
-                      <TableCell className="text-sm py-3">
-                        {formatDate(transaction.date)}
-                      </TableCell>
-                      <TableCell className="text-sm">
-                        <Badge 
-                          variant="outline"
-                          className={`text-xs border-0 ${
-                            transaction.type === "INCOME" 
-                              ? "bg-green-100 text-green-700" 
-                              : "bg-red-100 text-red-700"
-                          }`}
-                        >
-                          {transaction.type === "INCOME" ? "Pemasukan" : "Pengeluaran"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-sm">{transaction.category}</TableCell>
-                      <TableCell className="text-sm">{transaction.description}</TableCell>
-                      <TableCell className="text-sm font-medium">
-                        {formatCurrency(transaction.amount)}
-                      </TableCell>
-                      <TableCell className="text-sm">{transaction.method}</TableCell>
-                      <TableCell>{getStatusBadge(transaction.status)}</TableCell>
-                      <TableCell className="text-center">
-                        <button className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-700 text-xs font-medium">
-                          <Eye className="h-3 w-3" />
-                          Lihat
-                        </button>
+                  {reportData?.transactions && reportData.transactions.length > 0 ? (
+                    reportData.transactions.slice(0, 10).map((transaction: any) => (
+                      <TableRow key={transaction.id} className="hover:bg-gray-50/50">
+                        <TableCell className="text-sm py-3">
+                          {formatDate(transaction.date)}
+                        </TableCell>
+                        <TableCell className="text-sm">
+                          <Badge 
+                            variant="outline"
+                            className={`text-xs border-0 ${
+                              transaction.type === "INCOME" 
+                                ? "bg-green-100 text-green-700" 
+                                : "bg-red-100 text-red-700"
+                            }`}
+                          >
+                            {transaction.type === "INCOME" ? "Pemasukan" : "Pengeluaran"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-sm">{transaction.category?.name || 'N/A'}</TableCell>
+                        <TableCell className="text-sm">{transaction.description}</TableCell>
+                        <TableCell className="text-sm font-medium">
+                          {formatCurrency(Number(transaction.amount))}
+                        </TableCell>
+                        <TableCell className="text-sm">
+                          {transaction.paymentMethod === 'CASH' ? 'Tunai' : 
+                           transaction.paymentMethod === 'BANK_TRANSFER' ? 'Transfer Bank' : 
+                           transaction.paymentMethod === 'QRIS' ? 'QRIS' : 'N/A'}
+                        </TableCell>
+                        <TableCell>{getStatusBadge(transaction.status)}</TableCell>
+                        <TableCell className="text-center">
+                          <button className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-700 text-xs font-medium">
+                            <Eye className="h-3 w-3" />
+                            Lihat
+                          </button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={8} className="text-center py-8 text-gray-400">
+                        Belum ada transaksi dalam periode ini
                       </TableCell>
                     </TableRow>
-                  ))}
+                  )}
                 </TableBody>
               </Table>
             </div>
@@ -655,7 +751,7 @@ export default function ReportsPage() {
             {/* Pagination */}
             <div className="flex items-center justify-between pt-4">
               <p className="text-sm text-gray-500">
-                Menampilkan 1-5 dari 150 transaksi
+                Menampilkan 1-{Math.min(10, reportData?.transactions?.length || 0)} dari {reportData?.transactions?.length || 0} transaksi
               </p>
               <div className="flex items-center gap-1">
                 <Button

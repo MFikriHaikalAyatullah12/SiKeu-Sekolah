@@ -7,8 +7,9 @@ import bcrypt from "bcryptjs"
 
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
-  providers: [
-    CredentialsProvider({
+  providers: (() => {
+    const providers: NextAuthOptions["providers"] = [
+      CredentialsProvider({
       name: "credentials",
       credentials: {
         email: { label: "Email atau Username", type: "text" },
@@ -68,11 +69,21 @@ export const authOptions: NextAuthOptions = {
         }
       }
     }),
-    GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID!,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-    }),
-  ],
+    ]
+
+    const googleClientId = process.env.GOOGLE_CLIENT_ID
+    const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET
+    if (googleClientId && googleClientSecret) {
+      providers.push(
+        GoogleProvider({
+          clientId: googleClientId,
+          clientSecret: googleClientSecret,
+        })
+      )
+    }
+
+    return providers
+  })(),
   session: {
     strategy: "jwt",
     maxAge: 30 * 60, // 30 menit (1800 seconds)
@@ -97,13 +108,26 @@ export const authOptions: NextAuthOptions = {
       return token
     },
     async session({ session, token }) {
+      // Keep this callback non-throwing so /api/auth/session always returns JSON.
+      if (!session.user) {
+        // Defensive fallback (shouldn't normally happen, but avoids runtime crashes).
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        session.user = {} as any
+      }
+
       if (token) {
-        session.user.id = token.sub!
-        session.user.role = token.role as string
-        session.user.schoolId = token.schoolId as string
+        if (token.sub) {
+          session.user.id = token.sub
+        }
+        if (typeof token.role === "string") {
+          session.user.role = token.role
+        }
+        if (typeof token.schoolId === "string") {
+          session.user.schoolId = token.schoolId
+        }
         
         // CRITICAL FIX: If schoolId is empty or null, fetch from database
-        if (!session.user.schoolId || session.user.schoolId === "") {
+        if (session.user.id && (!session.user.schoolId || session.user.schoolId === "")) {
           console.log("🔍 School ID missing in session, fetching from database...")
           try {
             const user = await prisma.user.findUnique({

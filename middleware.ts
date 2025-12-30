@@ -7,8 +7,10 @@ export default withAuth(
     const pathname = req.nextUrl.pathname
 
     // Public routes yang tidak memerlukan authentication
-    const publicRoutes = ['/auth/signin', '/auth/register', '/api/auth']
-    const isPublicRoute = publicRoutes.some(route => pathname.startsWith(route))
+    const publicRoutes = ['/', '/auth/signin', '/auth/register', '/api/auth']
+    const isPublicRoute = publicRoutes.some(route => 
+      route === '/' ? pathname === '/' : pathname.startsWith(route)
+    )
 
     // Jika tidak ada token dan bukan public route, redirect ke login
     if (!token && !isPublicRoute) {
@@ -16,10 +18,10 @@ export default withAuth(
       return NextResponse.redirect(signInUrl)
     }
 
-    // Jika ada token tapi mengakses halaman utama, redirect ke login untuk security
+    // Jika ada token dan mengakses landing page, redirect ke dashboard
     if (pathname === '/' && token) {
-      const signInUrl = new URL('/auth/signin', req.url)
-      return NextResponse.redirect(signInUrl)
+      const dashboardUrl = new URL('/dashboard', req.url)
+      return NextResponse.redirect(dashboardUrl)
     }
 
     return NextResponse.next()
@@ -30,8 +32,10 @@ export default withAuth(
         const pathname = req.nextUrl.pathname
         
         // Allow access ke public routes tanpa token
-        const publicRoutes = ['/auth/signin', '/auth/register', '/api/auth']
-        if (publicRoutes.some(route => pathname.startsWith(route))) {
+        const publicRoutes = ['/', '/auth/signin', '/auth/register', '/api/auth']
+        if (publicRoutes.some(route => 
+          route === '/' ? pathname === '/' : pathname.startsWith(route)
+        )) {
           return true
         }
 

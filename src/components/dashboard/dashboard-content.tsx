@@ -163,11 +163,16 @@ export function DashboardContent() {
     try {
       if (isInitial) setDashboardLoading(true);
       
+      // Add timestamp to prevent caching
+      const timestamp = new Date().getTime();
+      
+      console.log("🔄 Fetching dashboard data at:", new Date().toISOString());
+      
       const [categoriesRes, transactionsRes, statsRes, chartDataRes] = await Promise.all([
-        fetch("/api/categories"),
-        fetch("/api/transactions?limit=5"),
-        fetch("/api/dashboard/stats"),
-        fetch("/api/transactions?chart=true") // Fetch chart data from API
+        fetch(`/api/categories?_t=${timestamp}`, { cache: 'no-store' }),
+        fetch(`/api/transactions?limit=5&_t=${timestamp}`, { cache: 'no-store' }),
+        fetch(`/api/dashboard/stats?_t=${timestamp}`, { cache: 'no-store' }),
+        fetch(`/api/transactions?chart=true&_t=${timestamp}`, { cache: 'no-store' }) // Fetch chart data from API
       ]);
 
       if (categoriesRes.ok) {
@@ -188,6 +193,13 @@ export function DashboardContent() {
 
       if (statsRes.ok) {
         const data = await statsRes.json();
+        console.log("📊 Stats received:", {
+          totalIncome: data.stats?.totalIncome,
+          totalExpense: data.stats?.totalExpense,
+          balance: data.stats?.balance,
+          incomeCount: data.stats?.incomeCount,
+          expenseCount: data.stats?.expenseCount
+        });
         setStats(data.stats);
         
         // Set chart data based on real stats

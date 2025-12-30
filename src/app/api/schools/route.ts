@@ -1,27 +1,63 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireRole } from "@/lib/permissions"
+import { getServerSession } from "next-auth"
+import { authOptions } from "@/lib/auth"
 
-// GET - Mendapatkan data sekolah (hanya Super Admin)
+// GET - Mendapatkan data sekolah
 export async function GET() {
   try {
-    await requireRole(["SUPER_ADMIN"])
+    const session = await getServerSession(authOptions)
+    
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
 
-    const schools = await prisma.schoolProfile.findMany({
-      include: {
-        _count: {
-          select: {
-            users: true,
-            transactions: true,
-          }
-        }
-      },
-      orderBy: {
-        createdAt: "desc"
-      }
+    console.log("📚 Schools API - User:", {
+      id: session.user.id,
+      role: session.user.role,
+      schoolId: session.user.schoolId
     })
 
-    return NextResponse.json({ schools })
+    // Super Admin can see all schools
+    if (session.user.role === 'SUPER_ADMIN') {
+      const schools = await prisma.schoolProfile.findMany({
+        include: {
+          _count: {
+            select: {
+              users: true,
+              transactions: true,
+            }
+          }
+        },
+        orderBy: {
+          createdAt: "desc"
+        }
+      })
+
+      console.log("✅ Returning", schools.length, "schools for Super Admin")
+      return NextResponse.json({ schools })
+    }
+    
+    // Other users only see their own school
+    if (session.user.schoolId) {
+      const school = await prisma.schoolProfile.findUnique({
+        where: { id: session.user.schoolId },
+        include: {
+          _count: {
+            select: {
+              users: true,
+              transactions: true,
+            }
+          }
+        }
+      })
+
+      console.log("✅ Returning 1 school for user")
+      return NextResponse.json({ schools: school ? [school] : [] })
+    }
+
+    // No school assigned
+    return NextResponse.json({ schools: [] })
   } catch (error) {
     console.error("Get schools error:", error)
     return NextResponse.json(

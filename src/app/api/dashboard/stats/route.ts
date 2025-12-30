@@ -3,6 +3,10 @@ import { prisma } from "@/lib/prisma"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 
+// Disable caching for this route
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions)
@@ -15,8 +19,16 @@ export async function GET(request: Request) {
     const startDate = searchParams.get("startDate")
     const endDate = searchParams.get("endDate")
 
-    const where: any = {
-      schoolProfileId: session.user.schoolId
+    // Default to current month if no date range is specified
+    const now = new Date()
+    const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+    const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999)
+
+    const where: any = {}
+    
+    // Only filter by school if user has a school assigned
+    if (session.user.schoolId) {
+      where.schoolProfileId = session.user.schoolId
     }
 
     if (startDate && endDate) {
@@ -24,7 +36,33 @@ export async function GET(request: Request) {
         gte: new Date(startDate),
         lte: new Date(endDate)
       }
+    } else {
+      // Default to current month
+      where.date = {
+        gte: firstDayOfMonth,
+        lte: lastDayOfMonth
+      }
     }
+
+    console.log("📊 Dashboard stats query:", {
+      userId: session.user.id,
+      schoolId: session.user.schoolId,
+      where,
+      dateRange: {
+        start: where.date?.gte?.toISOString(),
+        end: where.date?.lte?.toISOString()
+      }
+    })
+
+    // Debug: Check total transactions in database
+    const totalTransactions = await prisma.transaction.count({
+      where: session.user.schoolId ? { schoolProfileId: session.user.schoolId } : {}
+    })
+    console.log("🔢 Total transactions in database:", totalTransactions)
+    
+    // Debug: Check transactions in current date range
+    const transactionsInRange = await prisma.transaction.count({ where })
+    console.log("📅 Transactions in current date range:", transactionsInRange)
 
     // Get transactions
     const [income, expense, transactions, monthlyStats, categoryStats] = await Promise.all([
@@ -47,29 +85,37 @@ export async function GET(request: Request) {
         take: 5
       }),
       // Get monthly data for the last 6 months
-      prisma.$queryRaw`
-        SELECT 
-          EXTRACT(YEAR FROM date) as year,
-          EXTRACT(MONTH FROM date) as month,
-          SUM(CASE WHEN type = 'INCOME' THEN amount ELSE 0 END) as pemasukan,
-          SUM(CASE WHEN type = 'EXPENSE' THEN amount ELSE 0 END) as pengeluaran
-        FROM "Transaction" 
-        WHERE "schoolProfileId" = ${session.user.schoolId}
-          AND date >= NOW() - INTERVAL '6 months'
-        GROUP BY EXTRACT(YEAR FROM date), EXTRACT(MONTH FROM date)
-        ORDER BY year DESC, month DESC
-        LIMIT 6
-      `,
+      session.user.schoolId
+        ? prisma.$queryRaw`
+          SELECT 
+            EXTRACT(YEAR FROM date) as year,
+            EXTRACT(MONTH FROM date) as month,
+            SUM(CASE WHEN type = 'INCOME' THEN amount ELSE 0 END) as pemasukan,
+            SUM(CASE WHEN type = 'EXPENSE' THEN amount ELSE 0 END) as pengeluaran
+          FROM "transactions" 
+          WHERE "schoolProfileId" = ${session.user.schoolId}
+            AND date >= NOW() - INTERVAL '6 months'
+          GROUP BY EXTRACT(YEAR FROM date), EXTRACT(MONTH FROM date)
+          ORDER BY year DESC, month DESC
+          LIMIT 6
+        `
+        : prisma.$queryRaw`
+          SELECT 
+            EXTRACT(YEAR FROM date) as year,
+            EXTRACT(MONTH FROM date) as month,
+            SUM(CASE WHEN type = 'INCOME' THEN amount ELSE 0 END) as pemasukan,
+            SUM(CASE WHEN type = 'EXPENSE' THEN amount ELSE 0 END) as pengeluaran
+          FROM "transactions" 
+          WHERE date >= NOW() - INTERVAL '6 months'
+          GROUP BY EXTRACT(YEAR FROM date), EXTRACT(MONTH FROM date)
+          ORDER BY year DESC, month DESC
+          LIMIT 6
+        `,
       // Get category breakdown for expenses
       prisma.transaction.groupBy({
         by: ['categoryId'],
         where: { ...where, type: 'EXPENSE' },
         _sum: { amount: true },
-        include: {
-          category: {
-            select: { name: true }
-          }
-        },
         orderBy: {
           _sum: {
             amount: 'desc'
@@ -79,9 +125,28 @@ export async function GET(request: Request) {
       })
     ])
 
+    console.log("📥 Raw query results:", {
+      income: {
+        sum: income._sum.amount,
+        count: income._count
+      },
+      expense: {
+        sum: expense._sum.amount,
+        count: expense._count
+      }
+    })
+
     const totalIncome = Number(income._sum.amount || 0)
     const totalExpense = Number(expense._sum.amount || 0)
     const balance = totalIncome - totalExpense
+
+    console.log("💰 Dashboard stats calculated:", {
+      totalIncome,
+      totalExpense,
+      balance,
+      incomeCount: income._count,
+      expenseCount: expense._count
+    })
 
     // Process monthly data
     const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agust', 'Sep', 'Okt', 'Nov', 'Des'];
