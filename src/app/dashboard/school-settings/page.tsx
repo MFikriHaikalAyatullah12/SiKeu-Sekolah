@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Building2, Users, TrendingUp, Save, Loader2 } from "lucide-react"
 import { toast } from "sonner"
+import { DashboardLayout } from "@/components/layout/dashboard-layout"
 
 interface School {
   id: string
@@ -132,14 +133,17 @@ export default function SchoolSettingsPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-      </div>
+      <DashboardLayout>
+        <div className="flex items-center justify-center min-h-screen">
+          <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+        </div>
+      </DashboardLayout>
     )
   }
 
   return (
-    <div className="container mx-auto p-6 max-w-7xl">
+    <DashboardLayout>
+      <div className="container mx-auto p-6 max-w-7xl">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">
           Pengaturan Sekolah
@@ -289,5 +293,6 @@ export default function SchoolSettingsPage() {
         )}
       </div>
     </div>
+    </DashboardLayout>
   )
 }

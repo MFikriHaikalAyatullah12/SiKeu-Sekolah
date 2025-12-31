@@ -169,6 +169,7 @@ export default function SignInPage() {
                   <Label htmlFor="email">Email atau Username</Label>
                   <Input
                     id="email"
+                    name="email"
                     type="text"
                     placeholder="Masukkan email atau username"
                     value={formData.email}
@@ -184,6 +185,7 @@ export default function SignInPage() {
                   <div className="relative">
                     <Input
                       id="password"
+                      name="password"
                       type={showPassword ? "text" : "password"}
                       placeholder="Masukkan kata sandi"
                       value={formData.password}

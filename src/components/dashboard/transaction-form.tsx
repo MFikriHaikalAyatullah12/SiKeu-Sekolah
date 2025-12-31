@@ -75,10 +75,64 @@ const statusOptions = [
 
 export function TransactionForm({ transaction, type, onSubmit, onCancel }: TransactionFormProps) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [coaAccounts, setCoaAccounts] = useState<any[]>([])
+  const [loadingCOA, setLoadingCOA] = useState(true)
+  const [isDragging, setIsDragging] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const isEditing = !!transaction
 
   const categories = type === "INCOME" ? incomeCategories : expenseCategories
+
+  // Fetch COA Accounts
+  useEffect(() => {
+    const fetchCOAAccounts = async () => {
+      try {
+        // Add timestamp to prevent caching
+        const response = await fetch(`/api/coa?_t=${Date.now()}`, {
+          cache: 'no-store'
+        })
+        if (!response.ok) throw new Error("Failed to fetch COA")
+        
+        const data = await response.json()
+        
+        // Flatten COA structure to get all accounts
+        const accounts: any[] = []
+        data.forEach((category: any) => {
+          category.subCategories?.forEach((subCat: any) => {
+            subCat.accounts?.forEach((account: any) => {
+              accounts.push({
+                id: account.id,
+                code: account.code,
+                name: account.name,
+                categoryName: category.name,
+                isActive: account.isActive,
+              })
+            })
+          })
+        })
+        
+        // Filter based on transaction type and only show active accounts
+        const filtered = accounts.filter(acc => {
+          // Only show active accounts
+          if (!acc.isActive) return false
+          
+          if (type === "INCOME") {
+            return ["AKTIVA", "PENDAPATAN", "MODAL"].includes(acc.categoryName)
+          } else {
+            return ["AKTIVA", "KEWAJIBAN", "BEBAN"].includes(acc.categoryName)
+          }
+        })
+        
+        setCoaAccounts(filtered)
+      } catch (error) {
+        console.error("Error fetching COA:", error)
+      } finally {
+        setLoadingCOA(false)
+      }
+    }
+    
+    fetchCOAAccounts()
+  }, [type])
 
   const {
     register,
@@ -112,21 +166,48 @@ export function TransactionForm({ transaction, type, onSubmit, onCancel }: Trans
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (file) {
-      // Validate file type
-      const allowedTypes = ['image/jpeg', 'image/png', 'application/pdf']
-      if (!allowedTypes.includes(file.type)) {
-        alert('Format file tidak didukung. Gunakan JPG, PNG, atau PDF.')
-        return
-      }
+      validateAndSetFile(file)
+    }
+  }
 
-      // Validate file size (max 5MB)
-      if (file.size > 5 * 1024 * 1024) {
-        alert('Ukuran file terlalu besar. Maksimal 5MB.')
-        return
-      }
+  const validateAndSetFile = (file: File) => {
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/png', 'application/pdf']
+    if (!allowedTypes.includes(file.type)) {
+      alert('Format file tidak didukung. Gunakan JPG, PNG, atau PDF.')
+      return
+    }
 
-      setSelectedFile(file)
-      setValue('receiptFile', file)
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Ukuran file terlalu besar. Maksimal 5MB.')
+      return
+    }
+
+    setSelectedFile(file)
+    setValue('receiptFile', file)
+  }
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragging(true)
+  }
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragging(false)
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragging(false)
+
+    const file = e.dataTransfer.files?.[0]
+    if (file) {
+      validateAndSetFile(file)
     }
   }
 
@@ -209,6 +290,34 @@ export function TransactionForm({ transaction, type, onSubmit, onCancel }: Trans
             </div>
 
             <div className="space-y-2">
+              <Label htmlFor="coaAccountId">
+                Akun COA {type === "INCOME" ? "(Pemasukan)" : "(Pengeluaran)"}
+              </Label>
+              <Select 
+                onValueChange={(value) => setValue("coaAccountId", value)} 
+                defaultValue={(transaction as any)?.coaAccountId || ""}
+                disabled={loadingCOA}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={loadingCOA ? "Memuat..." : "Pilih akun COA (opsional)"} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Tidak ada</SelectItem>
+                  {coaAccounts.map((account) => (
+                    <SelectItem key={account.id} value={account.id}>
+                      {account.code} - {account.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-gray-500">
+                {type === "INCOME" ? "Akun untuk mencatat pemasukan" : "Akun untuk mencatat pengeluaran"}
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
               <Label htmlFor="fromTo">
                 {type === "INCOME" ? "Dari/Penerima" : "Kepada"}
               </Label>
@@ -269,46 +378,81 @@ export function TransactionForm({ transaction, type, onSubmit, onCancel }: Trans
 
           <div className="space-y-2">
             <Label>Upload Bukti</Label>
-            <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors">
+            <div 
+              className={`border-2 border-dashed rounded-lg p-6 text-center transition-all ${
+                isDragging 
+                  ? 'border-blue-500 bg-blue-50' 
+                  : selectedFile 
+                    ? 'border-green-300 bg-green-50' 
+                    : 'border-gray-300 hover:border-gray-400 hover:bg-gray-50'
+              }`}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+            >
               {selectedFile ? (
-                <div className="flex items-center justify-between bg-gray-50 p-3 rounded">
-                  <div className="flex items-center">
-                    <svg className="w-8 h-8 text-gray-400 mr-3" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
-                    </svg>
-                    <div className="text-left">
-                      <p className="text-sm font-medium">{selectedFile.name}</p>
-                      <p className="text-xs text-gray-500">{(selectedFile.size / 1024 / 1024).toFixed(2)} MB</p>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between bg-white p-3 rounded-lg shadow-sm">
+                    <div className="flex items-center">
+                      {selectedFile.type === 'application/pdf' ? (
+                        <svg className="w-10 h-10 text-red-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clipRule="evenodd" />
+                        </svg>
+                      ) : (
+                        <svg className="w-10 h-10 text-blue-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
+                        </svg>
+                      )}
+                      <div className="text-left">
+                        <p className="text-sm font-medium text-gray-900">{selectedFile.name}</p>
+                        <p className="text-xs text-gray-500">{(selectedFile.size / 1024 / 1024).toFixed(2)} MB</p>
+                      </div>
                     </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={removeFile}
+                      className="hover:bg-red-100 hover:text-red-600"
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
                   </div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={removeFile}
-                  >
-                    <X className="w-4 h-4" />
-                  </Button>
-                </div>
-              ) : (
-                <div>
-                  <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-sm text-gray-600 mb-2">Seret & Lepas file di sini</p>
                   <Button
                     type="button"
                     variant="outline"
                     onClick={() => fileInputRef.current?.click()}
+                    className="w-full bg-white hover:bg-gray-50"
                   >
+                    <Upload className="w-4 h-4 mr-2" />
+                    Ganti Bukti
+                  </Button>
+                </div>
+              ) : (
+                <div>
+                  <Upload className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+                  <p className="text-sm text-gray-600 mb-4">
+                    Tarik & lepas foto bukti atau klik untuk unggah
+                  </p>
+                  <Button
+                    type="button"
+                    variant="default"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2"
+                  >
+                    <Upload className="w-4 h-4 mr-2" />
                     Pilih File
                   </Button>
-                  <p className="text-xs text-gray-500 mt-2">Format: JPG, PNG, PDF. Max 5MB.</p>
+                  <p className="text-xs text-gray-500 mt-3">
+                    File types: JPG/PNG/PDF. Max 5MB
+                  </p>
                 </div>
               )}
               <input
                 ref={fileInputRef}
                 type="file"
                 className="hidden"
-                accept=".jpg,.jpeg,.png,.pdf"
+                accept="image/jpeg,image/png,application/pdf"
                 onChange={handleFileSelect}
               />
             </div>

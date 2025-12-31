@@ -163,11 +163,16 @@ export function DashboardContent() {
     try {
       if (isInitial) setDashboardLoading(true);
       
+      // Add timestamp to prevent caching
+      const timestamp = new Date().getTime();
+      
+      console.log("🔄 Fetching dashboard data at:", new Date().toISOString());
+      
       const [categoriesRes, transactionsRes, statsRes, chartDataRes] = await Promise.all([
-        fetch("/api/categories"),
-        fetch("/api/transactions?limit=5"),
-        fetch("/api/dashboard/stats"),
-        fetch("/api/transactions?chart=true") // Fetch chart data from API
+        fetch(`/api/categories?_t=${timestamp}`, { cache: 'no-store' }),
+        fetch(`/api/transactions?limit=5&_t=${timestamp}`, { cache: 'no-store' }),
+        fetch(`/api/dashboard/stats?_t=${timestamp}`, { cache: 'no-store' }),
+        fetch(`/api/transactions?chart=true&_t=${timestamp}`, { cache: 'no-store' }) // Fetch chart data from API
       ]);
 
       if (categoriesRes.ok) {
@@ -188,6 +193,13 @@ export function DashboardContent() {
 
       if (statsRes.ok) {
         const data = await statsRes.json();
+        console.log("📊 Stats received:", {
+          totalIncome: data.stats?.totalIncome,
+          totalExpense: data.stats?.totalExpense,
+          balance: data.stats?.balance,
+          incomeCount: data.stats?.incomeCount,
+          expenseCount: data.stats?.expenseCount
+        });
         setStats(data.stats);
         
         // Set chart data based on real stats
@@ -595,14 +607,14 @@ export function DashboardContent() {
             <CardTitle className="text-base font-semibold">Kategori Terbesar</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={180}>
+            <ResponsiveContainer width="100%" height={280}>
               <PieChart>
                 <Pie
                   data={pieData}
                   cx="50%"
                   cy="50%"
-                  innerRadius={45}
-                  outerRadius={70}
+                  innerRadius={70}
+                  outerRadius={110}
                   paddingAngle={2}
                   dataKey="value"
                 >
@@ -611,30 +623,22 @@ export function DashboardContent() {
                   ))}
                 </Pie>
                 <Tooltip 
-                  formatter={(value) => [`${value}%`, '']}
+                  formatter={(value, name, props) => [`${value}%`, props.payload.name]}
                   contentStyle={{ 
                     backgroundColor: '#fff', 
                     border: '1px solid #e5e7eb',
                     borderRadius: '8px',
-                    fontSize: '12px'
+                    fontSize: '12px',
+                    padding: '8px 12px'
+                  }}
+                  labelStyle={{
+                    fontWeight: 600,
+                    marginBottom: '4px',
+                    color: '#1f2937'
                   }}
                 />
               </PieChart>
             </ResponsiveContainer>
-            <div className="space-y-2 mt-4">
-              {pieData.map((item, index) => (
-                <div key={index} className="flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-2">
-                    <div 
-                      className="w-3 h-3 rounded-sm" 
-                      style={{ backgroundColor: item.color }}
-                    />
-                    <span className="text-gray-700">{item.name}</span>
-                  </div>
-                  <span className="font-semibold text-gray-900">{item.value}%</span>
-                </div>
-              ))}
-            </div>
           </CardContent>
         </Card>
       </div>
@@ -650,7 +654,7 @@ export function DashboardContent() {
           </CardHeader>
           <CardContent className="space-y-3">
             <Button
-              onClick={() => handleOpenDialog("INCOME")}
+              onClick={() => router.push('/dashboard/transactions?tab=INCOME')}
               className="w-full bg-green-600 hover:bg-green-700"
               disabled={loading}
             >
@@ -658,7 +662,7 @@ export function DashboardContent() {
               Tambah Pemasukan
             </Button>
             <Button
-              onClick={() => handleOpenDialog("EXPENSE")}
+              onClick={() => router.push('/dashboard/transactions?tab=EXPENSE')}
               variant="outline"
               className="w-full border-red-200 text-red-600 hover:bg-red-50"
               disabled={loading}
