@@ -17,7 +17,11 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
-    const where: any = {}
+    const where: any = {
+      role: {
+        in: ["SUPER_ADMIN", "TREASURER", "BENDAHARA"]  // Tampilkan Super Admin, Treasurer dan Bendahara
+      }
+    }
     
     // Super admin can see all users
     const users = await prisma.user.findMany({
@@ -73,11 +77,11 @@ export async function POST(request: Request) {
       )
     }
 
-    // Validate role
-    const validRoles = ["SUPER_ADMIN", "BENDAHARA"]
+    // Validate role - hanya SUPER_ADMIN, TREASURER dan BENDAHARA yang diizinkan
+    const validRoles = ["SUPER_ADMIN", "TREASURER", "BENDAHARA"]
     if (!validRoles.includes(role)) {
       return NextResponse.json(
-        { error: "Invalid role. Valid roles: SUPER_ADMIN, BENDAHARA" },
+        { error: "Invalid role. Valid roles: SUPER_ADMIN, TREASURER, BENDAHARA" },
         { status: 400 }
       )
     }

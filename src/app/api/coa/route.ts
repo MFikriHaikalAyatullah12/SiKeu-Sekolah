@@ -4,7 +4,7 @@ import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { isSuperAdmin } from "@/lib/permissions"
 
-// GET - List all COA categories
+// GET - List all COA data (supports both flat and hierarchical)
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
@@ -12,23 +12,73 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    // Get COA categories
-    const coaCategories = await prisma.coaCategory.findMany({
-      where: { isActive: true },
-      include: {
-        subCategories: {
-          where: { isActive: true },
-          include: {
-            accounts: {
-              where: { isActive: true }
+    const { searchParams } = new URL(request.url)
+    const format = searchParams.get("format") || "flat" // flat or hierarchy
+    const typeFilter = searchParams.get("type")
+
+    if (format === "hierarchy") {
+      // For transaction forms - return hierarchical structure
+      let whereClause: any = { isActive: true }
+      
+      if (typeFilter && (typeFilter === "REVENUE" || typeFilter === "EXPENSE")) {
+        whereClause.type = typeFilter
+      }
+
+      const coaCategories = await prisma.coaCategory.findMany({
+        where: whereClause,
+        include: {
+          subCategories: {
+            where: { isActive: true },
+            include: {
+              accounts: {
+                where: { isActive: true }
+              }
             }
           }
-        }
-      },
-      orderBy: { code: "asc" }
-    })
+        },
+        orderBy: { code: "asc" }
+      })
 
-    return NextResponse.json(coaCategories)
+      return NextResponse.json(coaCategories)
+    } else {
+      // For management pages - return flat structure
+      let whereClause: any = { isActive: true }
+      
+      if (typeFilter && (typeFilter === "REVENUE" || typeFilter === "EXPENSE")) {
+        whereClause.subCategory = {
+          category: {
+            type: typeFilter
+          }
+        }
+      }
+
+      // Get all COA accounts with category information
+      const coaAccounts = await prisma.coaAccount.findMany({
+        where: whereClause,
+        include: {
+          subCategory: {
+            include: {
+              category: true
+            }
+          }
+        },
+        orderBy: { code: "asc" }
+      })
+
+      // Transform to match the expected interface
+      const transformedAccounts = coaAccounts.map(account => ({
+        id: account.id,
+        code: account.code,
+        name: account.name,
+        category: account.subCategory?.category?.name || "Tidak Berkategori",
+        type: account.subCategory?.category?.type === "REVENUE" ? "INCOME" : "EXPENSE",
+        accountType: account.subCategory?.name || "Umum",
+        description: account.description,
+        isActive: account.isActive
+      }))
+
+      return NextResponse.json(transformedAccounts)
+    }
   } catch (error) {
     console.error("Error fetching COA:", error)
     return NextResponse.json(

@@ -46,7 +46,7 @@ export default function UsersPage() {
     name: "",
     email: "",
     password: "",
-    role: "USER",
+    role: "TREASURER",  // Default to Bendahara
     schoolId: ""
   })
 
@@ -362,9 +362,7 @@ export default function UsersPage() {
                   {session?.user.role === "SUPER_ADMIN" && (
                     <SelectItem value="SUPER_ADMIN">Super Admin</SelectItem>
                   )}
-                  <SelectItem value="ADMIN">Admin</SelectItem>
-                  <SelectItem value="STAFF">Staff</SelectItem>
-                  <SelectItem value="USER">User</SelectItem>
+                  <SelectItem value="TREASURER">Bendahara</SelectItem>
                 </SelectContent>
               </Select>
             </div>

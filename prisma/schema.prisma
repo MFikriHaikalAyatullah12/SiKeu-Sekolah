@@ -236,6 +236,7 @@ enum UserRole {
   ADMIN
   SUPER_ADMIN
   TREASURER
+  BENDAHARA
 }
 
 enum CategoryType {

@@ -7,7 +7,7 @@ import { isSuperAdmin } from "@/lib/permissions"
 // GET - Get specific COA by ID
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions)
@@ -15,8 +15,10 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
+    const { id } = await params
+
     const coa = await prisma.coaCategory.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         subCategories: {
           include: {
@@ -43,7 +45,7 @@ export async function GET(
 // PUT - Update COA (Super Admin only)
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions)
@@ -59,11 +61,12 @@ export async function PUT(
       )
     }
 
+    const { id } = await params
     const body = await request.json()
     const { code, name, type, description, isActive } = body
 
     const coa = await prisma.coaCategory.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         ...(code && { code }),
         ...(name && { name }),
@@ -86,7 +89,7 @@ export async function PUT(
 // DELETE - Delete COA (Super Admin only)
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions)
@@ -102,9 +105,11 @@ export async function DELETE(
       )
     }
 
+    const { id } = await params
+
     // Check if COA category has subcategories
     const subCategoryCount = await prisma.coaSubCategory.count({
-      where: { categoryId: params.id },
+      where: { categoryId: id },
     })
 
     if (subCategoryCount > 0) {
@@ -115,7 +120,7 @@ export async function DELETE(
     }
 
     await prisma.coaCategory.delete({
-      where: { id: params.id },
+      where: { id },
     })
 
     return NextResponse.json({ message: "COA deleted successfully" })

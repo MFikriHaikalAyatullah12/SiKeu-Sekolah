@@ -52,21 +52,21 @@ async function main() {
 
   console.log('✅ Admin user created:', adminUser.email)
 
-  // Upsert Bendahara User
-  const bendaharaPassword = await bcrypt.hash('bendahara123', 12)
-  const bendaharaUser = await prisma.user.upsert({
-    where: { email: 'bendahara@smanjakarta.sch.id' },
+  // Upsert Treasurer User
+  const treasurerPassword = await bcrypt.hash('treasurer123', 12)
+  const treasurerUser = await prisma.user.upsert({
+    where: { email: 'treasurer@smanjakarta.sch.id' },
     update: {},
     create: {
-      email: 'bendahara@smanjakarta.sch.id',
-      password: bendaharaPassword,
-      name: 'Bendahara Sekolah',
+      email: 'treasurer@smanjakarta.sch.id',
+      password: treasurerPassword,
+      name: 'Treasurer Sekolah',
       role: 'TREASURER',
-      schoolProfileId: schoolProfile.id
-    }
+      schoolProfileId: schoolProfile.id,
+    },
   })
 
-  console.log('✅ Bendahara user created:', bendaharaUser.email)
+  console.log('✅ Treasurer user created:', treasurerUser.email)
 
   // Upsert income categories - Chart of Accounts
   const aktivaLancarCategory = await prisma.category.upsert({
@@ -186,7 +186,7 @@ async function main() {
       fromTo: 'Budi Santoso (Kls 10A)',
       paymentMethod: 'CASH',
       status: 'PAID',
-      createdById: bendaharaUser.id,
+      createdById: treasurerUser.id,
       schoolProfileId: schoolProfile.id,
     },
     {
@@ -199,7 +199,7 @@ async function main() {
       fromTo: 'Yayasan Pendidikan',
       paymentMethod: 'BANK_TRANSFER',
       status: 'PAID',
-      createdById: bendaharaUser.id,
+      createdById: treasurerUser.id,
       schoolProfileId: schoolProfile.id,
     },
     {
@@ -225,7 +225,7 @@ async function main() {
       fromTo: 'Transfer Kas',
       paymentMethod: 'CASH',
       status: 'PENDING',
-      createdById: bendaharaUser.id,
+      createdById: treasurerUser.id,
       schoolProfileId: schoolProfile.id,
     },
     {
@@ -238,7 +238,7 @@ async function main() {
       fromTo: 'Alumni Sekolah',
       paymentMethod: 'BANK_TRANSFER',
       status: 'PAID',
-      createdById: bendaharaUser.id,
+      createdById: treasurerUser.id,
       schoolProfileId: schoolProfile.id,
     },
   ]
@@ -263,7 +263,7 @@ async function main() {
       fromTo: 'Toko Sinar Jaya',
       paymentMethod: 'CASH',
       status: 'PAID',
-      createdById: bendaharaUser.id,
+      createdById: treasurerUser.id,
       schoolProfileId: schoolProfile.id,
     },
     {
@@ -302,7 +302,7 @@ async function main() {
       fromTo: 'PLN & PDAM',
       paymentMethod: 'BANK_TRANSFER',
       status: 'PAID',
-      createdById: bendaharaUser.id,
+      createdById: treasurerUser.id,
       schoolProfileId: schoolProfile.id,
     },
     {

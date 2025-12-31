@@ -21,14 +21,14 @@ import {
 import appLogoImage from '@/image/icon_tampilan-sekolah1.png'
 
 const navigation = [
-  { name: 'Dashboard', href: '/dashboard', icon: Home, roles: ['SUPER_ADMIN', 'BENDAHARA'] },
-  { name: 'Transaksi', href: '/dashboard/transactions', icon: TrendingUp, roles: ['SUPER_ADMIN', 'BENDAHARA'] },
-  { name: 'Laporan', href: '/dashboard/reports', icon: FileText, roles: ['SUPER_ADMIN', 'BENDAHARA'] },
-  { name: 'Kwitansi', href: '/dashboard/receipts', icon: Receipt, roles: ['SUPER_ADMIN', 'BENDAHARA'] },
+  { name: 'Dashboard', href: '/dashboard', icon: Home, roles: ['SUPER_ADMIN', 'TREASURER'] },
+  { name: 'Transaksi', href: '/dashboard/transactions', icon: TrendingUp, roles: ['SUPER_ADMIN', 'TREASURER'] },
+  { name: 'Laporan', href: '/dashboard/reports', icon: FileText, roles: ['SUPER_ADMIN', 'TREASURER'] },
+  { name: 'Kwitansi', href: '/dashboard/receipts', icon: Receipt, roles: ['SUPER_ADMIN', 'TREASURER'] },
   { name: 'Chart of Accounts', href: '/dashboard/coa', icon: BookOpen, roles: ['SUPER_ADMIN'] },
   { name: 'Manajemen User', href: '/dashboard/users', icon: Users, roles: ['SUPER_ADMIN'] },
   { name: 'Pengaturan Sekolah', href: '/dashboard/school-settings', icon: Building2, roles: ['SUPER_ADMIN'] },
-  { name: 'Pengaturan', href: '/dashboard/settings', icon: Settings, roles: ['SUPER_ADMIN', 'BENDAHARA'] },
+  { name: 'Pengaturan', href: '/dashboard/settings', icon: Settings, roles: ['SUPER_ADMIN', 'TREASURER'] },
 ]
 
 export function Sidebar() {

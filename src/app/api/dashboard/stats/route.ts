@@ -65,11 +65,6 @@ export async function GET(request: Request) {
         by: ['categoryId'],
         where: { ...where, type: 'EXPENSE' },
         _sum: { amount: true },
-        include: {
-          category: {
-            select: { name: true }
-          }
-        },
         orderBy: {
           _sum: {
             amount: 'desc'

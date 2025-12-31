@@ -28,99 +28,14 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 
-// Sample receipts data
-const sampleReceipts = [
-  {
-    id: "1",
-    nomor: "KW-202512-0008",
-    namaPembayar: "Budi Santoso",
-    tanggal: "2025-12-23",
-    nominal: 1500000,
-    status: "LUNAS",
-    petugas: "Bendahara",
-    kategori: "SPP",
-    untukPembayaran: "SPP Bulan Desember 2025",
-    metodePembayaran: "Tunai",
-    terbilang: "Satu Juta Lima Ratus Ribu Rupiah",
-    createdBy: "Admin TU",
-    createdAt: "2025-12-23T14:10:00",
-    publishedBy: "Bendahara",
-    publishedAt: "2025-12-23T14:12:00",
-  },
-  {
-    id: "2",
-    nomor: "KW-202512-0007",
-    namaPembayar: "Alumni 2010",
-    tanggal: "2025-12-22",
-    nominal: 5000000,
-    status: "LUNAS",
-    petugas: "Admin TU",
-    kategori: "Donasi",
-    untukPembayaran: "Donasi Alumni",
-    metodePembayaran: "Transfer Bank",
-    terbilang: "Lima Juta Rupiah",
-    createdBy: "Admin TU",
-    createdAt: "2025-12-22T10:30:00",
-    publishedBy: "Bendahara",
-    publishedAt: "2025-12-22T11:00:00",
-  },
-  {
-    id: "3",
-    nomor: "KW-202512-0006",
-    namaPembayar: "Panitia Try Out",
-    tanggal: "2025-12-21",
-    nominal: 750000,
-    status: "MENUNGGU",
-    petugas: "Admin TU",
-    kategori: "Iuran Kegiatan",
-    untukPembayaran: "Try Out",
-    metodePembayaran: "Tunai",
-    terbilang: "Tujuh Ratus Lima Puluh Ribu Rupiah",
-    createdBy: "Admin TU",
-    createdAt: "2025-12-21T09:00:00",
-    publishedBy: null,
-    publishedAt: null,
-  },
-  {
-    id: "4",
-    nomor: "KW-202512-0005",
-    namaPembayar: "Siti Aminah",
-    tanggal: "2025-12-20",
-    nominal: 1500000,
-    status: "VOID",
-    petugas: "Superuser",
-    kategori: "SPP",
-    untukPembayaran: "SPP Bulan November 2025",
-    metodePembayaran: "Tunai",
-    terbilang: "Satu Juta Lima Ratus Ribu Rupiah",
-    createdBy: "Superuser",
-    createdAt: "2025-12-20T08:45:00",
-    publishedBy: "Superuser",
-    publishedAt: "2025-12-20T08:50:00",
-  },
-  {
-    id: "5",
-    nomor: "KW-202512-0004",
-    namaPembayar: "Kantin Sekolah",
-    tanggal: "2025-12-19",
-    nominal: 300000,
-    status: "LUNAS",
-    petugas: "Bendahara",
-    kategori: "Usaha Sekolah",
-    untukPembayaran: "Setoran Kantin",
-    metodePembayaran: "Tunai",
-    terbilang: "Tiga Ratus Ribu Rupiah",
-    createdBy: "Bendahara",
-    createdAt: "2025-12-19T16:00:00",
-    publishedBy: "Bendahara",
-    publishedAt: "2025-12-19T16:05:00",
-  },
-]
+
 
 export default function ReceiptsPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
-  const [selectedReceipt, setSelectedReceipt] = useState<any>(sampleReceipts[0])
+  const [receipts, setReceipts] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [selectedReceipt, setSelectedReceipt] = useState<any>(null)
   const [currentPage, setCurrentPage] = useState(1)
   
   // Filter states
@@ -138,7 +53,70 @@ export default function ReceiptsPage() {
       router.push("/auth/signin")
       return
     }
+
+    fetchReceipts()
   }, [session, status, router])
+
+  const fetchReceipts = async () => {
+    try {
+      setLoading(true)
+      const response = await fetch('/api/transactions')
+      if (!response.ok) throw new Error('Failed to fetch transactions')
+      
+      const data = await response.json()
+      
+      // Ensure data is array
+      const transactions = Array.isArray(data) ? data : (data?.transactions || [])
+      
+      const formattedReceipts = transactions.map((transaction: any) => ({
+        id: transaction.id,
+        nomor: transaction.receiptNumber || `TR-${transaction.id.slice(-8)}`,
+        namaPembayar: transaction.fromTo,
+        tanggal: new Date(transaction.date).toISOString().split('T')[0],
+        nominal: transaction.amount,
+        status: transaction.status,
+        petugas: transaction.createdBy?.name || 'System',
+        kategori: transaction.category?.name || 'Tidak ada kategori',
+        untukPembayaran: transaction.description,
+        metodePembayaran: transaction.paymentMethod === 'CASH' ? 'Tunai' : 
+                         transaction.paymentMethod === 'TRANSFER' ? 'Transfer' : 
+                         transaction.paymentMethod || 'Tunai',
+        terbilang: numberToWords(transaction.amount),
+        createdBy: transaction.createdBy?.name || 'System',
+        createdAt: transaction.createdAt,
+        publishedBy: transaction.createdBy?.name || 'System',
+        publishedAt: transaction.createdAt,
+      }))
+      
+      setReceipts(formattedReceipts)
+      if (formattedReceipts.length > 0 && !selectedReceipt) {
+        setSelectedReceipt(formattedReceipts[0])
+      }
+    } catch (error) {
+      console.error('Error fetching receipts:', error)
+      toast.error('Gagal memuat data kwitansi')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const numberToWords = (amount: number): string => {
+    // Simple implementation - you can enhance this
+    if (amount >= 1000000) {
+      const millions = Math.floor(amount / 1000000)
+      const remainder = amount % 1000000
+      if (remainder === 0) {
+        return `${millions} Juta Rupiah`
+      } else {
+        const thousands = Math.floor(remainder / 1000)
+        return `${millions} Juta ${thousands > 0 ? thousands + ' Ribu ' : ''}Rupiah`
+      }
+    } else if (amount >= 1000) {
+      const thousands = Math.floor(amount / 1000)
+      return `${thousands} Ribu Rupiah`
+    }
+    return `${amount} Rupiah`
+  }
 
   const formatCurrency = (amount: number) => {
     if (!amount || isNaN(amount) || amount === null || amount === undefined) return "Rp 0";
@@ -188,9 +166,36 @@ export default function ReceiptsPage() {
     setSelectedReceipt(receipt)
   }
 
-  const handleDownloadPDF = () => {
-    toast.success("Mengunduh PDF kwitansi...")
-  }
+  const handleDownloadPDF = async (transactionId?: string) => {
+    try {
+      const receiptId = transactionId || (selectedReceipt?.id);
+      if (!receiptId) {
+        toast.error('ID transaksi tidak ditemukan');
+        return;
+      }
+      
+      const response = await fetch(`/api/receipts/${receiptId}/pdf`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to generate PDF');
+      }
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Kwitansi-${selectedReceipt?.nomor || receiptId}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      
+      toast.success("PDF kwitansi berhasil diunduh!");
+    } catch (error) {
+      console.error('Error downloading PDF:', error);
+      toast.error("Gagal mengunduh PDF kwitansi");
+    }
+  };
 
   const handlePrint = () => {
     toast.success("Membuka dialog cetak...")
@@ -216,7 +221,7 @@ export default function ReceiptsPage() {
   }
 
   // Filter receipts
-  const filteredReceipts = sampleReceipts.filter((receipt) => {
+  const filteredReceipts = receipts.filter((receipt) => {
     const matchesSearch = 
       receipt.nomor.toLowerCase().includes(searchQuery.toLowerCase()) ||
       receipt.namaPembayar.toLowerCase().includes(searchQuery.toLowerCase())
@@ -327,7 +332,16 @@ export default function ReceiptsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredReceipts.length === 0 ? (
+                  {loading ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center py-8">
+                        <div className="flex items-center justify-center">
+                          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                          <span className="ml-2">Memuat data...</span>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ) : filteredReceipts.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={7} className="text-center py-8 text-gray-500">
                         <FileText className="h-8 w-8 text-gray-300 mx-auto mb-2" />
@@ -363,7 +377,7 @@ export default function ReceiptsPage() {
                             </Button>
                             <Button
                               size="sm"
-                              onClick={() => handleDownloadPDF()}
+                              onClick={() => handleDownloadPDF(receipt.id)}
                               className="h-8 px-3 text-xs bg-blue-600 hover:bg-blue-700"
                             >
                               <Download className="h-3 w-3 mr-1" />

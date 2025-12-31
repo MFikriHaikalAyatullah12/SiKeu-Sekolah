@@ -36,11 +36,11 @@ export async function isAdmin() {
 }
 
 /**
- * Check if user is Bendahara
+ * Check if user is Bendahara/Treasurer
  */
-export async function isBendahara() {
+export async function isTreasurer() {
   const session = await getServerSession(authOptions)
-  return session?.user?.role === "BENDAHARA"
+  return session?.user?.role === "TREASURER"
 }
 
 /**
@@ -58,7 +58,7 @@ export async function getCurrentUser() {
 
 /**
  * Get date range based on user role
- * Bendahara: 1-3 bulan terakhir
+ * Treasurer: 1-3 bulan terakhir
  * Super Admin: Unlimited
  */
 export function getDateRangeForRole(role: string) {
@@ -66,7 +66,7 @@ export function getDateRangeForRole(role: string) {
     return null // No restrictions
   }
   
-  if (role === "BENDAHARA") {
+  if (role === "TREASURER") {
     const endDate = new Date()
     const startDate = new Date()
     startDate.setMonth(startDate.getMonth() - 3) // 3 bulan terakhir
@@ -90,20 +90,20 @@ export const RolePermissions = {
   // Hanya Super Admin yang bisa manage users
   canManageUsers: (role: string) => role === "SUPER_ADMIN",
   
-  // Super Admin dan Bendahara bisa manage transactions
+  // Super Admin dan Treasurer bisa manage transactions
   canManageTransactions: (role: string) => 
-    role === "SUPER_ADMIN" || role === "BENDAHARA",
+    role === "SUPER_ADMIN" || role === "TREASURER",
   
-  // Super Admin dan Bendahara bisa view transactions
+  // Super Admin dan Treasurer bisa view transactions
   canViewTransactions: (role: string) => 
-    ["SUPER_ADMIN", "BENDAHARA"].includes(role),
+    ["SUPER_ADMIN", "TREASURER"].includes(role),
   
   // Hanya Super Admin bisa view unlimited reports
   canViewUnlimitedReports: (role: string) => role === "SUPER_ADMIN",
   
-  // Super Admin dan Bendahara bisa view limited reports
+  // Super Admin dan Treasurer bisa view limited reports
   canViewReports: (role: string) => 
-    role === "SUPER_ADMIN" || role === "BENDAHARA",
+    role === "SUPER_ADMIN" || role === "TREASURER",
   
   // Hanya Super Admin yang bisa manage COA
   canManageCOA: (role: string) => role === "SUPER_ADMIN",
@@ -118,5 +118,5 @@ export const RolePermissions = {
   canAccessAllCOA: (role: string) => role === "SUPER_ADMIN",
   
   // Check if user has time restrictions on transaction history
-  hasTimeRestrictions: (role: string) => role === "BENDAHARA",
+  hasTimeRestrictions: (role: string) => role === "TREASURER",
 }

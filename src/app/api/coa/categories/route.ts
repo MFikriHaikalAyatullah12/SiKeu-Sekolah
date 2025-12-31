@@ -17,7 +17,9 @@ export async function GET(request: NextRequest) {
     const where: any = { isActive: true }
     
     if (type) {
-      where.type = type
+      // Convert INCOME/EXPENSE to REVENUE/EXPENSE for database
+      const coaType = type === "INCOME" ? "REVENUE" : type
+      where.type = coaType
     }
 
     // Get COA categories

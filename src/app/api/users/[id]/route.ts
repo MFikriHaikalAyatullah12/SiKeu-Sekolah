@@ -6,7 +6,7 @@ import bcrypt from "bcryptjs"
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions)
@@ -22,10 +22,11 @@ export async function PUT(
 
     const body = await request.json()
     const { name, email, password, role, schoolId } = body
+    const { id } = await params
 
     // Get existing user
     const existingUser = await prisma.user.findUnique({
-      where: { id: params.id }
+      where: { id }
     })
 
     if (!existingUser) {
@@ -33,10 +34,10 @@ export async function PUT(
     }
 
     // Validate role
-    const validRoles = ["SUPER_ADMIN", "BENDAHARA"]
+    const validRoles = ["SUPER_ADMIN", "TREASURER", "BENDAHARA"]
     if (role && !validRoles.includes(role)) {
       return NextResponse.json(
-        { error: "Invalid role. Valid roles: SUPER_ADMIN, BENDAHARA" },
+        { error: "Invalid role. Valid roles: SUPER_ADMIN, TREASURER, BENDAHARA" },
         { status: 400 }
       )
     }
@@ -74,7 +75,7 @@ export async function PUT(
 
     // Update user
     const user = await prisma.user.update({
-      where: { id: params.id },
+      where: { id },
       data: updateData,
       select: {
         id: true,
@@ -102,7 +103,7 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions)
@@ -116,8 +117,10 @@ export async function DELETE(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
+    const { id } = await params
+
     // Prevent self-deletion
-    if (params.id === session.user.id) {
+    if (id === session.user.id) {
       return NextResponse.json(
         { error: "Cannot delete your own account" },
         { status: 400 }
@@ -126,7 +129,7 @@ export async function DELETE(
 
     // Get existing user
     const existingUser = await prisma.user.findUnique({
-      where: { id: params.id }
+      where: { id }
     })
 
     if (!existingUser) {
@@ -135,7 +138,7 @@ export async function DELETE(
 
     // Delete user
     await prisma.user.delete({
-      where: { id: params.id }
+      where: { id }
     })
 
     return NextResponse.json({ message: "User deleted successfully" })
