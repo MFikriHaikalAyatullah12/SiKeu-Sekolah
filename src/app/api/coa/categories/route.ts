@@ -35,3 +35,60 @@ export async function GET(request: NextRequest) {
     )
   }
 }
+
+// POST - Create new COA category
+export async function POST(request: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions)
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    // Check if user is SUPER_ADMIN
+    if (session.user.role !== "SUPER_ADMIN") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    }
+
+    const body = await request.json()
+    const { code, name, type, description, isActive } = body
+
+    // Validate required fields
+    if (!code || !name || !type) {
+      return NextResponse.json(
+        { error: "Kode, nama, dan tipe kategori harus diisi" },
+        { status: 400 }
+      )
+    }
+
+    // Check if code already exists
+    const existingCategory = await prisma.coaCategory.findUnique({
+      where: { code },
+    })
+
+    if (existingCategory) {
+      return NextResponse.json(
+        { error: "Kode kategori sudah digunakan" },
+        { status: 400 }
+      )
+    }
+
+    // Create new category
+    const category = await prisma.coaCategory.create({
+      data: {
+        code,
+        name,
+        type,
+        description,
+        isActive: isActive ?? true,
+      },
+    })
+
+    return NextResponse.json(category, { status: 201 })
+  } catch (error) {
+    console.error("Error creating COA category:", error)
+    return NextResponse.json(
+      { error: "Gagal membuat kategori" },
+      { status: 500 }
+    )
+  }
+}

@@ -23,6 +23,8 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url)
     const period = searchParams.get('period') || 'thisMonth'
+    const customStartDate = searchParams.get('startDate')
+    const customEndDate = searchParams.get('endDate')
 
     console.log("📅 Reports API - Period requested:", period)
 
@@ -48,8 +50,14 @@ export async function GET(request: NextRequest) {
     let startDate: Date
     let endDate: Date = new Date()
 
-    // Handle period selection
-    if (roleBasedDateRange) {
+    // Handle custom date range from export
+    if (customStartDate && customEndDate) {
+      startDate = new Date(customStartDate)
+      startDate.setHours(0, 0, 0, 0)
+      endDate = new Date(customEndDate)
+      endDate.setHours(23, 59, 59, 999)
+      console.log("📅 Using custom date range:", { startDate, endDate })
+    } else if (roleBasedDateRange) {
       startDate = roleBasedDateRange.startDate
       endDate = roleBasedDateRange.endDate
     } else {
@@ -139,6 +147,10 @@ export async function GET(request: NextRequest) {
     // Group transactions by category
     const incomeByCategory: Record<string, number> = {}
     const expenseByCategory: Record<string, number> = {}
+    
+    // Group transactions by COA Account
+    const incomeByCOA: Record<string, { name: string; code: string; amount: number }> = {}
+    const expenseByCOA: Record<string, { name: string; code: string; amount: number }> = {}
 
     transactions.forEach(transaction => {
       const categoryName = transaction.category?.name || 'Uncategorized'
@@ -146,8 +158,34 @@ export async function GET(request: NextRequest) {
       
       if (transaction.type === 'INCOME') {
         incomeByCategory[categoryName] = (incomeByCategory[categoryName] || 0) + amount
+        
+        // Group by COA Account
+        if (transaction.coaAccount) {
+          const coaKey = transaction.coaAccount.id
+          if (!incomeByCOA[coaKey]) {
+            incomeByCOA[coaKey] = {
+              name: transaction.coaAccount.name,
+              code: transaction.coaAccount.code,
+              amount: 0
+            }
+          }
+          incomeByCOA[coaKey].amount += amount
+        }
       } else {
         expenseByCategory[categoryName] = (expenseByCategory[categoryName] || 0) + amount
+        
+        // Group by COA Account
+        if (transaction.coaAccount) {
+          const coaKey = transaction.coaAccount.id
+          if (!expenseByCOA[coaKey]) {
+            expenseByCOA[coaKey] = {
+              name: transaction.coaAccount.name,
+              code: transaction.coaAccount.code,
+              amount: 0
+            }
+          }
+          expenseByCOA[coaKey].amount += amount
+        }
       }
     })
 
@@ -192,6 +230,8 @@ export async function GET(request: NextRequest) {
       },
       incomeByCategory,
       expenseByCategory,
+      incomeByCOA: Object.values(incomeByCOA).sort((a, b) => b.amount - a.amount),
+      expenseByCOA: Object.values(expenseByCOA).sort((a, b) => b.amount - a.amount),
       monthlyTrend,
       transactions,
       period: {

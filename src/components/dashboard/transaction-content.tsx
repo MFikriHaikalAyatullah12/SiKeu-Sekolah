@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,94 +12,31 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Upload, Search, Eye } from "lucide-react";
+import { Upload, Search, Eye, X } from "lucide-react";
 import { toast } from "sonner";
 
 type TransactionType = "INCOME" | "EXPENSE";
 
-// COA Structure - Kategori untuk Pemasukan
-const incomeCOA = [
-  {
-    code: "1100",
-    name: "1100 - Aktiva Lancar",
-    types: [
-      { code: "1110", name: "1110 - Kas di Bendahara" },
-      { code: "1120", name: "1120 - Bank (Bank Sekolah)" },
-      { code: "1130", name: "1130 - Piutang SPP Siswa" },
-    ],
-  },
-  {
-    code: "1200",
-    name: "1200 - Aktiva Tetap",
-    types: [
-      { code: "1210", name: "1210 - Tanah" },
-      { code: "1220", name: "1220 - Bangunan" },
-      { code: "1230", name: "1230 - Peralatan dan Mesin" },
-    ],
-  },
-  {
-    code: "2100",
-    name: "2100 - Kewajiban Jangka Pendek",
-    types: [
-      { code: "2110", name: "2110 - Utang Gaji Guru" },
-      { code: "2120", name: "2120 - Utang Pemasok" },
-    ],
-  },
-  {
-    code: "2200",
-    name: "2200 - Kewajiban Jangka Panjang",
-    types: [
-      { code: "2210", name: "2210 - Utang Bank" },
-    ],
-  },
-  {
-    code: "3100",
-    name: "3100 - Modal (Ekuitas)",
-    types: [
-      { code: "3100", name: "3100 - Modal Awal Sekolah" },
-      { code: "3200", name: "3200 - Saldo Laba/Rugi" },
-    ],
-  },
-  {
-    code: "4100",
-    name: "4100 - Pendapatan (Revenue)",
-    types: [
-      { code: "4100", name: "4100 - Pendapatan SPP Siswa" },
-      { code: "4200", name: "4200 - Dana Bantuan Operasional Sekolah (BOS)" },
-      { code: "4300", name: "4300 - Pendapatan Lain-lain (Donasi, Kegiatan Ekstrakurikuler)" },
-    ],
-  },
-];
-
-// COA for Pengeluaran
-const expenseCOA = [
-  {
-    code: "5100",
-    name: "5100 - Beban Operasional",
-    types: [
-      { code: "5100", name: "5100 - Beban Gaji Guru" },
-      { code: "5200", name: "5200 - Beban Operasional Sekolah" },
-      { code: "5300", name: "5300 - Beban Pemeliharaan" },
-    ],
-  },
-];
-
-// Akun Masuk Ke options (from Aktiva Lancar)
-const accountDestinations = [
-  { code: "1110", name: "1110 - Kas di Bendahara" },
-  { code: "1120", name: "1120 - Bank (Bank Sekolah)" },
-  { code: "1130", name: "1130 - Piutang SPP Siswa" },
-];
+interface COACategory {
+  code: string;
+  name: string;
+  types: { code: string; name: string }[];
+}
 
 export function TransactionContent() {
   const { data: session } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState<TransactionType>("INCOME");
   const [loading, setLoading] = useState(false);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterPeriod, setFilterPeriod] = useState("bulan-ini");
+  const [incomeCOA, setIncomeCOA] = useState<COACategory[]>([]);
+  const [expenseCOA, setExpenseCOA] = useState<COACategory[]>([]);
+  const [loadingCOA, setLoadingCOA] = useState(true);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split("T")[0],
@@ -119,6 +56,63 @@ export function TransactionContent() {
   const currentCOA = activeTab === "INCOME" ? incomeCOA : expenseCOA;
   const selectedCategory = currentCOA.find(cat => cat.code === formData.categoryCode);
   const availableTypes = selectedCategory?.types || [];
+  
+  // Get account destinations from Aktiva Lancar for INCOME
+  const accountDestinations = incomeCOA
+    .filter(cat => cat.code.startsWith("11")) // Aktiva Lancar categories
+    .flatMap(cat => cat.types);
+
+  // Fetch COA data from database
+  useEffect(() => {
+    const fetchCOAData = async () => {
+      try {
+        const response = await fetch("/api/coa");
+        if (!response.ok) throw new Error("Failed to fetch COA");
+        
+        const data = await response.json();
+        
+        // Transform data to match component structure
+        const incomeCategories: COACategory[] = [];
+        const expenseCategories: COACategory[] = [];
+        
+        data.forEach((category: any) => {
+          category.subCategories?.forEach((subCat: any) => {
+            const categoryData = {
+              code: subCat.code,
+              name: `${subCat.code} - ${subCat.name}`,
+              types: subCat.accounts?.map((acc: any) => ({
+                code: acc.code,
+                name: `${acc.code} - ${acc.name}`,
+              })) || [],
+            };
+            
+            // Filter by category type for INCOME/EXPENSE
+            if (["AKTIVA", "PENDAPATAN", "MODAL"].includes(category.name)) {
+              incomeCategories.push(categoryData);
+            }
+            if (["AKTIVA", "KEWAJIBAN", "BEBAN"].includes(category.name)) {
+              expenseCategories.push(categoryData);
+            }
+          });
+        });
+        
+        setIncomeCOA(incomeCategories);
+        setExpenseCOA(expenseCategories);
+        setLoadingCOA(false);
+      } catch (error) {
+        console.error("Failed to fetch COA:", error);
+        toast.error("Gagal memuat data COA");
+        setLoadingCOA(false);
+      }
+    };
+    
+    fetchCOAData();
+  }, []);
+
+  // Set mounted to true after component mounts (client-side only)
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Baca query parameter tab dari URL saat component mount
   useEffect(() => {
@@ -239,6 +233,34 @@ export function TransactionContent() {
     });
   };
 
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      // Validate file type
+      const allowedTypes = ['image/jpeg', 'image/png', 'application/pdf'];
+      if (!allowedTypes.includes(file.type)) {
+        toast.error('Format file tidak didukung. Gunakan JPG, PNG, atau PDF.');
+        return;
+      }
+
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('Ukuran file terlalu besar. Maksimal 5MB.');
+        return;
+      }
+
+      setFormData({ ...formData, proof: file });
+      toast.success(`File "${file.name}" berhasil dipilih`);
+    }
+  };
+
+  const removeFile = () => {
+    setFormData({ ...formData, proof: null });
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
   const handleStatusChange = async (transactionId: string, newStatus: string) => {
     setUpdatingStatus(transactionId);
     try {
@@ -261,6 +283,15 @@ export function TransactionContent() {
       setUpdatingStatus(null);
     }
   };
+
+  // Prevent hydration mismatch by waiting for client-side mount
+  if (!mounted) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-gray-500">Loading...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 p-6 bg-gray-50/50 min-h-screen">
@@ -355,9 +386,10 @@ export function TransactionContent() {
                   <Select
                     value={formData.categoryCode}
                     onValueChange={(value) => setFormData({ ...formData, categoryCode: value, typeCode: "" })}
+                    disabled={loadingCOA}
                   >
                     <SelectTrigger className="h-10 rounded-lg border-gray-200">
-                      <SelectValue placeholder="Pilih kategori" />
+                      <SelectValue placeholder={loadingCOA ? "Memuat..." : "Pilih kategori"} />
                     </SelectTrigger>
                     <SelectContent>
                       {currentCOA.map((category) => (
@@ -377,7 +409,7 @@ export function TransactionContent() {
                   <Select
                     value={formData.typeCode}
                     onValueChange={(value) => setFormData({ ...formData, typeCode: value })}
-                    disabled={!formData.categoryCode}
+                    disabled={!formData.categoryCode || loadingCOA}
                   >
                     <SelectTrigger className="h-10 rounded-lg border-gray-200">
                       <SelectValue placeholder="Pilih jenis" />
@@ -478,14 +510,73 @@ export function TransactionContent() {
                     Upload Bukti
                   </Label>
                   <div className="border-2 border-dashed border-gray-200 rounded-lg p-6 text-center hover:border-gray-300 transition-colors">
-                    <Upload className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                    <p className="text-sm text-gray-500">
-                      Tarik & lepas foto bukti atau klik untuk unggah
-                    </p>
-                    <p className="text-xs text-gray-400 mt-1">
-                      File types: JPG/PNG/PDF. Max 5MB
-                    </p>
+                    {formData.proof ? (
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between bg-white p-3 rounded-lg border">
+                          <div className="flex items-center">
+                            {formData.proof.type === 'application/pdf' ? (
+                              <svg className="w-10 h-10 text-red-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clipRule="evenodd" />
+                              </svg>
+                            ) : (
+                              <svg className="w-10 h-10 text-blue-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
+                              </svg>
+                            )}
+                            <div className="text-left">
+                              <p className="text-sm font-medium text-gray-900">{formData.proof.name}</p>
+                              <p className="text-xs text-gray-500">{(formData.proof.size / 1024 / 1024).toFixed(2)} MB</p>
+                            </div>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={removeFile}
+                            className="hover:bg-red-100 hover:text-red-600"
+                          >
+                            <X className="w-4 h-4" />
+                          </Button>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => fileInputRef.current?.click()}
+                          className="w-full"
+                        >
+                          <Upload className="h-4 w-4 mr-2" />
+                          Ganti File
+                        </Button>
+                      </div>
+                    ) : (
+                      <>
+                        <Upload className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                        <p className="text-sm text-gray-500 mb-3">
+                          Tarik & lepas foto bukti atau klik untuk unggah
+                        </p>
+                        <Button
+                          type="button"
+                          variant="default"
+                          size="default"
+                          onClick={() => fileInputRef.current?.click()}
+                          className="bg-blue-600 hover:bg-blue-700 text-white"
+                        >
+                          <Upload className="h-4 w-4 mr-2" />
+                          Pilih File
+                        </Button>
+                        <p className="text-xs text-gray-400 mt-3">
+                          File types: JPG/PNG/PDF. Max 5MB
+                        </p>
+                      </>
+                    )}
                   </div>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    className="hidden"
+                    accept="image/jpeg,image/png,application/pdf"
+                    onChange={handleFileSelect}
+                  />
                 </div>
 
                 {/* Catatan */}

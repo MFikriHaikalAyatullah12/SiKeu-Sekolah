@@ -607,14 +607,14 @@ export function DashboardContent() {
             <CardTitle className="text-base font-semibold">Kategori Terbesar</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={180}>
+            <ResponsiveContainer width="100%" height={280}>
               <PieChart>
                 <Pie
                   data={pieData}
                   cx="50%"
                   cy="50%"
-                  innerRadius={45}
-                  outerRadius={70}
+                  innerRadius={70}
+                  outerRadius={110}
                   paddingAngle={2}
                   dataKey="value"
                 >
@@ -623,30 +623,22 @@ export function DashboardContent() {
                   ))}
                 </Pie>
                 <Tooltip 
-                  formatter={(value) => [`${value}%`, '']}
+                  formatter={(value, name, props) => [`${value}%`, props.payload.name]}
                   contentStyle={{ 
                     backgroundColor: '#fff', 
                     border: '1px solid #e5e7eb',
                     borderRadius: '8px',
-                    fontSize: '12px'
+                    fontSize: '12px',
+                    padding: '8px 12px'
+                  }}
+                  labelStyle={{
+                    fontWeight: 600,
+                    marginBottom: '4px',
+                    color: '#1f2937'
                   }}
                 />
               </PieChart>
             </ResponsiveContainer>
-            <div className="space-y-2 mt-4">
-              {pieData.map((item, index) => (
-                <div key={index} className="flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-2">
-                    <div 
-                      className="w-3 h-3 rounded-sm" 
-                      style={{ backgroundColor: item.color }}
-                    />
-                    <span className="text-gray-700">{item.name}</span>
-                  </div>
-                  <span className="font-semibold text-gray-900">{item.value}%</span>
-                </div>
-              ))}
-            </div>
           </CardContent>
         </Card>
       </div>

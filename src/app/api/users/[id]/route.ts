@@ -6,7 +6,7 @@ import bcrypt from "bcryptjs"
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions)
@@ -20,12 +20,13 @@ export async function PUT(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
+    const { id } = await params
     const body = await request.json()
     const { name, email, password, role, schoolId } = body
 
     // Get existing user
     const existingUser = await prisma.user.findUnique({
-      where: { id: params.id }
+      where: { id }
     })
 
     if (!existingUser) {
@@ -74,7 +75,7 @@ export async function PUT(
 
     // Update user
     const user = await prisma.user.update({
-      where: { id: params.id },
+      where: { id },
       data: updateData,
       select: {
         id: true,
@@ -102,7 +103,7 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions)
@@ -116,8 +117,10 @@ export async function DELETE(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
+    const { id } = await params
+
     // Prevent self-deletion
-    if (params.id === session.user.id) {
+    if (id === session.user.id) {
       return NextResponse.json(
         { error: "Cannot delete your own account" },
         { status: 400 }
@@ -126,23 +129,46 @@ export async function DELETE(
 
     // Get existing user
     const existingUser = await prisma.user.findUnique({
-      where: { id: params.id }
+      where: { id },
+      include: {
+        transactions: true,
+        accounts: true,
+        sessions: true,
+        auditLogs: true
+      }
     })
 
     if (!existingUser) {
       return NextResponse.json({ error: "User not found" }, { status: 404 })
     }
 
-    // Delete user
+    // Check if user has related data
+    if (existingUser.transactions && existingUser.transactions.length > 0) {
+      return NextResponse.json(
+        { error: `Cannot delete user. User has ${existingUser.transactions.length} transaction(s) associated. Please reassign or delete transactions first.` },
+        { status: 400 }
+      )
+    }
+
+    // Delete user (Cascade will handle accounts, sessions, and audit logs)
     await prisma.user.delete({
-      where: { id: params.id }
+      where: { id }
     })
 
     return NextResponse.json({ message: "User deleted successfully" })
-  } catch (error) {
+  } catch (error: any) {
     console.error("Delete user error:", error)
+    
+    // Return more specific error message
+    if (error.code === 'P2003') {
+      return NextResponse.json(
+        { error: "Cannot delete user because it has related records. Please remove related data first." },
+        { status: 400 }
+      )
+    }
+    
     return NextResponse.json(
-      { error: "Failed to delete user" },
+      { error: error.message || "Failed to delete user" },
       { status: 500 }
     )
   }

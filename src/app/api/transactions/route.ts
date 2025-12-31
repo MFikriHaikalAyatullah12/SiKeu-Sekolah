@@ -177,30 +177,39 @@ export async function POST(request: NextRequest) {
       )
     }
     
-    // Handle category mapping for hard-coded IDs
+    // Handle category mapping for COA codes
     let categoryId = body.categoryId;
     
-    if (['1100', '1200', '3100', '4100', '2100', '5100'].includes(categoryId)) {
-      // Map hard-coded IDs to database category names
-      const categoryMapping: Record<string, string> = {
-        '1100': 'Aktiva Lancar',
-        '1200': 'Aktiva Tetap',
-        '3100': 'Modal',
-        '4100': 'Pendapatan',
-        '2100': 'Kewajiban',
-        '5100': 'Beban'
-      };
+    // Check if categoryId is a COA code (numeric string starting with 1-5)
+    if (/^[1-5]\d{3}$/.test(categoryId)) {
+      // Determine category name based on the first digit
+      const firstDigit = categoryId[0];
+      let categoryName: string;
       
-      const categoryName = categoryMapping[categoryId];
-      
-      if (!categoryName) {
-        return NextResponse.json(
-          { error: 'Invalid category ID' },
-          { status: 400 }
-        )
+      switch (firstDigit) {
+        case '1':
+          categoryName = 'Aktiva';
+          break;
+        case '2':
+          categoryName = 'Kewajiban';
+          break;
+        case '3':
+          categoryName = 'Modal';
+          break;
+        case '4':
+          categoryName = 'Pendapatan';
+          break;
+        case '5':
+          categoryName = 'Beban';
+          break;
+        default:
+          return NextResponse.json(
+            { error: 'Invalid COA code' },
+            { status: 400 }
+          )
       }
       
-      console.log("🏷️  Mapping category:", categoryId, "->", categoryName, "for school:", schoolId)
+      console.log("🏷️  Mapping COA code:", categoryId, "->", categoryName, "for school:", schoolId)
       
       // Find or create category in database
       let category = await prisma.category.findFirst({
