@@ -60,6 +60,16 @@ export async function GET(request: NextRequest) {
       schoolProfileId: schoolId,
     }
 
+    // Apply role-based date restrictions for TREASURER
+    const roleBasedDateRange = getDateRangeForRole(session.user.role)
+    if (session.user.role === 'TREASURER' && roleBasedDateRange) {
+      where.date = {
+        gte: roleBasedDateRange.startDate,
+        lte: roleBasedDateRange.endDate
+      }
+      console.log(`🔒 TREASURER access limited to last 3 months: ${roleBasedDateRange.startDate.toISOString()} to ${roleBasedDateRange.endDate.toISOString()}`)
+    }
+
     console.log("🔍 Querying transactions with schoolId:", schoolId)
 
     // Apply date range restrictions based on role

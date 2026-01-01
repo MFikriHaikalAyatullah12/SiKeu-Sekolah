@@ -128,6 +128,17 @@ export default function ReportsPage() {
   const [exportStartDate, setExportStartDate] = useState(firstDayOfMonth.toISOString().split('T')[0])
   const [exportEndDate, setExportEndDate] = useState(today.toISOString().split('T')[0])
 
+  // Role-based access control
+  const userRole = session?.user?.role
+  const isTreasurer = userRole === 'TREASURER'
+  const isSuperAdmin = userRole === 'SUPER_ADMIN'
+  
+  // Date range restrictions for Treasurer (3 months max)
+  const maxDateRangeMonths = isTreasurer ? 3 : null
+  const treasurerMaxStartDate = isTreasurer 
+    ? new Date(today.getFullYear(), today.getMonth() - 3, today.getDate()).toISOString().split('T')[0]
+    : null
+
   useEffect(() => {
     if (status === "loading") return
     
@@ -708,7 +719,19 @@ export default function ReportsPage() {
       <div className="space-y-6 p-6 bg-gray-50/80 min-h-screen -m-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <h1 className="text-3xl font-bold text-gray-900">Laporan Keuangan</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-3xl font-bold text-gray-900">Laporan Keuangan</h1>
+            {isTreasurer && (
+              <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
+                📅 Akses 3 Bulan
+              </Badge>
+            )}
+            {isSuperAdmin && (
+              <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                👑 Akses Penuh
+              </Badge>
+            )}
+          </div>
           <div className="flex gap-3">
             <Button 
               onClick={handleExportPDF}
@@ -1382,9 +1405,23 @@ export default function ReportsPage() {
                 id="start-date"
                 type="date"
                 value={exportStartDate}
-                onChange={(e) => setExportStartDate(e.target.value)}
+                onChange={(e) => {
+                  const selectedDate = e.target.value
+                  if (isTreasurer && treasurerMaxStartDate && selectedDate < treasurerMaxStartDate) {
+                    toast.error(`Bendahara hanya dapat mengakses data maksimal 3 bulan terakhir`)
+                    setExportStartDate(treasurerMaxStartDate)
+                  } else {
+                    setExportStartDate(selectedDate)
+                  }
+                }}
+                min={treasurerMaxStartDate || undefined}
                 className="w-full"
               />
+              {isTreasurer && (
+                <p className="text-xs text-amber-600">
+                  ⚠️ Akses dibatasi maksimal 3 bulan terakhir
+                </p>
+              )}
             </div>
             
             <div className="space-y-2">

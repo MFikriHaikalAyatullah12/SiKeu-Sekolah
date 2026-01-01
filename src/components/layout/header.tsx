@@ -13,9 +13,13 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Bell, LogOut, Settings, User, Search, ChevronDown } from 'lucide-react'
+import { Bell, LogOut, Settings, User, Search, ChevronDown, Menu } from 'lucide-react'
 
-export function Header() {
+interface HeaderProps {
+  onMenuClick?: () => void
+}
+
+export function Header({ onMenuClick }: HeaderProps) {
   const { data: session } = useSession()
   const router = useRouter()
 
@@ -38,10 +42,18 @@ export function Header() {
   }
 
   return (
-    <header className="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-40">
-      <div className="flex items-center justify-between px-6 py-3">
+    <header className="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-30">
+      <div className="flex items-center justify-between px-3 sm:px-6 py-3">
+        {/* Mobile menu button */}
+        <button
+          onClick={onMenuClick}
+          className="md:hidden p-2 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100"
+        >
+          <Menu className="h-5 w-5" />
+        </button>
+
         {/* Search Bar */}
-        <div className="flex-1 max-w-md">
+        <div className="flex-1 max-w-md ml-4 md:ml-0">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
             <Input 

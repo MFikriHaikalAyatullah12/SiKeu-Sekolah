@@ -39,6 +39,12 @@ export default function SettingsPage() {
   const [logoFile, setLogoFile] = useState<File | null>(null)
   const [logoPreview, setLogoPreview] = useState<string>("")
 
+  // Role-based access control
+  const userRole = session?.user?.role
+  const isTreasurer = userRole === 'TREASURER'
+  const isSuperAdmin = userRole === 'SUPER_ADMIN'
+  const canEdit = isSuperAdmin
+
   useEffect(() => {
     if (status === "loading") return
     
@@ -225,49 +231,65 @@ export default function SettingsPage() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6 max-w-4xl">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Pengaturan</h1>
-          <p className="text-gray-500 mt-1">Kelola preferensi dan pengaturan akun Anda</p>
+      <div className="space-y-4 sm:space-y-6 max-w-4xl">
+        <div className="px-1">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Pengaturan</h1>
+          <p className="text-sm sm:text-base text-gray-500 mt-1">Kelola preferensi dan pengaturan akun Anda</p>
         </div>
 
         <Tabs defaultValue="profile" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="profile">
-              <User className="h-4 w-4 mr-2" />
-              Profil
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 h-auto">
+            <TabsTrigger value="profile" className="text-xs sm:text-sm py-2 sm:py-3 px-2">
+              <User className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+              <span className="hidden sm:inline">Profil</span>
+              <span className="sm:hidden">👤</span>
             </TabsTrigger>
-            <TabsTrigger value="notifications">
-              <Bell className="h-4 w-4 mr-2" />
-              Notifikasi
+            <TabsTrigger value="notifications" className="text-xs sm:text-sm py-2 sm:py-3 px-2">
+              <Bell className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+              <span className="hidden sm:inline">Notifikasi</span>
+              <span className="sm:hidden">🔔</span>
             </TabsTrigger>
-            <TabsTrigger value="security">
-              <Shield className="h-4 w-4 mr-2" />
-              Keamanan
+            <TabsTrigger value="security" className="text-xs sm:text-sm py-2 sm:py-3 px-2">
+              <Shield className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+              <span className="hidden sm:inline">Keamanan</span>
+              <span className="sm:hidden">🔒</span>
             </TabsTrigger>
-            <TabsTrigger value="school">
-              <Building2 className="h-4 w-4 mr-2" />
-              Sekolah
+            <TabsTrigger value="school" className="text-xs sm:text-sm py-2 sm:py-3 px-2">
+              <Building2 className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+              <span className="hidden sm:inline">Sekolah</span>
+              <span className="sm:hidden">🏫</span>
             </TabsTrigger>
           </TabsList>
 
           {/* Profile Tab */}
           <TabsContent value="profile" className="space-y-4">
             <Card>
-              <CardHeader>
-                <CardTitle>Informasi Profil</CardTitle>
-                <CardDescription>
-                  Update informasi profil pribadi Anda
-                </CardDescription>
+              <CardHeader className="px-4 sm:px-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div>
+                    <CardTitle className="text-lg sm:text-xl">Informasi Profil</CardTitle>
+                    <CardDescription className="text-sm">
+                      {canEdit ? "Update informasi profil pribadi Anda" : "Lihat informasi profil pribadi Anda"}
+                    </CardDescription>
+                  </div>
+                  {isTreasurer && (
+                    <div className="flex items-center gap-2 text-amber-600 bg-amber-50 px-2 sm:px-3 py-1 rounded-lg text-xs sm:text-sm">
+                      👁️ Hanya Baca
+                    </div>
+                  )}
+                </div>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-4 px-4 sm:px-6">
                 <div className="space-y-2">
-                  <Label htmlFor="name">Nama Lengkap</Label>
+                  <Label htmlFor="name" className="text-sm sm:text-base">Nama Lengkap</Label>
                   <Input
                     id="name"
                     value={profileData.name}
                     onChange={(e) => setProfileData({ ...profileData, name: e.target.value })}
                     placeholder="Masukkan nama lengkap"
+                    disabled={!canEdit}
+                    className={`text-sm sm:text-base ${!canEdit ? "bg-gray-50 cursor-not-allowed" : ""}`}
+                    className={!canEdit ? "bg-gray-50 cursor-not-allowed" : ""}
                   />
                 </div>
                 <div className="space-y-2">
@@ -278,21 +300,30 @@ export default function SettingsPage() {
                     value={profileData.email}
                     onChange={(e) => setProfileData({ ...profileData, email: e.target.value })}
                     placeholder="email@example.com"
+                    disabled={!canEdit}
+                    className={!canEdit ? "bg-gray-50 cursor-not-allowed" : ""}
                   />
                 </div>
-                <Button onClick={handleSaveProfile} disabled={loading}>
-                  {loading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Menyimpan...
-                    </>
-                  ) : (
-                    <>
-                      <Save className="mr-2 h-4 w-4" />
-                      Simpan Perubahan
-                    </>
-                  )}
-                </Button>
+                {canEdit && (
+                  <Button onClick={handleSaveProfile} disabled={loading}>
+                    {loading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Menyimpan...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="mr-2 h-4 w-4" />
+                        Simpan Perubahan
+                      </>
+                    )}
+                  </Button>
+                )}
+                {!canEdit && (
+                  <div className="text-sm text-gray-500 italic">
+                    ℹ️ Hanya Super Admin yang dapat mengubah informasi profil
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -301,10 +332,19 @@ export default function SettingsPage() {
           <TabsContent value="security" className="space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle>Ubah Password</CardTitle>
-                <CardDescription>
-                  Perbarui password akun Anda untuk keamanan
-                </CardDescription>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Ubah Password</CardTitle>
+                    <CardDescription>
+                      {canEdit ? "Perbarui password akun Anda untuk keamanan" : "Lihat pengaturan keamanan akun Anda"}
+                    </CardDescription>
+                  </div>
+                  {isTreasurer && (
+                    <div className="flex items-center gap-2 text-amber-600 bg-amber-50 px-3 py-1 rounded-lg text-sm">
+                      👁️ Hanya Baca
+                    </div>
+                  )}
+                </div>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
@@ -315,6 +355,8 @@ export default function SettingsPage() {
                     value={passwordData.currentPassword}
                     onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
                     placeholder="Masukkan password saat ini"
+                    disabled={!canEdit}
+                    className={!canEdit ? "bg-gray-50 cursor-not-allowed" : ""}
                   />
                 </div>
                 <div className="space-y-2">
@@ -325,6 +367,8 @@ export default function SettingsPage() {
                     value={passwordData.newPassword}
                     onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
                     placeholder="Masukkan password baru"
+                    disabled={!canEdit}
+                    className={!canEdit ? "bg-gray-50 cursor-not-allowed" : ""}
                   />
                 </div>
                 <div className="space-y-2">
@@ -335,21 +379,30 @@ export default function SettingsPage() {
                     value={passwordData.confirmPassword}
                     onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
                     placeholder="Konfirmasi password baru"
+                    disabled={!canEdit}
+                    className={!canEdit ? "bg-gray-50 cursor-not-allowed" : ""}
                   />
                 </div>
-                <Button onClick={handleChangePassword} disabled={loading}>
-                  {loading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Mengubah...
-                    </>
-                  ) : (
-                    <>
-                      <Shield className="mr-2 h-4 w-4" />
-                      Ubah Password
-                    </>
-                  )}
-                </Button>
+                {canEdit && (
+                  <Button onClick={handleChangePassword} disabled={loading}>
+                    {loading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Mengubah...
+                      </>
+                    ) : (
+                      <>
+                        <Shield className="mr-2 h-4 w-4" />
+                        Ubah Password
+                      </>
+                    )}
+                  </Button>
+                )}
+                {!canEdit && (
+                  <div className="text-sm text-gray-500 italic">
+                    ℹ️ Hanya Super Admin yang dapat mengubah password
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -358,10 +411,19 @@ export default function SettingsPage() {
           <TabsContent value="notifications" className="space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle>Preferensi Notifikasi</CardTitle>
-                <CardDescription>
-                  Pilih jenis notifikasi yang ingin Anda terima
-                </CardDescription>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Preferensi Notifikasi</CardTitle>
+                    <CardDescription>
+                      {canEdit ? "Pilih jenis notifikasi yang ingin Anda terima" : "Lihat pengaturan notifikasi Anda"}
+                    </CardDescription>
+                  </div>
+                  {isTreasurer && (
+                    <div className="flex items-center gap-2 text-amber-600 bg-amber-50 px-3 py-1 rounded-lg text-sm">
+                      👁️ Hanya Baca
+                    </div>
+                  )}
+                </div>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="flex items-center justify-between">
@@ -371,7 +433,7 @@ export default function SettingsPage() {
                       Terima notifikasi melalui email
                     </p>
                   </div>
-                  <Switch defaultChecked />
+                  <Switch defaultChecked disabled={!canEdit} />
                 </div>
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
@@ -380,7 +442,7 @@ export default function SettingsPage() {
                       Notifikasi saat ada transaksi baru
                     </p>
                   </div>
-                  <Switch defaultChecked />
+                  <Switch defaultChecked disabled={!canEdit} />
                 </div>
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
@@ -389,7 +451,7 @@ export default function SettingsPage() {
                       Terima ringkasan laporan setiap minggu
                     </p>
                   </div>
-                  <Switch />
+                  <Switch disabled={!canEdit} />
                 </div>
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
@@ -398,8 +460,13 @@ export default function SettingsPage() {
                       Pengingat untuk pembayaran yang tertunda
                     </p>
                   </div>
-                  <Switch defaultChecked />
+                  <Switch defaultChecked disabled={!canEdit} />
                 </div>
+                {!canEdit && (
+                  <div className="text-sm text-gray-500 italic mt-4 p-3 bg-gray-50 rounded-lg">
+                    ℹ️ Hanya Super Admin yang dapat mengubah pengaturan notifikasi
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -408,12 +475,21 @@ export default function SettingsPage() {
           <TabsContent value="school" className="space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle>Informasi Sekolah</CardTitle>
-                <CardDescription>
-                  {["ADMIN", "SUPER_ADMIN"].includes(session?.user?.role || "") 
-                    ? "Kelola identitas dan informasi sekolah Anda"
-                    : "Informasi sekolah - hanya dapat diubah oleh Admin"}
-                </CardDescription>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Informasi Sekolah</CardTitle>
+                    <CardDescription>
+                      {["ADMIN", "SUPER_ADMIN"].includes(session?.user?.role || "") 
+                        ? "Kelola identitas dan informasi sekolah Anda"
+                        : "Informasi sekolah - hanya dapat diubah oleh Admin"}
+                    </CardDescription>
+                  </div>
+                  {isTreasurer && (
+                    <div className="flex items-center gap-2 text-amber-600 bg-amber-50 px-3 py-1 rounded-lg text-sm">
+                      👁️ Hanya Baca
+                    </div>
+                  )}
+                </div>
               </CardHeader>
               <CardContent className="space-y-4">
                 {/* Logo Upload */}
@@ -531,6 +607,12 @@ export default function SettingsPage() {
                         </>
                       )}
                     </Button>
+                  </div>
+                )}
+
+                {isTreasurer && (
+                  <div className="text-sm text-gray-500 italic pt-4 border-t p-3 bg-gray-50 rounded-lg">
+                    ℹ️ Hanya Super Admin dan Admin yang dapat mengubah informasi sekolah
                   </div>
                 )}
 

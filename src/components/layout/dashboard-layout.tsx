@@ -1,6 +1,6 @@
 'use client'
 
-import { ReactNode } from 'react'
+import { ReactNode, useState } from 'react'
 import { Sidebar } from '@/components/layout/sidebar'
 import { Header } from '@/components/layout/header'
 
@@ -9,13 +9,18 @@ interface DashboardLayoutProps {
 }
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+
   return (
     <div className="min-h-screen bg-gray-50" suppressHydrationWarning>
-      <Sidebar />
+      <Sidebar 
+        isOpen={sidebarOpen} 
+        onClose={() => setSidebarOpen(false)} 
+      />
       <div className="md:pl-64" suppressHydrationWarning>
-        <Header />
-        <main className="p-4 sm:p-6 lg:p-8">
-          <div className="max-w-7xl mx-auto">
+        <Header onMenuClick={() => setSidebarOpen(true)} />
+        <main className="p-3 sm:p-4 md:p-6 lg:p-8">
+          <div className="max-w-7xl mx-auto w-full">
             {children}
           </div>
         </main>

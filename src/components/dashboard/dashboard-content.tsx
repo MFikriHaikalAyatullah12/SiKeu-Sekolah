@@ -25,6 +25,8 @@ import {
 import {
   LineChart,
   Line,
+  AreaChart,
+  Area,
   PieChart,
   Pie,
   Cell,
@@ -119,6 +121,7 @@ export function DashboardContent() {
   const [selectedSchoolId, setSelectedSchoolId] = useState<string>("");
   const [chartData, setChartData] = useState<any[]>([]);
   const [pieData, setPieData] = useState<any[]>([]);
+  const [userRole, setUserRole] = useState<string>("");
   
   const [formData, setFormData] = useState({
     categoryId: "",
@@ -135,9 +138,26 @@ export function DashboardContent() {
   const selectedCategory = coaCategories.find(cat => cat.id === formData.categoryId);
   const availableTypes = selectedCategory?.types || [];
 
+  // Role-based chart title
+  const getChartTitle = () => {
+    return userRole === "TREASURER" 
+      ? "Pemasukan vs Pengeluaran (3 Bulan)" 
+      : "Pemasukan vs Pengeluaran (6 Bulan)";
+  };
+
   useEffect(() => {
     fetchDashboardData(true, true);
     fetchSchools();
+    
+    // Get user role from session
+    fetch('/api/auth/session')
+      .then(res => res.json())
+      .then(session => {
+        if (session?.user?.role) {
+          setUserRole(session.user.role);
+        }
+      })
+      .catch(err => console.error('Failed to get session:', err));
     
     // Auto refresh data setiap 15 detik untuk data yang lebih real-time
     const interval = setInterval(() => {
@@ -391,22 +411,22 @@ export function DashboardContent() {
   };
 
   return (
-    <div className="space-y-6 p-6 bg-gray-50/50">
+    <div className="space-y-4 sm:space-y-6 p-3 sm:p-6 bg-gray-50/50">
       {/* Header dengan indikator refresh */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Dashboard</h1>
           {lastUpdated && (
-            <p className="text-sm text-gray-500">
+            <p className="text-xs sm:text-sm text-gray-500 mt-1">
               Terakhir diperbarui: {lastUpdated.toLocaleString('id-ID')}
             </p>
           )}
         </div>
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center space-x-2 w-full sm:w-auto justify-end">
           {dashboardLoading && (
             <div className="flex items-center space-x-2 text-sm text-gray-500">
               <Loader2 className="h-4 w-4 animate-spin" />
-              <span>Memuat...</span>
+              <span className="hidden sm:inline">Memuat...</span>
             </div>
           )}
           <Button 
@@ -414,30 +434,31 @@ export function DashboardContent() {
             variant="outline" 
             size="sm"
             disabled={dashboardLoading}
+            className="text-xs sm:text-sm px-2 sm:px-3"
           >
-            <TrendingUp className="h-4 w-4 mr-1" />
-            Refresh
+            <TrendingUp className="h-4 w-4 mr-1 sm:mr-2" />
+            <span className="hidden sm:inline">Refresh</span>
           </Button>
         </div>
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {/* Saldo Saat Ini */}
         <Card className={`border-0 shadow-sm hover:shadow-md transition-shadow ${dashboardLoading ? 'opacity-50' : ''}`}>
-          <CardContent className="p-6">
+          <CardContent className="p-4 sm:p-6">
             <div className="flex items-center justify-between mb-2">
-              <div className="p-2.5 bg-green-100 rounded-lg">
-                <Wallet className="h-6 w-6 text-green-600" />
+              <div className="p-2 sm:p-2.5 bg-green-100 rounded-lg">
+                <Wallet className="h-5 w-5 sm:h-6 sm:w-6 text-green-600" />
               </div>
             </div>
             <div className="space-y-1">
-              <p className="text-sm text-gray-600">Saldo Saat Ini</p>
-              <div className="text-2xl font-bold text-gray-900">
+              <p className="text-xs sm:text-sm text-gray-600">Saldo Saat Ini</p>
+              <div className="text-xl sm:text-2xl font-bold text-gray-900">
                 {dashboardLoading ? (
                   <div className="flex items-center space-x-2">
-                    <Loader2 className="h-6 w-6 animate-spin" />
-                    <span>Loading...</span>
+                    <Loader2 className="h-5 w-5 sm:h-6 sm:w-6 animate-spin" />
+                    <span className="text-sm sm:text-base">Loading...</span>
                   </div>
                 ) : (
                   stats ? formatNumber(stats.balance) : "Rp 0"
@@ -533,70 +554,83 @@ export function DashboardContent() {
       </div>
 
       {/* Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Line Chart - 2 columns */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+        {/* Area Chart - 2 columns */}
         <Card className="lg:col-span-2 border-0 shadow-sm">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-base font-semibold">
-              Pemasukan vs Pengeluaran (6 Bulan)
+          <CardHeader className="flex flex-row items-center justify-between pb-2 px-4 sm:px-6">
+            <CardTitle className="text-sm sm:text-base font-semibold">
+              {getChartTitle()}
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={280}>
-              <LineChart data={chartData}>
+          <CardContent className="px-2 sm:px-6 pb-4 sm:pb-6">
+            <ResponsiveContainer width="100%" height={250}>
+              <AreaChart data={chartData}>
                 <defs>
                   <linearGradient id="colorPemasukan" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.1}/>
-                    <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.4}/>
+                    <stop offset="50%" stopColor="#10b981" stopOpacity={0.2}/>
+                    <stop offset="95%" stopColor="#10b981" stopOpacity={0.05}/>
                   </linearGradient>
                   <linearGradient id="colorPengeluaran" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#ef4444" stopOpacity={0.1}/>
-                    <stop offset="95%" stopColor="#ef4444" stopOpacity={0}/>
+                    <stop offset="5%" stopColor="#ef4444" stopOpacity={0.4}/>
+                    <stop offset="50%" stopColor="#ef4444" stopOpacity={0.2}/>
+                    <stop offset="95%" stopColor="#ef4444" stopOpacity={0.05}/>
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <CartesianGrid strokeDasharray="2 2" stroke="#f1f5f9" opacity={0.7} />
                 <XAxis 
                   dataKey="month" 
-                  tick={{ fontSize: 11, fill: '#6b7280' }}
-                  axisLine={{ stroke: '#e5e7eb' }}
+                  tick={{ fontSize: 11, fill: '#64748b' }}
+                  axisLine={{ stroke: '#e2e8f0' }}
+                  tickLine={{ stroke: '#e2e8f0' }}
                 />
                 <YAxis 
-                  tick={{ fontSize: 11, fill: '#6b7280' }}
-                  axisLine={{ stroke: '#e5e7eb' }}
+                  tick={{ fontSize: 11, fill: '#64748b' }}
+                  axisLine={{ stroke: '#e2e8f0' }}
+                  tickLine={{ stroke: '#e2e8f0' }}
+                  label={{ value: 'Jutaan (Rp)', angle: -90, position: 'insideLeft', style: { textAnchor: 'middle', fontSize: '11px', fill: '#64748b' } }}
                 />
                 <Tooltip 
                   contentStyle={{ 
-                    backgroundColor: '#fff', 
-                    border: '1px solid #e5e7eb',
-                    borderRadius: '8px',
-                    fontSize: '12px'
+                    backgroundColor: 'rgba(255, 255, 255, 0.96)', 
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '10px',
+                    fontSize: '12px',
+                    boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)'
                   }}
+                  formatter={(value: any, name?: string) => [
+                    `Rp ${value}M`, 
+                    name === 'pemasukan' ? '💰 Pemasukan' : '💸 Pengeluaran'
+                  ]}
+                  labelStyle={{ fontWeight: 600, color: '#1e293b' }}
                 />
                 <Legend 
-                  wrapperStyle={{ fontSize: '12px' }}
+                  wrapperStyle={{ fontSize: '12px', fontWeight: '500', paddingTop: '10px' }}
                   iconType="circle"
                 />
-                <Line 
-                  type="monotone" 
-                  dataKey="pemasukan" 
-                  stroke="#10b981" 
-                  strokeWidth={2.5}
-                  name="Pemasukan"
-                  dot={{ fill: '#10b981', r: 4 }}
-                  activeDot={{ r: 6 }}
+                <Area
+                  type="monotone"
+                  dataKey="pemasukan"
+                  stackId="1"
+                  stroke="#10b981"
+                  strokeWidth={3}
                   fill="url(#colorPemasukan)"
+                  name="Pemasukan"
+                  dot={{ fill: '#10b981', strokeWidth: 2, r: 5, stroke: '#ffffff' }}
+                  activeDot={{ r: 8, strokeWidth: 3, stroke: '#10b981', fill: '#ffffff' }}
                 />
-                <Line 
-                  type="monotone" 
-                  dataKey="pengeluaran" 
-                  stroke="#ef4444" 
-                  strokeWidth={2.5}
-                  name="Pengeluaran"
-                  dot={{ fill: '#ef4444', r: 4 }}
-                  activeDot={{ r: 6 }}
+                <Area
+                  type="monotone"
+                  dataKey="pengeluaran"
+                  stackId="2"
+                  stroke="#ef4444"
+                  strokeWidth={3}
                   fill="url(#colorPengeluaran)"
+                  name="Pengeluaran"
+                  dot={{ fill: '#ef4444', strokeWidth: 2, r: 5, stroke: '#ffffff' }}
+                  activeDot={{ r: 8, strokeWidth: 3, stroke: '#ef4444', fill: '#ffffff' }}
                 />
-              </LineChart>
+              </AreaChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
@@ -644,7 +678,7 @@ export function DashboardContent() {
       </div>
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
         <Card className="border-0 shadow-sm">
           <CardHeader className="pb-4">
             <CardTitle className="text-base font-semibold flex items-center">

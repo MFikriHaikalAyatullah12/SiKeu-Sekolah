@@ -69,7 +69,7 @@ export function getDateRangeForRole(role: string) {
   if (role === "TREASURER") {
     const endDate = new Date()
     const startDate = new Date()
-    startDate.setMonth(startDate.getMonth() - 3) // 3 bulan terakhir
+    startDate.setMonth(startDate.getMonth() - 3) // 3 bulan terakhir untuk bendahara
     return { startDate, endDate }
   }
   

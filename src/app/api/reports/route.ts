@@ -48,6 +48,67 @@ export async function GET(request: NextRequest) {
     const roleBasedDateRange = getDateRangeForRole(session.user.role)
     
     let startDate: Date
+    let endDate: Date
+    
+    if (customStartDate && customEndDate) {
+      startDate = new Date(customStartDate)
+      endDate = new Date(customEndDate)
+      
+      // ENFORCE role-based restrictions even for custom dates
+      if (session.user.role === 'TREASURER' && roleBasedDateRange) {
+        const maxStartDate = roleBasedDateRange.startDate
+        if (startDate < maxStartDate) {
+          console.log(`⚠️ TREASURER date restricted: requested ${startDate.toISOString()}, maximum allowed ${maxStartDate.toISOString()}`)
+          startDate = maxStartDate
+        }
+      }
+    } else {
+      // Use predefined periods with role restrictions
+      if (roleBasedDateRange && session.user.role === 'TREASURER') {
+        // For TREASURER, always use role-based range regardless of period
+        startDate = roleBasedDateRange.startDate
+        endDate = roleBasedDateRange.endDate
+        console.log(`🔒 TREASURER access limited to last 3 months: ${startDate.toISOString()} to ${endDate.toISOString()}`)
+      } else {
+        // Original period logic for SUPER_ADMIN and others
+        const now = new Date()
+        
+        switch (period) {
+          case 'today':
+            startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+            endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999)
+            break
+          case 'thisWeek':
+            const today = now.getDay()
+            const mondayOffset = today === 0 ? 6 : today - 1 // Adjust for Sunday = 0
+            startDate = new Date(now)
+            startDate.setDate(now.getDate() - mondayOffset)
+            startDate.setHours(0, 0, 0, 0)
+            endDate = new Date(startDate)
+            endDate.setDate(startDate.getDate() + 6)
+            endDate.setHours(23, 59, 59, 999)
+            break
+          case 'thisMonth':
+            startDate = new Date(now.getFullYear(), now.getMonth(), 1)
+            endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999)
+            break
+          case 'thisYear':
+            startDate = new Date(now.getFullYear(), 0, 1)
+            endDate = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999)
+            break
+          case 'last30days':
+            endDate = new Date(now)
+            endDate.setHours(23, 59, 59, 999)
+            startDate = new Date(endDate)
+            startDate.setDate(startDate.getDate() - 30)
+            startDate.setHours(0, 0, 0, 0)
+            break
+          default:
+            startDate = new Date(now.getFullYear(), now.getMonth(), 1)
+            endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999)
+        }
+      }
+    }
     let endDate: Date = new Date()
 
     // Handle custom date range from export

@@ -16,9 +16,15 @@ import {
   Shield,
   Receipt,
   BookOpen,
+  X
 } from 'lucide-react'
 
 import appLogoImage from '@/image/icon_tampilan-sekolah1.png'
+
+interface SidebarProps {
+  isOpen: boolean
+  onClose: () => void
+}
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: Home, roles: ['SUPER_ADMIN', 'TREASURER'] },
@@ -31,7 +37,7 @@ const navigation = [
   { name: 'Pengaturan', href: '/dashboard/settings', icon: Settings, roles: ['SUPER_ADMIN', 'TREASURER'] },
 ]
 
-export function Sidebar() {
+export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname()
   const { data: session, status } = useSession()
 
@@ -44,9 +50,75 @@ export function Sidebar() {
   // Always show sidebar structure even when loading
   if (status === 'loading') {
     return (
-      <div className="flex md:w-64 md:flex-col md:fixed md:inset-y-0 z-50">
+      <>
+        {/* Mobile backdrop */}
+        {isOpen && (
+          <div 
+            className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden"
+            onClick={onClose}
+          />
+        )}
+        
+        {/* Sidebar */}
+        <div className={cn(
+          "fixed inset-y-0 left-0 z-50 flex w-64 flex-col transform transition-transform duration-200 ease-in-out",
+          "md:relative md:translate-x-0",
+          isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+        )}>
+          <div className="flex flex-col flex-grow bg-gradient-to-b from-gray-900 to-gray-800 overflow-y-auto shadow-xl">
+            {/* Header with close button for mobile */}
+            <div className="flex items-center justify-between h-16 flex-shrink-0 px-6 bg-gray-900 border-b border-gray-700">
+              <div className="flex items-center gap-2">
+                <div className="white flex items-center justify-center rounded-full bg-white/100 size-8">
+                  <Image
+                    src={appLogoImage}
+                    alt="Logo SiKeu Sekolah"
+                    width={24}
+                    height={24}
+                    className="h-6 w-6 object-contain"
+                    priority
+                  />
+                </div>
+                <h1 className="text-white text-lg font-bold">
+                  SiKeu Sekolah
+                </h1>
+              </div>
+              {/* Close button for mobile */}
+              <button
+                onClick={onClose}
+                className="md:hidden p-2 rounded-md text-gray-400 hover:text-white hover:bg-gray-700"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="flex-1 flex items-center justify-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+            </div>
+          </div>
+        </div>
+      </>
+    )
+  }
+
+  return (
+    <>
+      {/* Mobile backdrop */}
+      {isOpen && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden"
+          onClick={onClose}
+        />
+      )}
+      
+      {/* Sidebar */}
+      <div className={cn(
+        "fixed inset-y-0 left-0 z-50 flex w-64 flex-col transform transition-transform duration-200 ease-in-out",
+        "md:relative md:translate-x-0",
+        isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+      )}>
         <div className="flex flex-col flex-grow bg-gradient-to-b from-gray-900 to-gray-800 overflow-y-auto shadow-xl">
-          <div className="flex items-center h-16 flex-shrink-0 px-6 bg-gray-900 border-b border-gray-700">
+          {/* Header with close button for mobile */}
+          <div className="flex items-center justify-between h-16 flex-shrink-0 px-6 bg-gray-900 border-b border-gray-700">
             <div className="flex items-center gap-2">
               <div className="white flex items-center justify-center rounded-full bg-white/100 size-8">
                 <Image
@@ -62,42 +134,23 @@ export function Sidebar() {
                 SiKeu Sekolah
               </h1>
             </div>
+            {/* Close button for mobile */}
+            <button
+              onClick={onClose}
+              className="md:hidden p-2 rounded-md text-gray-400 hover:text-white hover:bg-gray-700"
+            >
+              <X className="h-5 w-5" />
+            </button>
           </div>
-          <div className="flex-1 flex items-center justify-center">
-            <div className="text-gray-400 text-sm">Loading...</div>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <div className="flex md:w-64 md:flex-col md:fixed md:inset-y-0 z-50">
-      <div className="flex flex-col flex-grow bg-gradient-to-b from-gray-900 to-gray-800 overflow-y-auto shadow-xl">
-        <div className="flex items-center h-16 flex-shrink-0 px-6 bg-gray-900 border-b border-gray-700">
-          <div className="flex items-center gap-2">
-            <div className="white flex items-center justify-center rounded-full bg-white/100 size-8">
-              <Image
-                src={appLogoImage}
-                alt="Logo SiKeu Sekolah"
-                width={24}
-                height={24}
-                className="h-6 w-6 object-contain"
-                priority
-              />
-            </div>
-            <h1 className="text-white text-lg font-bold">
-              SiKeu Sekolah
-            </h1>
-          </div>
-        </div>
-        <nav className="flex-1 px-3 py-4 space-y-1">
-          {filteredNavigation.map((item) => {
-            const isActive = pathname === item.href
+          
+          {/* Navigation */}
+          <nav className="mt-5 px-4 space-y-1">{filteredNavigation.map((item) => {
+            const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
             return (
               <Link
                 key={item.name}
                 href={item.href}
+                onClick={() => onClose()} // Close sidebar on mobile after navigation
                 className={cn(
                   'group flex items-center px-3 py-3 text-sm font-medium rounded-lg transition-all duration-200',
                   isActive
@@ -114,26 +167,28 @@ export function Sidebar() {
                 <span className="truncate">{item.name}</span>
               </Link>
             )
-          })}
-        </nav>
-        <div className="p-4 border-t border-gray-700">
-          <div className="flex items-center gap-3 px-3 py-2 bg-gray-800/50 rounded-lg">
-            <div className="flex-shrink-0 w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white font-semibold text-sm">
-              {session?.user?.name?.charAt(0) || 'U'}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-white truncate">
-                {session?.user?.name || 'User'}
-              </p>
-              <p className="text-xs text-gray-400 truncate">
-                {session?.user?.role === 'SUPER_ADMIN' && '👑 Super Admin'}
-                {session?.user?.role === 'BENDAHARA' && '💰 Bendahara'}
-                {!['SUPER_ADMIN', 'BENDAHARA'].includes(session?.user?.role || '') && '👤 User'}
-              </p>
+          })}</nav>
+          
+          {/* User Profile Footer */}
+          <div className="p-4 border-t border-gray-700">
+            <div className="flex items-center gap-3 px-3 py-2 bg-gray-800/50 rounded-lg">
+              <div className="flex-shrink-0 w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white font-semibold text-sm">
+                {session?.user?.name?.charAt(0) || 'U'}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-white truncate">
+                  {session?.user?.name || 'User'}
+                </p>
+                <p className="text-xs text-gray-400 truncate">
+                  {session?.user?.role === 'SUPER_ADMIN' && '👑 Super Admin'}
+                  {session?.user?.role === 'BENDAHARA' && '💰 Bendahara'}
+                  {!['SUPER_ADMIN', 'BENDAHARA'].includes(session?.user?.role || '') && '👤 User'}
+                </p>
+              </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
+    </>
   )
 }
