@@ -50,6 +50,14 @@ export async function GET(
       )
     }
 
+    // Check if school profile exists
+    if (!transaction.schoolProfile) {
+      return NextResponse.json(
+        { error: "School profile not found for this transaction" },
+        { status: 404 }
+      )
+    }
+
     // Create PDF
     const doc = new jsPDF({
       orientation: "portrait",
@@ -58,8 +66,8 @@ export async function GET(
     })
 
     // School header
-    const schoolName = transaction.schoolProfile.name || "SEKOLAH CIKAL HARAPAN"
-    const schoolAddress = transaction.schoolProfile.address || "Alamat Sekolah"
+    const schoolName = transaction.schoolProfile?.name || "SEKOLAH"
+    const schoolAddress = transaction.schoolProfile?.address || "Alamat Sekolah"
     
     // Professional header design with better layout
     // School name - centered, bold styling
@@ -72,10 +80,10 @@ export async function GET(
     doc.text(schoolAddress, 105, 32, { align: "center" })
     
     // Additional contact info if available
-    if (transaction.schoolProfile.phone) {
+    if (transaction.schoolProfile?.phone) {
       doc.text(`Telp: ${transaction.schoolProfile.phone}`, 105, 37, { align: "center" })
     }
-    if (transaction.schoolProfile.email) {
+    if (transaction.schoolProfile?.email) {
       doc.text(`Email: ${transaction.schoolProfile.email}`, 105, 42, { align: "center" })
     }
     

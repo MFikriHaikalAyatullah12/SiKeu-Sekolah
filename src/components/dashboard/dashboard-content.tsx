@@ -395,38 +395,33 @@ export function DashboardContent() {
 
   const formatNumber = (amount: number | string) => {
     const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
-    if (!numAmount || isNaN(numAmount) || numAmount === 0) return "Rp 0";
+    if (!numAmount || isNaN(numAmount)) return "Rp 0";
     
-    if (numAmount >= 1000000000) {
-      const billions = Math.floor(numAmount / 1000000000);
-      const millions = Math.floor((numAmount % 1000000000) / 1000000);
-      const thousands = Math.floor((numAmount % 1000000) / 1000);
-      return `Rp ${billions}.${millions.toString().padStart(3, "0")}.${thousands.toString().padStart(3, "0")}.000`;
-    } else if (numAmount >= 1000000) {
-      const millions = Math.floor(numAmount / 1000000);
-      const thousands = Math.floor((numAmount % 1000000) / 1000);
-      return `Rp ${millions}.${thousands.toString().padStart(3, "0")}.000`;
-    }
-    return formatCurrency(numAmount);
+    return new Intl.NumberFormat("id-ID", {
+      style: "currency",
+      currency: "IDR",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(numAmount);
   };
 
   return (
-    <div className="space-y-4 sm:space-y-6 p-3 sm:p-6 bg-gray-50/50">
+    <div className="space-y-4">
       {/* Header dengan indikator refresh */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Dashboard</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
           {lastUpdated && (
-            <p className="text-xs sm:text-sm text-gray-500 mt-1">
+            <p className="text-sm text-gray-500 mt-1">
               Terakhir diperbarui: {lastUpdated.toLocaleString('id-ID')}
             </p>
           )}
         </div>
-        <div className="flex items-center space-x-2 w-full sm:w-auto justify-end">
+        <div className="flex items-center space-x-3">
           {dashboardLoading && (
             <div className="flex items-center space-x-2 text-sm text-gray-500">
               <Loader2 className="h-4 w-4 animate-spin" />
-              <span className="hidden sm:inline">Memuat...</span>
+              <span>Memuat...</span>
             </div>
           )}
           <Button 
@@ -434,45 +429,48 @@ export function DashboardContent() {
             variant="outline" 
             size="sm"
             disabled={dashboardLoading}
-            className="text-xs sm:text-sm px-2 sm:px-3"
           >
-            <TrendingUp className="h-4 w-4 mr-1 sm:mr-2" />
-            <span className="hidden sm:inline">Refresh</span>
+            <TrendingUp className="h-4 w-4 mr-2" />
+            Refresh
           </Button>
         </div>
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Saldo Saat Ini */}
-        <Card className={`border-0 shadow-sm hover:shadow-md transition-shadow ${dashboardLoading ? 'opacity-50' : ''}`}>
-          <CardContent className="p-4 sm:p-6">
+        <Card className={`hover:shadow-lg transition-shadow ${dashboardLoading ? 'opacity-50' : ''}`}>
+          <CardContent className="p-6">
             <div className="flex items-center justify-between mb-2">
-              <div className="p-2 sm:p-2.5 bg-green-100 rounded-lg">
-                <Wallet className="h-5 w-5 sm:h-6 sm:w-6 text-green-600" />
+              <div className="p-2.5 bg-green-100 rounded-lg">
+                <Wallet className="h-6 w-6 text-green-600" />
               </div>
             </div>
             <div className="space-y-1">
-              <p className="text-xs sm:text-sm text-gray-600">Saldo Saat Ini</p>
-              <div className="text-xl sm:text-2xl font-bold text-gray-900">
+              <p className="text-sm text-gray-600">Saldo Saat Ini</p>
+              <div className="text-2xl font-bold text-gray-900">
                 {dashboardLoading ? (
                   <div className="flex items-center space-x-2">
-                    <Loader2 className="h-5 w-5 sm:h-6 sm:w-6 animate-spin" />
-                    <span className="text-sm sm:text-base">Loading...</span>
+                    <Loader2 className="h-6 w-6 animate-spin" />
+                    <span>Loading...</span>
                   </div>
                 ) : (
                   stats ? formatNumber(stats.balance) : "Rp 0"
                 )}
               </div>
-              <p className="text-xs text-green-600">
-                {stats ? (stats.balance >= 0 ? `+${formatCurrency(stats.balance)}` : formatCurrency(stats.balance)) : "Tidak ada data"} (Bulan ini)
+              <p className={`text-xs ${stats && stats.totalIncome - stats.totalExpense >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                {stats ? (
+                  stats.totalIncome - stats.totalExpense >= 0 
+                    ? `+${formatCurrency(stats.totalIncome - stats.totalExpense)}` 
+                    : formatCurrency(stats.totalIncome - stats.totalExpense)
+                ) : "Tidak ada data"} (Bulan ini)
               </p>
             </div>
           </CardContent>
         </Card>
 
         {/* Pemasukan Bulan Ini */}
-        <Card className={`border-0 shadow-sm hover:shadow-md transition-shadow ${dashboardLoading ? 'opacity-50' : ''}`}>
+        <Card className={`hover:shadow-lg transition-shadow ${dashboardLoading ? 'opacity-50' : ''}`}>
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-2">
               <div className="p-2.5 bg-blue-100 rounded-lg">
@@ -499,7 +497,7 @@ export function DashboardContent() {
         </Card>
 
         {/* Pengeluaran Bulan Ini */}
-        <Card className={`border-0 shadow-sm hover:shadow-md transition-shadow ${dashboardLoading ? 'opacity-50' : ''}`}>
+        <Card className={`hover:shadow-lg transition-shadow ${dashboardLoading ? 'opacity-50' : ''}`}>
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-2">
               <div className="p-2.5 bg-red-100 rounded-lg">
@@ -526,7 +524,7 @@ export function DashboardContent() {
         </Card>
 
         {/* Surplus/Defisit */}
-        <Card className={`border-0 shadow-sm hover:shadow-md transition-shadow ${dashboardLoading ? 'opacity-50' : ''}`}>
+        <Card className={`hover:shadow-lg transition-shadow ${dashboardLoading ? 'opacity-50' : ''}`}>
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-2">
               <div className="p-2.5 bg-purple-100 rounded-lg">
@@ -554,16 +552,16 @@ export function DashboardContent() {
       </div>
 
       {/* Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Area Chart - 2 columns */}
-        <Card className="lg:col-span-2 border-0 shadow-sm">
-          <CardHeader className="flex flex-row items-center justify-between pb-2 px-4 sm:px-6">
-            <CardTitle className="text-sm sm:text-base font-semibold">
+        <Card className="lg:col-span-2">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-base font-semibold">
               {getChartTitle()}
             </CardTitle>
           </CardHeader>
-          <CardContent className="px-2 sm:px-6 pb-4 sm:pb-6">
-            <ResponsiveContainer width="100%" height={250}>
+          <CardContent className="pb-6">
+            <ResponsiveContainer width="100%" height={300}>
               <AreaChart data={chartData}>
                 <defs>
                   <linearGradient id="colorPemasukan" x1="0" y1="0" x2="0" y2="1">
@@ -636,12 +634,12 @@ export function DashboardContent() {
         </Card>
 
         {/* Pie Chart - 1 column */}
-        <Card className="border-0 shadow-sm">
+        <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base font-semibold">Kategori Terbesar</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={280}>
+            <ResponsiveContainer width="100%" height={300}>
               <PieChart>
                 <Pie
                   data={pieData}
@@ -678,8 +676,8 @@ export function DashboardContent() {
       </div>
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
-        <Card className="border-0 shadow-sm">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Card>
           <CardHeader className="pb-4">
             <CardTitle className="text-base font-semibold flex items-center">
               <Plus className="h-5 w-5 mr-2 text-green-600" />
@@ -708,7 +706,7 @@ export function DashboardContent() {
         </Card>
 
         {/* Recent Transactions */}
-        <Card className="border-0 shadow-sm">
+        <Card>
           <CardHeader className="pb-4">
             <CardTitle className="text-base font-semibold flex items-center">
               <Calendar className="h-5 w-5 mr-2 text-blue-600" />

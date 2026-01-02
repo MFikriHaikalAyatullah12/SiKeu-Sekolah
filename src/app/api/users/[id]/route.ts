@@ -136,9 +136,39 @@ export async function DELETE(
       return NextResponse.json({ error: "User not found" }, { status: 404 })
     }
 
-    // Delete user
-    await prisma.user.delete({
-      where: { id }
+    // Check if user has transactions
+    const transactionCount = await prisma.transaction.count({
+      where: { createdById: id }
+    })
+
+    if (transactionCount > 0) {
+      return NextResponse.json(
+        { error: `Tidak dapat menghapus user karena memiliki ${transactionCount} transaksi. Nonaktifkan user sebagai gantinya.` },
+        { status: 400 }
+      )
+    }
+
+    // Delete related data first (to handle foreign key constraints)
+    await prisma.$transaction(async (tx) => {
+      // Delete user's sessions
+      await tx.session.deleteMany({
+        where: { userId: id }
+      })
+      
+      // Delete user's accounts (OAuth accounts)
+      await tx.account.deleteMany({
+        where: { userId: id }
+      })
+      
+      // Delete user's audit logs
+      await tx.auditLog.deleteMany({
+        where: { userId: id }
+      })
+      
+      // Finally delete the user
+      await tx.user.delete({
+        where: { id }
+      })
     })
 
     return NextResponse.json({ message: "User deleted successfully" })

@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { toast } from "sonner"
 import { Plus, Pencil, Trash2, Loader2 } from "lucide-react"
+import { DashboardLayout } from "@/components/layout/dashboard-layout"
 
 interface CoaCategory {
   id: string
@@ -141,12 +142,14 @@ export default function COAManagementPage() {
 
   if (status === "loading" || loading) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="flex items-center space-x-2">
-          <Loader2 className="h-6 w-6 animate-spin" />
-          <span>Memuat...</span>
+      <DashboardLayout>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="flex items-center space-x-2">
+            <Loader2 className="h-6 w-6 animate-spin" />
+            <span>Memuat...</span>
+          </div>
         </div>
-      </div>
+      </DashboardLayout>
     )
   }
 
@@ -156,28 +159,31 @@ export default function COAManagementPage() {
 
   if (error) {
     return (
-      <div className="container mx-auto p-6">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-center py-12">
-              <div className="text-red-500 text-lg font-medium mb-4">
-                Terjadi kesalahan: {error}
+      <DashboardLayout>
+        <div className="container mx-auto p-6">
+          <Card>
+            <CardContent className="pt-6">
+              <div className="text-center py-12">
+                <div className="text-red-500 text-lg font-medium mb-4">
+                  Terjadi kesalahan: {error}
+                </div>
+                <Button onClick={fetchCOA}>
+                  Coba Lagi
+                </Button>
               </div>
-              <Button onClick={fetchCOA}>
-                Coba Lagi
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+            </CardContent>
+          </Card>
+        </div>
+      </DashboardLayout>
     )
   }
 
   return (
-    <div className="container mx-auto p-6">
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
+    <DashboardLayout>
+      <div className="container mx-auto p-6">
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
             <div>
               <CardTitle>Chart of Accounts (COA) Management</CardTitle>
               <CardDescription>
@@ -354,6 +360,7 @@ export default function COAManagementPage() {
           )}
         </CardContent>
       </Card>
-    </div>
+      </div>
+    </DashboardLayout>
   )
 }

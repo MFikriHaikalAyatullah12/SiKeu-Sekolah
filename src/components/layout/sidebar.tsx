@@ -24,6 +24,7 @@ import appLogoImage from '@/image/icon_tampilan-sekolah1.png'
 interface SidebarProps {
   isOpen: boolean
   onClose: () => void
+  isCollapsed?: boolean
 }
 
 const navigation = [
@@ -37,7 +38,7 @@ const navigation = [
   { name: 'Pengaturan', href: '/dashboard/settings', icon: Settings, roles: ['SUPER_ADMIN', 'TREASURER'] },
 ]
 
-export function Sidebar({ isOpen, onClose }: SidebarProps) {
+export function Sidebar({ isOpen, onClose, isCollapsed = false }: SidebarProps) {
   const pathname = usePathname()
   const { data: session, status } = useSession()
 
@@ -61,13 +62,14 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         
         {/* Sidebar */}
         <div className={cn(
-          "fixed inset-y-0 left-0 z-50 flex w-64 flex-col transform transition-transform duration-200 ease-in-out",
-          "md:relative md:translate-x-0",
-          isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+          "fixed inset-y-0 left-0 z-50 flex w-60 flex-col transform transition-transform duration-200 ease-in-out",
+          "-translate-x-full md:translate-x-0",
+          isOpen && "translate-x-0",
+          isCollapsed && "md:-translate-x-full"
         )}>
-          <div className="flex flex-col flex-grow bg-gradient-to-b from-gray-900 to-gray-800 overflow-y-auto shadow-xl">
+          <div className="flex flex-col flex-grow bg-slate-800 overflow-y-auto shadow-xl">
             {/* Header with close button for mobile */}
-            <div className="flex items-center justify-between h-16 flex-shrink-0 px-6 bg-gray-900 border-b border-gray-700">
+            <div className="flex items-center justify-between h-16 flex-shrink-0 px-5 bg-slate-900 border-b border-slate-700">
               <div className="flex items-center gap-2">
                 <div className="white flex items-center justify-center rounded-full bg-white/100 size-8">
                   <Image
@@ -112,13 +114,14 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       
       {/* Sidebar */}
       <div className={cn(
-        "fixed inset-y-0 left-0 z-50 flex w-64 flex-col transform transition-transform duration-200 ease-in-out",
-        "md:relative md:translate-x-0",
-        isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+        "fixed inset-y-0 left-0 z-50 flex w-60 flex-col transform transition-transform duration-200 ease-in-out",
+        "-translate-x-full md:translate-x-0",
+        isOpen && "translate-x-0",
+        isCollapsed && "md:-translate-x-full"
       )}>
-        <div className="flex flex-col flex-grow bg-gradient-to-b from-gray-900 to-gray-800 overflow-y-auto shadow-xl">
+        <div className="flex flex-col flex-grow bg-slate-800 overflow-y-auto shadow-xl">
           {/* Header with close button for mobile */}
-          <div className="flex items-center justify-between h-16 flex-shrink-0 px-6 bg-gray-900 border-b border-gray-700">
+          <div className="flex items-center justify-between h-16 flex-shrink-0 px-5 bg-slate-900 border-b border-slate-700">
             <div className="flex items-center gap-2">
               <div className="white flex items-center justify-center rounded-full bg-white/100 size-8">
                 <Image
@@ -137,25 +140,28 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             {/* Close button for mobile */}
             <button
               onClick={onClose}
-              className="md:hidden p-2 rounded-md text-gray-400 hover:text-white hover:bg-gray-700"
+              className="md:hidden p-2 rounded-md text-gray-400 hover:text-white hover:bg-slate-700"
             >
               <X className="h-5 w-5" />
             </button>
           </div>
           
           {/* Navigation */}
-          <nav className="mt-5 px-4 space-y-1">{filteredNavigation.map((item) => {
-            const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
+          <nav className="mt-4 px-3 space-y-1">{filteredNavigation.map((item) => {
+            const isDashboardRoot = item.href === '/dashboard'
+            const isActive = isDashboardRoot
+              ? pathname === '/dashboard'
+              : pathname === item.href || pathname.startsWith(item.href + '/')
             return (
               <Link
                 key={item.name}
                 href={item.href}
                 onClick={() => onClose()} // Close sidebar on mobile after navigation
                 className={cn(
-                  'group flex items-center px-3 py-3 text-sm font-medium rounded-lg transition-all duration-200',
+                  'group flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200',
                   isActive
-                    ? 'bg-blue-600 text-white shadow-lg'
-                    : 'text-gray-300 hover:bg-gray-700 hover:text-white hover:translate-x-1'
+                    ? 'bg-blue-600 text-white shadow-md'
+                    : 'text-gray-300 hover:bg-slate-700 hover:text-white hover:translate-x-1'
                 )}
               >
                 <item.icon
@@ -170,8 +176,8 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           })}</nav>
           
           {/* User Profile Footer */}
-          <div className="p-4 border-t border-gray-700">
-            <div className="flex items-center gap-3 px-3 py-2 bg-gray-800/50 rounded-lg">
+          <div className="p-3 border-t border-slate-700">
+            <div className="flex items-center gap-3 px-2 py-2 bg-slate-900/50 rounded-lg">
               <div className="flex-shrink-0 w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white font-semibold text-sm">
                 {session?.user?.name?.charAt(0) || 'U'}
               </div>

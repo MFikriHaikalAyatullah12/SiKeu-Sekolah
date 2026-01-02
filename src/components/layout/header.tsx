@@ -17,9 +17,11 @@ import { Bell, LogOut, Settings, User, Search, ChevronDown, Menu } from 'lucide-
 
 interface HeaderProps {
   onMenuClick?: () => void
+  onToggleSidebar?: () => void
+  sidebarCollapsed?: boolean
 }
 
-export function Header({ onMenuClick }: HeaderProps) {
+export function Header({ onMenuClick, onToggleSidebar, sidebarCollapsed }: HeaderProps) {
   const { data: session } = useSession()
   const router = useRouter()
 
@@ -42,8 +44,16 @@ export function Header({ onMenuClick }: HeaderProps) {
   }
 
   return (
-    <header className="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-30">
-      <div className="flex items-center justify-between px-3 sm:px-6 py-3">
+    <header className="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-20">
+      <div className="flex items-center justify-between px-6 py-3">
+        {/* Desktop toggle button */}
+        <button
+          onClick={onToggleSidebar}
+          className="hidden md:block p-2 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100"
+        >
+          <Menu className="h-5 w-5" />
+        </button>
+        
         {/* Mobile menu button */}
         <button
           onClick={onMenuClick}
@@ -53,13 +63,13 @@ export function Header({ onMenuClick }: HeaderProps) {
         </button>
 
         {/* Search Bar */}
-        <div className="flex-1 max-w-md ml-4 md:ml-0">
+        <div className="flex-1 max-w-xl ml-4 md:ml-0">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
             <Input 
               type="text" 
               placeholder="Cari transaksi atau siswa..." 
-              className="pl-10 bg-gray-50 border-gray-200 focus:bg-white"
+              className="pl-10 bg-gray-50 border-gray-200 focus:bg-white w-full"
             />
           </div>
         </div>

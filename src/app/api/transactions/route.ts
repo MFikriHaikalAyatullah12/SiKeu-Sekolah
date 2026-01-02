@@ -51,13 +51,27 @@ export async function GET(request: NextRequest) {
       console.log("📍 Found schoolId from database:", schoolId)
     }
     
-    if (!schoolId) {
-      console.error("❌ No school ID found for user")
+    // For SUPER_ADMIN without schoolId, get first available school or return all transactions
+    const isSuperAdmin = session.user.role === 'SUPER_ADMIN'
+    
+    if (!schoolId && !isSuperAdmin) {
+      console.error("❌ No school ID found for non-admin user")
       return NextResponse.json({ transactions: [] })
     }
 
-    const where: any = {
-      schoolProfileId: schoolId,
+    const where: any = {}
+    
+    // Only filter by schoolId if user has one (Super Admin might not have)
+    if (schoolId) {
+      where.schoolProfileId = schoolId
+    } else if (isSuperAdmin) {
+      // Super Admin without schoolId can see all transactions
+      // Or get first school's transactions
+      const firstSchool = await prisma.schoolProfile.findFirst()
+      if (firstSchool) {
+        where.schoolProfileId = firstSchool.id
+        console.log("📍 Super Admin using first school:", firstSchool.id)
+      }
     }
 
     // Apply role-based date restrictions for TREASURER
@@ -90,7 +104,7 @@ export async function GET(request: NextRequest) {
         { description: { contains: search, mode: 'insensitive' } },
         { fromTo: { contains: search, mode: 'insensitive' } },
         { 
-          chartOfAccount: { 
+          coaAccount: { 
             name: { contains: search, mode: 'insensitive' } 
           } 
         },

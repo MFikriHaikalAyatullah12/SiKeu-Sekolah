@@ -285,14 +285,16 @@ export default function UsersPage() {
                           >
                             <Edit className="h-4 w-4" />
                           </Button>
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            className="text-red-600 hover:text-red-700"
-                            onClick={() => handleDeleteUser(user.id, user.name)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          {user.role !== "SUPER_ADMIN" && (
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="text-red-600 hover:text-red-700"
+                              onClick={() => handleDeleteUser(user.id, user.name)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
@@ -325,6 +327,7 @@ export default function UsersPage() {
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 placeholder="Masukkan nama lengkap"
+                disabled={editingUser?.role === "SUPER_ADMIN"}
               />
             </div>
             <div className="grid gap-2">
@@ -335,6 +338,7 @@ export default function UsersPage() {
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 placeholder="nama@example.com"
+                disabled={editingUser?.role === "SUPER_ADMIN"}
               />
             </div>
             <div className="grid gap-2">
@@ -349,23 +353,25 @@ export default function UsersPage() {
                 placeholder="Masukkan password"
               />
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="role">Role</Label>
-              <Select
-                value={formData.role}
-                onValueChange={(value) => setFormData({ ...formData, role: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {session?.user.role === "SUPER_ADMIN" && (
-                    <SelectItem value="SUPER_ADMIN">Super Admin</SelectItem>
-                  )}
-                  <SelectItem value="TREASURER">Bendahara</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            {editingUser?.role !== "SUPER_ADMIN" && (
+              <div className="grid gap-2">
+                <Label htmlFor="role">Role</Label>
+                <Select
+                  value={formData.role}
+                  onValueChange={(value) => setFormData({ ...formData, role: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {session?.user.role === "SUPER_ADMIN" && (
+                      <SelectItem value="SUPER_ADMIN">Super Admin</SelectItem>
+                    )}
+                    <SelectItem value="TREASURER">Bendahara</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             {session?.user.role === "SUPER_ADMIN" && formData.role !== "SUPER_ADMIN" && (
               <div className="grid gap-2">
                 <Label htmlFor="schoolId">Sekolah</Label>

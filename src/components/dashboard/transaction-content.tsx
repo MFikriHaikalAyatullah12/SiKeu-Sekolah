@@ -612,24 +612,6 @@ export function TransactionContent() {
           <h1 className="text-3xl font-bold text-gray-900">Transaksi</h1>
           <p className="text-gray-500 mt-1">Kelola transaksi pemasukan dan pengeluaran</p>
         </div>
-        <div className="flex gap-2">
-          <Button 
-            size="sm"
-            className="bg-green-600 hover:bg-green-700"
-            onClick={() => handleOpenDialog("INCOME")}
-          >
-            <Plus className="h-4 w-4 mr-1" />
-            Tambah Pemasukan
-          </Button>
-          <Button 
-            size="sm"
-            variant="destructive"
-            onClick={() => handleOpenDialog("EXPENSE")}
-          >
-            <Plus className="h-4 w-4 mr-1" />
-            Tambah Pengeluaran
-          </Button>
-        </div>
       </div>
 
       {/* Quick Stats Cards */}

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import bcrypt from "bcryptjs"
+import { sendWelcomeEmail } from "@/lib/email"
 
 export async function GET(request: Request) {
   try {
@@ -17,15 +18,8 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
-    const where: any = {
-      role: {
-        in: ["SUPER_ADMIN", "TREASURER", "BENDAHARA"]  // Tampilkan Super Admin, Treasurer dan Bendahara
-      }
-    }
-    
-    // Super admin can see all users
+    // Super admin can see all users (kecuali dirinya sendiri opsional)
     const users = await prisma.user.findMany({
-      where,
       select: {
         id: true,
         name: true,
@@ -133,7 +127,23 @@ export async function POST(request: Request) {
       }
     })
 
-    return NextResponse.json({ user }, { status: 201 })
+    // Kirim email selamat datang dengan kredensial login
+    const emailResult = await sendWelcomeEmail({
+      to: email,
+      name,
+      email,
+      password, // Password asli (belum di-hash)
+      role
+    })
+
+    if (!emailResult.success) {
+      console.warn(`User created but email failed to send: ${emailResult.error}`)
+    }
+
+    return NextResponse.json({ 
+      user,
+      emailSent: emailResult.success 
+    }, { status: 201 })
   } catch (error) {
     console.error("Create user error:", error)
     return NextResponse.json(
