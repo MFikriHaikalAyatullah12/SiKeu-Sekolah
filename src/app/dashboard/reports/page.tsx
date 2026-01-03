@@ -566,7 +566,6 @@ export default function ReportsPage() {
           6: { cellWidth: 20, halign: 'center', fontSize: 7 },
           7: { cellWidth: 22, fontSize: 6, textColor: [100, 100, 100] }
         },
-        alternateRowStyles: { fillColor: [249, 250, 251] },
         margin: { left: 14, right: 14, bottom: 35 }
       })
       

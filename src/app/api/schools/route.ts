@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
+import { requireRole } from "@/lib/permissions"
 
 // GET - Mendapatkan data sekolah
 export async function GET() {

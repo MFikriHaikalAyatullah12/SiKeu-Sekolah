@@ -109,7 +109,6 @@ export async function GET(request: NextRequest) {
         }
       }
     }
-    let endDate: Date = new Date()
 
     // Handle custom date range from export
     if (customStartDate && customEndDate) {

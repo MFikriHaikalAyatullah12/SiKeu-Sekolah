@@ -12,6 +12,15 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  productionBrowserSourceMaps: false,
+  typescript: {
+    ignoreBuildErrors: false,
+  },
+  logging: {
+    fetches: {
+      fullUrl: false,
+    },
+  },
 };
 
 export default nextConfig;

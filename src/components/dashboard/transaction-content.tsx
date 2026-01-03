@@ -84,6 +84,7 @@ const petugasList = [
 export function TransactionContent() {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isMobile, setIsMobile] = useState(false);
   
   // States
   const [activeTab, setActiveTab] = useState<TransactionType>("INCOME");
@@ -98,6 +99,17 @@ export function TransactionContent() {
   const [filterPetugas, setFilterPetugas] = useState("semua");
   const [currentPage, setCurrentPage] = useState(1);
   const [schools, setSchools] = useState<any[]>([]);
+  
+  // Detect mobile viewport on mount and window resize
+  useEffect(() => {
+    const checkIsMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    checkIsMobile();
+    window.addEventListener('resize', checkIsMobile);
+    return () => window.removeEventListener('resize', checkIsMobile);
+  }, []);
   const [selectedTransaction, setSelectedTransaction] = useState<any>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -722,8 +734,8 @@ export function TransactionContent() {
                 Tambah {activeTab === "INCOME" ? "Pemasukan" : "Pengeluaran"} Baru
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <CardContent className="space-y-4 overflow-x-auto">
+              <div className={`grid gap-4 ${isMobile ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'}`}>
                 {/* School Selection (if multiple schools) */}
                 {schools.length > 1 && (
                   <div className="space-y-2">
@@ -948,69 +960,112 @@ export function TransactionContent() {
                 </div>
               ) : (
                 <>
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Tanggal</TableHead>
-                          <TableHead>Keterangan</TableHead>
-                          <TableHead>{activeTab === "INCOME" ? "Dari" : "Kepada"}</TableHead>
-                          <TableHead>Nominal</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead>Metode</TableHead>
-                          <TableHead className="text-right">Aksi</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {paginatedTransactions.map((transaction) => (
-                          <TableRow key={transaction.id}>
-                            <TableCell>
-                              {formatDate(transaction.date)}
-                            </TableCell>
-                            <TableCell>
-                              <div className="max-w-xs">
-                                <p className="font-medium truncate">{transaction.description}</p>
-                                {transaction.category?.name && (
-                                  <p className="text-xs text-gray-500">{transaction.category.name}</p>
-                                )}
-                              </div>
-                            </TableCell>
-                            <TableCell>{transaction.fromTo}</TableCell>
-                            <TableCell className="font-medium">
-                              {formatCurrency(transaction.amount)}
-                            </TableCell>
-                            <TableCell>
-                              <Badge className={getStatusBadgeClass(transaction.status)}>
-                                {getStatusLabel(transaction.status)}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>
-                              {getPaymentMethodLabel(transaction.paymentMethod)}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <div className="flex justify-end gap-2">
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => handleViewTransaction(transaction)}
-                                >
-                                  <Eye className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => handleDeleteTransaction(transaction)}
-                                  className="text-red-600 hover:text-red-700"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            </TableCell>
+                  {isMobile ? (
+                    // Mobile Card View
+                    <div className="space-y-4">
+                      {paginatedTransactions.map((transaction) => (
+                        <div key={transaction.id} className="border rounded-lg p-4 bg-white space-y-2">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <p className="font-medium text-sm">{transaction.description}</p>
+                              <p className="text-xs text-gray-500">{formatDate(transaction.date)}</p>
+                            </div>
+                            <Badge className={getStatusBadgeClass(transaction.status)}>
+                              {getStatusLabel(transaction.status)}
+                            </Badge>
+                          </div>
+                          <div className="flex justify-between items-center pt-2 border-t">
+                            <div>
+                              <p className="text-xs text-gray-500">Nominal</p>
+                              <p className="font-bold text-lg">{formatCurrency(transaction.amount)}</p>
+                            </div>
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleViewTransaction(transaction)}
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleDeleteTransaction(transaction)}
+                                className="text-red-600 hover:text-red-700"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    // Desktop Table View
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Tanggal</TableHead>
+                            <TableHead>Keterangan</TableHead>
+                            <TableHead>{activeTab === "INCOME" ? "Dari" : "Kepada"}</TableHead>
+                            <TableHead>Nominal</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead>Metode</TableHead>
+                            <TableHead className="text-right">Aksi</TableHead>
                           </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
+                        </TableHeader>
+                        <TableBody>
+                          {paginatedTransactions.map((transaction) => (
+                            <TableRow key={transaction.id}>
+                              <TableCell>
+                                {formatDate(transaction.date)}
+                              </TableCell>
+                              <TableCell>
+                                <div className="max-w-xs">
+                                  <p className="font-medium truncate">{transaction.description}</p>
+                                  {transaction.category?.name && (
+                                    <p className="text-xs text-gray-500">{transaction.category.name}</p>
+                                  )}
+                                </div>
+                              </TableCell>
+                              <TableCell>{transaction.fromTo}</TableCell>
+                              <TableCell className="font-medium">
+                                {formatCurrency(transaction.amount)}
+                              </TableCell>
+                              <TableCell>
+                                <Badge className={getStatusBadgeClass(transaction.status)}>
+                                  {getStatusLabel(transaction.status)}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                {getPaymentMethodLabel(transaction.paymentMethod)}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <div className="flex justify-end gap-2">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handleViewTransaction(transaction)}
+                                  >
+                                    <Eye className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handleDeleteTransaction(transaction)}
+                                    className="text-red-600 hover:text-red-700"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
 
                   {/* Pagination */}
                   {totalPages > 1 && (

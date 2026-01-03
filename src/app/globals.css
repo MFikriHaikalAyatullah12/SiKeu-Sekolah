@@ -121,5 +121,127 @@
   }
   body {
     @apply bg-background text-foreground;
+    /* Responsive meta viewport */
+    touch-action: manipulation;
   }
+}
+
+/* Mobile & Responsive Optimizations */
+@media (max-width: 640px) {
+  body {
+    font-size: 16px; /* Prevent zoom on iOS */
+  }
+  
+  input, select, textarea, button {
+    font-size: 16px; /* Prevent zoom on iOS input */
+  }
+  
+  /* Stack elements on mobile */
+  .grid {
+    gap: 1rem;
+  }
+  
+  /* Better touch targets on mobile */
+  button, a, [role="button"] {
+    min-height: 44px; /* iOS recommended touch target */
+    min-width: 44px;
+    padding: 0.75rem 1rem;
+  }
+  
+  /* Optimize padding for mobile */
+  .p-4 {
+    @apply p-3;
+  }
+  
+  .p-6 {
+    @apply p-4;
+  }
+  
+  .px-6 {
+    @apply px-3;
+  }
+  
+  .py-6 {
+    @apply py-4;
+  }
+  
+  /* Dialog/Modal responsive */
+  [role="dialog"] {
+    width: 95vw !important;
+    max-width: calc(100vw - 2rem) !important;
+    margin: auto;
+  }
+  
+  /* Table responsive - horizontal scroll */
+  table {
+    font-size: 0.875rem;
+  }
+  
+  /* Form input responsive */
+  input[type="text"],
+  input[type="email"],
+  input[type="number"],
+  input[type="date"],
+  select,
+  textarea {
+    width: 100%;
+    min-height: 44px;
+    padding: 0.75rem;
+    font-size: 16px;
+  }
+  
+  /* Badge and pill responsive */
+  span[role="badge"] {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+  }
+}
+
+/* Tablet optimizations */
+@media (min-width: 641px) and (max-width: 1024px) {
+  .grid {
+    gap: 1.25rem;
+  }
+  
+  /* Slightly larger touch targets on tablet */
+  button, a, [role="button"] {
+    min-height: 40px;
+  }
+}
+
+/* Desktop optimizations */
+@media (min-width: 1025px) {
+  body {
+    font-size: 14px;
+  }
+  
+  /* Larger gap on desktop */
+  .grid {
+    gap: 1.5rem;
+  }
+}
+
+/* iOS specific optimizations */
+@supports (-webkit-touch-callout: none) {
+  body {
+    -webkit-user-select: none;
+    -webkit-user-drag: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  
+  input, select, textarea {
+    -webkit-appearance: none;
+    border-radius: 0;
+  }
+}
+
+/* Android specific optimizations */
+@media (hover: none) and (pointer: coarse) {
+  /* Mobile touch devices */
+  button:hover {
+    background-color: inherit;
+  }
+  
+  a:hover {
+    text-decoration: none;  }
 }

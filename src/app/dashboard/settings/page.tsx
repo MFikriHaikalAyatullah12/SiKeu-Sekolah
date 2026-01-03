@@ -289,7 +289,6 @@ export default function SettingsPage() {
                     placeholder="Masukkan nama lengkap"
                     disabled={!canEdit}
                     className={`text-sm sm:text-base ${!canEdit ? "bg-gray-50 cursor-not-allowed" : ""}`}
-                    className={!canEdit ? "bg-gray-50 cursor-not-allowed" : ""}
                   />
                 </div>
                 <div className="space-y-2">

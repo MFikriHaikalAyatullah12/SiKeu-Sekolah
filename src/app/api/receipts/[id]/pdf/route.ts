@@ -107,13 +107,14 @@ export async function GET(
     doc.setFontSize(10)
     doc.setTextColor(0, 0, 0)
     
-    const receiptDate = new Date(transaction.date)
-    const formattedDate = receiptDate.toLocaleDateString('id-ID', {
+    // Use current server time (real-time when download)
+    const currentDate = new Date()
+    const formattedDate = currentDate.toLocaleDateString('id-ID', {
       day: '2-digit',
       month: '2-digit', 
       year: 'numeric'
     })
-    const formattedTime = receiptDate.toLocaleTimeString('id-ID', {
+    const formattedTime = currentDate.toLocaleTimeString('id-ID', {
       hour: '2-digit',
       minute: '2-digit',
       second: '2-digit'
