@@ -50,6 +50,7 @@ export function Header({ onMenuClick, onToggleSidebar, sidebarCollapsed }: Heade
         <button
           onClick={onToggleSidebar}
           className="hidden md:block p-2 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100"
+          suppressHydrationWarning
         >
           <Menu className="h-5 w-5" />
         </button>
@@ -58,6 +59,7 @@ export function Header({ onMenuClick, onToggleSidebar, sidebarCollapsed }: Heade
         <button
           onClick={onMenuClick}
           className="md:hidden p-2 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100"
+          suppressHydrationWarning
         >
           <Menu className="h-5 w-5" />
         </button>

@@ -189,6 +189,26 @@ export async function POST(request: NextRequest) {
       transactions: [] as any[]
     }
 
+    // Initialize receipt counter for batch import
+    let currentCounter = schoolProfile.receiptCounter || 1
+    const currentYear = new Date().getFullYear()
+    const currentMonth = new Date().getMonth()
+    
+    // Check if we need to reset counter for new month
+    if (schoolProfile.receiptResetType === 'MONTHLY') {
+      const lastTransaction = await prisma.transaction.findFirst({
+        where: { schoolProfileId: schoolId },
+        orderBy: { createdAt: 'desc' }
+      })
+      
+      if (lastTransaction) {
+        const lastDate = new Date(lastTransaction.date)
+        if (lastDate.getMonth() !== currentMonth || lastDate.getFullYear() !== currentYear) {
+          currentCounter = 1
+        }
+      }
+    }
+
     // Process each row
     for (let i = 0; i < data.length; i++) {
       const row: any = data[i]
@@ -282,8 +302,18 @@ export async function POST(request: NextRequest) {
           }
         }
 
-        // Generate receipt number
-        const receiptNumber = await generateReceiptNumber(schoolProfile, transactionDate)
+        // Generate receipt number using in-memory counter
+        const format = schoolProfile.receiptFormat || 'KW-{YYYY}{MM}-{000}'
+        const year = transactionDate.getFullYear()
+        const month = String(transactionDate.getMonth() + 1).padStart(2, '0')
+        
+        let receiptNumber = format
+          .replace('{YYYY}', String(year))
+          .replace('{MM}', month)
+          .replace('{000}', String(currentCounter).padStart(3, '0'))
+        
+        // Increment counter for next transaction
+        currentCounter++
 
         // Create transaction
         const transaction = await prisma.transaction.create({
@@ -355,6 +385,14 @@ export async function POST(request: NextRequest) {
         results.errors.push(`Baris ${i + 2}: ${error.message}`)
         results.failed++
       }
+    }
+
+    // Update receipt counter in database after all transactions
+    if (results.success > 0) {
+      await prisma.schoolProfile.update({
+        where: { id: schoolId },
+        data: { receiptCounter: currentCounter }
+      })
     }
 
     return NextResponse.json({

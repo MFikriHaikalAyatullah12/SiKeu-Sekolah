@@ -190,11 +190,25 @@ export default function ReportsPage() {
   }
 
   const handleExportPDF = () => {
+    // Sync export dates with current report period
+    if (reportData?.period) {
+      const startDate = new Date(reportData.period.start)
+      const endDate = new Date(reportData.period.end)
+      setExportStartDate(startDate.toISOString().split('T')[0])
+      setExportEndDate(endDate.toISOString().split('T')[0])
+    }
     setExportType('pdf')
     setIsExportDialogOpen(true)
   }
 
   const handleExportExcel = () => {
+    // Sync export dates with current report period
+    if (reportData?.period) {
+      const startDate = new Date(reportData.period.start)
+      const endDate = new Date(reportData.period.end)
+      setExportStartDate(startDate.toISOString().split('T')[0])
+      setExportEndDate(endDate.toISOString().split('T')[0])
+    }
     setExportType('excel')
     setIsExportDialogOpen(true)
   }
@@ -310,7 +324,18 @@ export default function ReportsPage() {
   
   const exportToPDF = (data: any) => {
     try {
-      const doc = new jsPDF()
+      console.log('📄 PDF Export - Data received:', {
+        summary: data.summary,
+        transactionCount: data.transactions?.length,
+        exportPeriod: { start: exportStartDate, end: exportEndDate }
+      })
+      
+      // Use landscape orientation for better table layout
+      const doc = new jsPDF({
+        orientation: 'landscape',
+        unit: 'mm',
+        format: 'a4'
+      })
       const pageWidth = doc.internal.pageSize.width
       const pageHeight = doc.internal.pageSize.height
       let yPos = 15
@@ -491,27 +516,29 @@ export default function ReportsPage() {
           startY: yPos,
           head: [['Kategori', 'Masuk', 'Keluar', 'Net']],
           body: coaSummaryData,
-          theme: 'plain',
+          theme: 'striped',
           headStyles: { 
-            fillColor: [243, 244, 246],
-            textColor: [75, 85, 99],
-            fontSize: 8,
+            fillColor: [30, 58, 138],
+            textColor: [255, 255, 255],
+            fontSize: 9,
             fontStyle: 'bold',
-            halign: 'left'
+            halign: 'center'
           },
           styles: { 
-            fontSize: 8,
-            cellPadding: 3,
+            fontSize: 8.5,
+            cellPadding: 3.5,
             lineColor: [229, 231, 235],
-            lineWidth: 0.1
+            lineWidth: 0.1,
+            valign: 'middle'
           },
           columnStyles: {
-            0: { cellWidth: 60 },
-            1: { cellWidth: 40, halign: 'right' },
-            2: { cellWidth: 40, halign: 'right' },
+            0: { cellWidth: 120, halign: 'left' },
+            1: { cellWidth: 40, halign: 'right', fontStyle: 'normal' },
+            2: { cellWidth: 40, halign: 'right', fontStyle: 'normal' },
             3: { cellWidth: 40, halign: 'right', fontStyle: 'bold' }
           },
-          margin: { left: 14, right: 14 }
+          margin: { left: 14, right: 14 },
+          alternateRowStyles: { fillColor: [249, 250, 251] }
         })
         
         yPos = (doc as any).lastAutoTable.finalY + 8
@@ -544,29 +571,33 @@ export default function ReportsPage() {
         body: transactionData,
         theme: 'striped',
         headStyles: { 
-          fillColor: [30, 58, 138], // Navy blue
+          fillColor: [30, 58, 138],
           textColor: [255, 255, 255],
-          fontSize: 8,
+          fontSize: 9,
           fontStyle: 'bold',
-          halign: 'center'
+          halign: 'center',
+          valign: 'middle'
         },
         styles: { 
-          fontSize: 7,
-          cellPadding: 2.5,
+          fontSize: 8,
+          cellPadding: 3,
           lineColor: [229, 231, 235],
-          lineWidth: 0.1
+          lineWidth: 0.1,
+          valign: 'middle',
+          overflow: 'linebreak'
         },
         columnStyles: {
-          0: { cellWidth: 22, halign: 'center' },
-          1: { cellWidth: 22, halign: 'center' },
-          2: { cellWidth: 18, halign: 'center' },
-          3: { cellWidth: 35 },
-          4: { cellWidth: 30 },
-          5: { cellWidth: 28, halign: 'right', fontStyle: 'bold' },
-          6: { cellWidth: 20, halign: 'center', fontSize: 7 },
-          7: { cellWidth: 22, fontSize: 6, textColor: [100, 100, 100] }
+          0: { cellWidth: 25, halign: 'center' },
+          1: { cellWidth: 28, halign: 'center' },
+          2: { cellWidth: 22, halign: 'center' },
+          3: { cellWidth: 65, halign: 'left' },
+          4: { cellWidth: 40, halign: 'left' },
+          5: { cellWidth: 35, halign: 'right', fontStyle: 'bold' },
+          6: { cellWidth: 22, halign: 'center' },
+          7: { cellWidth: 35, halign: 'center', fontSize: 7.5, textColor: [100, 100, 100] }
         },
-        margin: { left: 14, right: 14, bottom: 35 }
+        margin: { left: 14, right: 14, bottom: 35 },
+        alternateRowStyles: { fillColor: [249, 250, 251] }
       })
       
       // ========== FOOTER ==========
@@ -1387,14 +1418,21 @@ export default function ReportsPage() {
               Export Laporan ke {exportType === 'excel' ? 'Excel' : 'PDF'}
             </DialogTitle>
             <DialogDescription className="text-sm text-gray-600 pt-2">
-              Pilih rentang tanggal untuk laporan yang akan di-export (maksimal 1 bulan)
+              Pilih rentang tanggal untuk laporan yang akan di-export
             </DialogDescription>
           </DialogHeader>
           
           <div className="space-y-4 py-4">
+            {/* Current Period Info */}
+            <div className="p-3 bg-blue-50 dark:bg-blue-950 rounded-lg border border-blue-200 dark:border-blue-800">
+              <p className="text-xs text-blue-800 dark:text-blue-200">
+                <strong>📊 Periode saat ini:</strong> {new Date(exportStartDate).toLocaleDateString('id-ID')} - {new Date(exportEndDate).toLocaleDateString('id-ID')}
+              </p>
+            </div>
+            
             <div className="p-3 bg-amber-50 rounded-lg border border-amber-200">
               <p className="text-xs text-amber-800">
-                <strong>Catatan:</strong> Rentang tanggal maksimal 31 hari (1 bulan)
+                <strong>Catatan:</strong> Rentang tanggal maksimal 31 hari (1 bulan). Export akan mengambil data sesuai periode yang dipilih.
               </p>
             </div>
             

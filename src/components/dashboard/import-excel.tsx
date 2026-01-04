@@ -25,6 +25,8 @@ interface ImportResult {
 
 export default function ImportExcel() {
   const [file, setFile] = useState<File | null>(null)
+  const [uploadedFileName, setUploadedFileName] = useState<string | null>(null)
+  const [uploadedFileSize, setUploadedFileSize] = useState<number | null>(null)
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<ImportResult | null>(null)
 
@@ -57,6 +59,10 @@ export default function ImportExcel() {
     setLoading(true)
     
     try {
+      // Save file info before upload
+      setUploadedFileName(file.name)
+      setUploadedFileSize(file.size)
+      
       const formData = new FormData()
       formData.append('file', file)
 
@@ -152,48 +158,81 @@ export default function ImportExcel() {
           </div>
 
           {/* Upload Section */}
-          <div className="border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg p-8 text-center">
-            <input
-              type="file"
-              id="excel-upload"
-              accept=".xlsx,.xls,.csv"
-              onChange={handleFileChange}
-              className="hidden"
-            />
-            <label
-              htmlFor="excel-upload"
-              className="cursor-pointer flex flex-col items-center gap-2"
-            >
-              <Upload className="h-12 w-12 text-gray-400" />
-              <div>
-                <p className="text-sm font-medium">
-                  {file ? file.name : 'Klik untuk memilih file atau drag & drop'}
-                </p>
-                <p className="text-xs text-gray-500 mt-1">
-                  Excel (.xlsx, .xls) atau CSV (maks. 10MB)
-                </p>
+          <div className="space-y-4">
+            <div className="border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg p-8 text-center">
+              <input
+                type="file"
+                id="excel-upload"
+                accept=".xlsx,.xls,.csv"
+                onChange={handleFileChange}
+                className="hidden"
+              />
+              <label
+                htmlFor="excel-upload"
+                className="cursor-pointer flex flex-col items-center gap-2"
+              >
+                <Upload className="h-12 w-12 text-gray-400" />
+                <div>
+                  <p className="text-sm font-medium">
+                    Klik untuk memilih file atau drag & drop
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Excel (.xlsx, .xls) atau CSV (maks. 10MB)
+                  </p>
+                </div>
+              </label>
+            </div>
+
+            {/* Show selected file info */}
+            {file && (
+              <div className="bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <FileSpreadsheet className="h-8 w-8 text-green-600 dark:text-green-400" />
+                    <div>
+                      <p className="font-semibold text-green-900 dark:text-green-100">
+                        File dipilih
+                      </p>
+                      <p className="text-sm text-green-700 dark:text-green-300">
+                        {file.name}
+                      </p>
+                      <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                        Ukuran: {(file.size / 1024).toFixed(2)} KB
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setFile(null)
+                      setResult(null)
+                    }}
+                    className="text-green-700 hover:text-green-900"
+                  >
+                    Ganti File
+                  </Button>
+                </div>
               </div>
-            </label>
+            )}
           </div>
 
           {/* Upload Button */}
-          {file && (
+          {file && !result && (
             <div className="flex gap-2">
               <Button
                 onClick={handleUpload}
                 disabled={loading}
                 className="flex-1"
               >
-                {loading ? 'Memproses...' : 'Upload dan Proses'}
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setFile(null)
-                  setResult(null)
-                }}
-              >
-                Batal
+                {loading ? (
+                  <>
+                    <span className="animate-spin mr-2">⏳</span>
+                    Memproses...
+                  </>
+                ) : (
+                  'Upload dan Proses'
+                )}
               </Button>
             </div>
           )}
@@ -203,10 +242,38 @@ export default function ImportExcel() {
       {/* Results Section */}
       {result && (
         <Card>
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle>Hasil Import</CardTitle>
+            <Button
+              onClick={() => {
+                setFile(null)
+                setUploadedFileName(null)
+                setUploadedFileSize(null)
+                setResult(null)
+              }}
+              variant="outline"
+              size="sm"
+              className="gap-2"
+            >
+              <FileSpreadsheet className="h-4 w-4" />
+              Import File Baru
+            </Button>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* File Info */}
+            {uploadedFileName && (
+              <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+                <div className="flex items-center gap-2 text-sm text-blue-800 dark:text-blue-200">
+                  <FileSpreadsheet className="h-4 w-4" />
+                  <span className="font-medium">File yang di-import:</span>
+                  <span>{uploadedFileName}</span>
+                  {uploadedFileSize && (
+                    <span className="text-xs">({(uploadedFileSize / 1024).toFixed(2)} KB)</span>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Summary Stats */}
             <div className="grid grid-cols-3 gap-4">
               <div className="bg-blue-50 dark:bg-blue-950 rounded-lg p-4 border border-blue-200 dark:border-blue-800">

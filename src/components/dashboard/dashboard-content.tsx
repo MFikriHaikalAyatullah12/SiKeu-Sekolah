@@ -213,6 +213,25 @@ export function DashboardContent() {
 
       if (statsRes.ok) {
         const data = await statsRes.json();
+        
+        // Check if there's an error message (e.g., no school assigned)
+        if (data.error) {
+          toast.error(data.error, {
+            description: "Silakan hubungi Super Admin untuk mengassign sekolah ke akun Anda."
+          });
+          setStats({
+            totalIncome: 0,
+            totalExpense: 0,
+            balance: 0,
+            incomeCount: 0,
+            expenseCount: 0
+          });
+          setChartData([]);
+          setPieData([]);
+          if (isInitial) setDashboardLoading(false);
+          return;
+        }
+        
         console.log("📊 Stats received:", {
           totalIncome: data.stats?.totalIncome,
           totalExpense: data.stats?.totalExpense,
@@ -552,81 +571,86 @@ export function DashboardContent() {
       </div>
 
       {/* Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Area Chart - 2 columns */}
-        <Card className="lg:col-span-2">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-base font-semibold">
+        <Card className="lg:col-span-2 border-none shadow-lg hover:shadow-xl transition-shadow duration-300 bg-gradient-to-br from-white to-gray-50">
+          <CardHeader className="flex flex-row items-center justify-between pb-2 border-b border-gray-100">
+            <CardTitle className="text-lg font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-blue-600" />
               {getChartTitle()}
             </CardTitle>
           </CardHeader>
-          <CardContent className="pb-6">
-            <ResponsiveContainer width="100%" height={300}>
+          <CardContent className="pb-6 pt-6">
+            <ResponsiveContainer width="100%" height={320}>
               <AreaChart data={chartData}>
                 <defs>
                   <linearGradient id="colorPemasukan" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.4}/>
-                    <stop offset="50%" stopColor="#10b981" stopOpacity={0.2}/>
-                    <stop offset="95%" stopColor="#10b981" stopOpacity={0.05}/>
+                    <stop offset="0%" stopColor="#10b981" stopOpacity={0.6}/>
+                    <stop offset="40%" stopColor="#10b981" stopOpacity={0.3}/>
+                    <stop offset="100%" stopColor="#10b981" stopOpacity={0.05}/>
                   </linearGradient>
                   <linearGradient id="colorPengeluaran" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#ef4444" stopOpacity={0.4}/>
-                    <stop offset="50%" stopColor="#ef4444" stopOpacity={0.2}/>
-                    <stop offset="95%" stopColor="#ef4444" stopOpacity={0.05}/>
+                    <stop offset="0%" stopColor="#ef4444" stopOpacity={0.6}/>
+                    <stop offset="40%" stopColor="#ef4444" stopOpacity={0.3}/>
+                    <stop offset="100%" stopColor="#ef4444" stopOpacity={0.05}/>
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="2 2" stroke="#f1f5f9" opacity={0.7} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" opacity={0.5} vertical={false} />
                 <XAxis 
                   dataKey="month" 
-                  tick={{ fontSize: 11, fill: '#64748b' }}
-                  axisLine={{ stroke: '#e2e8f0' }}
-                  tickLine={{ stroke: '#e2e8f0' }}
+                  tick={{ fontSize: 12, fill: '#475569', fontWeight: 500 }}
+                  axisLine={{ stroke: '#cbd5e1', strokeWidth: 1.5 }}
+                  tickLine={false}
+                  dy={10}
                 />
                 <YAxis 
-                  tick={{ fontSize: 11, fill: '#64748b' }}
-                  axisLine={{ stroke: '#e2e8f0' }}
-                  tickLine={{ stroke: '#e2e8f0' }}
-                  label={{ value: 'Jutaan (Rp)', angle: -90, position: 'insideLeft', style: { textAnchor: 'middle', fontSize: '11px', fill: '#64748b' } }}
+                  tick={{ fontSize: 12, fill: '#475569', fontWeight: 500 }}
+                  axisLine={{ stroke: '#cbd5e1', strokeWidth: 1.5 }}
+                  tickLine={false}
+                  dx={-5}
+                  label={{ value: 'Jutaan (Rp)', angle: -90, position: 'insideLeft', style: { textAnchor: 'middle', fontSize: '12px', fill: '#64748b', fontWeight: 600 } }}
                 />
                 <Tooltip 
                   contentStyle={{ 
-                    backgroundColor: 'rgba(255, 255, 255, 0.96)', 
-                    border: '1px solid #e2e8f0',
-                    borderRadius: '10px',
-                    fontSize: '12px',
-                    boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)'
+                    backgroundColor: 'rgba(255, 255, 255, 0.98)', 
+                    border: 'none',
+                    borderRadius: '12px',
+                    fontSize: '13px',
+                    padding: '12px 16px',
+                    boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
                   }}
                   formatter={(value: any, name?: string) => [
                     `Rp ${value}M`, 
                     name === 'pemasukan' ? '💰 Pemasukan' : '💸 Pengeluaran'
                   ]}
-                  labelStyle={{ fontWeight: 600, color: '#1e293b' }}
+                  labelStyle={{ fontWeight: 700, color: '#1e293b', marginBottom: '4px' }}
                 />
                 <Legend 
-                  wrapperStyle={{ fontSize: '12px', fontWeight: '500', paddingTop: '10px' }}
+                  wrapperStyle={{ fontSize: '13px', fontWeight: '600', paddingTop: '15px' }}
                   iconType="circle"
+                  iconSize={12}
                 />
                 <Area
                   type="monotone"
                   dataKey="pemasukan"
                   stackId="1"
                   stroke="#10b981"
-                  strokeWidth={3}
+                  strokeWidth={3.5}
                   fill="url(#colorPemasukan)"
                   name="Pemasukan"
-                  dot={{ fill: '#10b981', strokeWidth: 2, r: 5, stroke: '#ffffff' }}
-                  activeDot={{ r: 8, strokeWidth: 3, stroke: '#10b981', fill: '#ffffff' }}
+                  dot={{ fill: '#10b981', strokeWidth: 3, r: 6, stroke: '#ffffff' }}
+                  activeDot={{ r: 9, strokeWidth: 3, stroke: '#10b981', fill: '#ffffff', filter: 'drop-shadow(0 2px 4px rgba(16, 185, 129, 0.3))' }}
                 />
                 <Area
                   type="monotone"
                   dataKey="pengeluaran"
                   stackId="2"
                   stroke="#ef4444"
-                  strokeWidth={3}
+                  strokeWidth={3.5}
                   fill="url(#colorPengeluaran)"
                   name="Pengeluaran"
-                  dot={{ fill: '#ef4444', strokeWidth: 2, r: 5, stroke: '#ffffff' }}
-                  activeDot={{ r: 8, strokeWidth: 3, stroke: '#ef4444', fill: '#ffffff' }}
+                  dot={{ fill: '#ef4444', strokeWidth: 3, r: 6, stroke: '#ffffff' }}
+                  activeDot={{ r: 9, strokeWidth: 3, stroke: '#ef4444', fill: '#ffffff', filter: 'drop-shadow(0 2px 4px rgba(239, 68, 68, 0.3))' }}
                 />
               </AreaChart>
             </ResponsiveContainer>
@@ -634,43 +658,135 @@ export function DashboardContent() {
         </Card>
 
         {/* Pie Chart - 1 column */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base font-semibold">Kategori Terbesar</CardTitle>
+        <Card className="border-none shadow-lg hover:shadow-xl transition-shadow duration-300 bg-gradient-to-br from-white to-blue-50">
+          <CardHeader className="pb-4 border-b border-gray-100">
+            <CardTitle className="text-lg font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+              Kategori Terbesar
+            </CardTitle>
+            <p className="text-xs text-gray-500 mt-1">Distribusi pengeluaran berdasarkan kategori</p>
           </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={pieData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={70}
-                  outerRadius={110}
-                  paddingAngle={2}
-                  dataKey="value"
-                >
+          <CardContent className="pt-6">
+            {pieData && pieData.length > 0 ? (
+              <>
+                <ResponsiveContainer width="100%" height={240}>
+                  <PieChart>
+                    <Pie
+                      data={pieData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={95}
+                      paddingAngle={4}
+                      dataKey="value"
+                      animationBegin={0}
+                      animationDuration={1000}
+                      animationEasing="ease-out"
+                      label={({
+                        cx,
+                        cy,
+                        midAngle,
+                        innerRadius,
+                        outerRadius,
+                        percent
+                      }: any) => {
+                        if (!midAngle || !percent) return null;
+                        
+                        const RADIAN = Math.PI / 180;
+                        const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+                        const x = cx + radius * Math.cos(-midAngle * RADIAN);
+                        const y = cy + radius * Math.sin(-midAngle * RADIAN);
+                        
+                        return percent > 0.05 ? (
+                          <text
+                            x={x}
+                            y={y}
+                            fill="white"
+                            textAnchor={x > cx ? 'start' : 'end'}
+                            dominantBaseline="central"
+                            className="text-xs font-bold"
+                            style={{ 
+                              textShadow: '0 1px 2px rgba(0,0,0,0.3)',
+                              pointerEvents: 'none'
+                            }}
+                          >
+                            {`${(percent * 100).toFixed(0)}%`}
+                          </text>
+                        ) : null;
+                      }}
+                    >
+                      {pieData.map((entry, index) => (
+                        <Cell 
+                          key={`cell-${index}`} 
+                          fill={entry.color}
+                          style={{
+                            filter: 'drop-shadow(0 4px 8px rgba(0, 0, 0, 0.15))',
+                            cursor: 'pointer',
+                            transition: 'all 0.3s ease'
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.filter = 'drop-shadow(0 6px 12px rgba(0, 0, 0, 0.25))';
+                            e.currentTarget.style.transform = 'scale(1.05)';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.filter = 'drop-shadow(0 4px 8px rgba(0, 0, 0, 0.15))';
+                            e.currentTarget.style.transform = 'scale(1)';
+                          }}
+                        />
+                      ))}
+                    </Pie>
+                    <Tooltip 
+                      formatter={(value, name, props) => [`${value}%`, props.payload.name]}
+                      contentStyle={{ 
+                        backgroundColor: 'rgba(255, 255, 255, 0.98)', 
+                        border: 'none',
+                        borderRadius: '12px',
+                        fontSize: '13px',
+                        padding: '12px 16px',
+                        boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
+                      }}
+                      labelStyle={{
+                        fontWeight: 700,
+                        marginBottom: '4px',
+                        color: '#1f2937'
+                      }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+                
+                {/* Custom Legend */}
+                <div className="mt-6 grid grid-cols-1 gap-2">
                   {pieData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
+                    <div 
+                      key={`legend-${index}`}
+                      className="flex items-center justify-between p-2 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer group"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div 
+                          className="w-3 h-3 rounded-full transition-transform group-hover:scale-110"
+                          style={{ 
+                            backgroundColor: entry.color,
+                            boxShadow: `0 2px 6px ${entry.color}40`
+                          }}
+                        />
+                        <span className="text-xs font-medium text-gray-700 group-hover:text-gray-900">
+                          {entry.name}
+                        </span>
+                      </div>
+                      <span className="text-xs font-bold text-gray-900">
+                        {entry.value}%
+                      </span>
+                    </div>
                   ))}
-                </Pie>
-                <Tooltip 
-                  formatter={(value, name, props) => [`${value}%`, props.payload.name]}
-                  contentStyle={{ 
-                    backgroundColor: '#fff', 
-                    border: '1px solid #e5e7eb',
-                    borderRadius: '8px',
-                    fontSize: '12px',
-                    padding: '8px 12px'
-                  }}
-                  labelStyle={{
-                    fontWeight: 600,
-                    marginBottom: '4px',
-                    color: '#1f2937'
-                  }}
-                />
-              </PieChart>
-            </ResponsiveContainer>
+                </div>
+              </>
+            ) : (
+              <div className="h-[320px] flex items-center justify-center text-gray-400">
+                <div className="text-center">
+                  <Scale className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                  <p className="text-sm">Belum ada data kategori</p>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
