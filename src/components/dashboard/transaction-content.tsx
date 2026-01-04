@@ -162,6 +162,13 @@ export function TransactionContent() {
     }));
   }, []);
 
+  // Auto-set schoolId jika hanya ada 1 sekolah
+  useEffect(() => {
+    if (schools.length === 1 && !formData.schoolId) {
+      setFormData(prev => ({ ...prev, schoolId: schools[0].id }));
+    }
+  }, [schools]);
+
   useEffect(() => {
     if (mounted) {
       fetchTransactions();
@@ -310,7 +317,8 @@ export function TransactionContent() {
   };
 
   const handleSubmit = async (printReceipt: boolean = false) => {
-    if (schools.length > 0 && !formData.schoolId) {
+    // Validasi school hanya jika ada schools yang tersedia dan belum dipilih
+    if (schools.length > 1 && !formData.schoolId) {
       toast.error("Pilih sekolah terlebih dahulu");
       return;
     }
@@ -325,22 +333,32 @@ export function TransactionContent() {
       const selectedCat = currentCategories.find((c: any) => c.id === formData.categoryId);
       const selectedType = selectedCat?.types.find((t: any) => t.id === formData.typeId);
       
+      // Prepare request body
+      // categoryId di form adalah COA Category ID, typeId adalah COA Account ID
+      // Kita perlu create/find proper Category untuk transaction
+      const requestBody: any = {
+        type: activeTab,
+        date: formData.date,
+        amount: parseInt(formData.amount) || 0,
+        description: `${selectedCat?.name} - ${selectedType?.name || ''} - ${formData.namaPembayar}`,
+        fromTo: formData.namaPembayar,
+        paymentMethod: formData.paymentMethod,
+        status: formData.status,
+        schoolId: formData.schoolId || undefined,
+        coaAccountId: formData.typeId || undefined, // typeId adalah COA Account ID
+      };
+
+      // Gunakan nama kategori sebagai categoryId untuk auto-create di backend
+      // Atau kirim simple category name untuk di-handle backend
+      const categoryName = selectedCat?.name?.split(' - ')[1] || selectedCat?.name || 'Transaksi Umum';
+      requestBody.categoryId = categoryName; // Backend akan create/find category berdasarkan nama
+      
       const response = await fetch("/api/transactions", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          type: activeTab,
-          date: formData.date,
-          amount: parseInt(formData.amount) || 0,
-          categoryId: formData.categoryId,
-          description: `${selectedCat?.name} - ${selectedType?.name || ''} - ${formData.namaPembayar}`,
-          fromTo: formData.namaPembayar,
-          paymentMethod: formData.paymentMethod,
-          status: formData.status,
-          schoolId: formData.schoolId,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       const data = await response.json();
@@ -736,13 +754,14 @@ export function TransactionContent() {
             </CardHeader>
             <CardContent className="space-y-4 overflow-x-auto">
               <div className={`grid gap-4 ${isMobile ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'}`}>
-                {/* School Selection (if multiple schools) */}
-                {schools.length > 1 && (
+                {/* School Selection (if schools available) */}
+                {schools.length > 0 && (
                   <div className="space-y-2">
-                    <Label htmlFor="schoolId">Sekolah</Label>
+                    <Label htmlFor="schoolId">Sekolah {schools.length === 1 && "(Otomatis)"}</Label>
                     <Select
                       value={formData.schoolId}
                       onValueChange={(value) => setFormData({ ...formData, schoolId: value })}
+                      disabled={schools.length === 1}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Pilih sekolah" />

@@ -1,0 +1,16 @@
+Tanggal,Keterangan,Nominal,Dari/Kepada,Akun COA,Kategori,Metode Pembayaran
+01/01/2026,Pembayaran SPP Januari,500000,Ahmad Rizki,Pendapatan SPP,Pemasukan SPP,CASH
+02/01/2026,Pembayaran SPP Januari,500000,Siti Nurhaliza,Pendapatan SPP,Pemasukan SPP,BANK_TRANSFER
+03/01/2026,Pembayaran SPP Januari,500000,Budi Santoso,Pendapatan SPP,Pemasukan SPP,QRIS
+05/01/2026,Pembelian ATK,150000,Toko Makmur,Beban Operasional,Pengeluaran ATK,BANK_TRANSFER
+07/01/2026,Bayar Listrik Bulan Desember,1200000,PLN,Beban Listrik,Pengeluaran Utilitas,BANK_TRANSFER
+10/01/2026,Bayar Air Bulan Desember,300000,PDAM,Beban Air,Pengeluaran Utilitas,BANK_TRANSFER
+12/01/2026,Donasi dari Alumni,2000000,Ikatan Alumni,Pendapatan Donasi,Pemasukan Donasi,BANK_TRANSFER
+15/01/2026,Honor Guru Bulan Januari,5000000,Pembayaran Honor,Beban Gaji,Pengeluaran Gaji,BANK_TRANSFER
+18/01/2026,Pembelian Buku Perpustakaan,800000,Toko Buku Gramedia,Beban Inventaris,Pengeluaran Inventaris,CASH
+20/01/2026,Uang Pangkal Siswa Baru,3000000,Dewi Lestari,Pendapatan Uang Pangkal,Pemasukan Pendaftaran,BANK_TRANSFER
+22/01/2026,Service AC Ruang Kelas,500000,Toko AC Sejuk,Beban Pemeliharaan,Pengeluaran Maintenance,CASH
+25/01/2026,Pembayaran SPP Januari,500000,Rudi Hermawan,Pendapatan SPP,Pemasukan SPP,CASH
+28/01/2026,Pembelian Cleaning Supplies,250000,Toko Sumber Rezeki,Beban Kebersihan,Pengeluaran Operasional,CASH
+30/01/2026,Bantuan Pemerintah,10000000,Dana BOS,Pendapatan Bantuan,Pemasukan BOS,BANK_TRANSFER
+31/01/2026,Internet Bulan Januari,500000,Indihome,Beban Internet,Pengeluaran Utilitas,BANK_TRANSFER

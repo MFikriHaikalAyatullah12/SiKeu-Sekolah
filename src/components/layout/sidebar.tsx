@@ -16,7 +16,8 @@ import {
   Shield,
   Receipt,
   BookOpen,
-  X
+  X,
+  Upload
 } from 'lucide-react'
 
 import appLogoImage from '@/image/icon_tampilan-sekolah1.png'
@@ -30,6 +31,7 @@ interface SidebarProps {
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: Home, roles: ['SUPER_ADMIN', 'TREASURER'] },
   { name: 'Transaksi', href: '/dashboard/transactions', icon: TrendingUp, roles: ['SUPER_ADMIN', 'TREASURER'] },
+  { name: 'Import Excel', href: '/dashboard/import', icon: Upload, roles: ['SUPER_ADMIN', 'TREASURER'] },
   { name: 'Laporan', href: '/dashboard/reports', icon: FileText, roles: ['SUPER_ADMIN', 'TREASURER'] },
   { name: 'Kwitansi', href: '/dashboard/receipts', icon: Receipt, roles: ['SUPER_ADMIN', 'TREASURER'] },
   { name: 'Chart of Accounts', href: '/dashboard/coa', icon: BookOpen, roles: ['SUPER_ADMIN'] },

@@ -201,7 +201,7 @@ export async function POST(request: NextRequest) {
       )
     }
     
-    // Handle category mapping for COA codes
+    // Handle category mapping for COA codes or category names
     let categoryId = body.categoryId;
     
     // Check if categoryId is a COA code (numeric string starting with 1-5)
@@ -260,6 +260,36 @@ export async function POST(request: NextRequest) {
       }
       
       categoryId = category.id;
+    } else if (typeof categoryId === 'string' && categoryId.length > 0) {
+      // If categoryId is a string name (not a valid UUID), create or find category
+      if (!categoryId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+        console.log("🏷️  Finding/creating category by name:", categoryId, "for school:", schoolId)
+        
+        let category = await prisma.category.findFirst({
+          where: {
+            name: categoryId,
+            type: body.type,
+            schoolProfileId: schoolId
+          }
+        });
+        
+        if (!category) {
+          console.log("🆕 Creating new category:", categoryId)
+          category = await prisma.category.create({
+            data: {
+              name: categoryId,
+              type: body.type,
+              description: `Auto-created from transaction`,
+              schoolProfileId: schoolId
+            }
+          });
+          console.log("✅ Created category with ID:", category.id)
+        } else {
+          console.log("♻️  Using existing category with ID:", category.id)
+        }
+        
+        categoryId = category.id;
+      }
     }
     
     const validatedData = transactionSchema.parse({
