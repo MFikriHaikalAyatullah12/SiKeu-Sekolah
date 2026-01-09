@@ -520,7 +520,7 @@ export function DashboardContent() {
           <CardHeader className="flex flex-row items-center justify-between pb-2 min-h-[48px]">
             <CardTitle className="text-base font-semibold flex items-center gap-2">
               <TrendingUp className="h-5 w-5 text-blue-600" />
-              {getChartTitle()}
+              {chartTitle}
             </CardTitle>
           </CardHeader>
           <CardContent className="pb-6 min-h-[300px]">
