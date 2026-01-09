@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo, memo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -16,30 +16,13 @@ import {
   Wallet,
   Plus,
   TrendingUp,
-  Eye,
-  Edit,
-  Trash2,
   Loader2,
   Calendar,
 } from "lucide-react";
-import {
-  LineChart,
-  Line,
-  AreaChart,
-  Area,
-  PieChart,
-  Pie,
-  Cell,
-  ResponsiveContainer,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-} from "recharts";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import { DashboardSkeleton, StatsGridSkeleton } from "./dashboard-skeleton";
+import { AreaChartComponent, PieChartComponent, ChartSkeleton, PieChartSkeleton } from "./lazy-charts";
 
 // Chart of Accounts - Kategori Pemasukan
 const incomeCategories = [
@@ -112,7 +95,7 @@ export function DashboardContent() {
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState<any>(null);
   const [loading, setLoading] = useState(false);
-  const [dashboardLoading, setDashboardLoading] = useState(true);
+  const [dashboardLoading, setDashboardLoading] = useState(false); // Start false for instant render
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [categories, setCategories] = useState<any[]>([]);
   const [transactions, setTransactions] = useState<any[]>([]);
@@ -134,40 +117,25 @@ export function DashboardContent() {
   });
 
   // Get current COA categories based on transaction type
-  const coaCategories = transactionType === "INCOME" ? incomeCategories : expenseCategories;
-  const selectedCategory = coaCategories.find(cat => cat.id === formData.categoryId);
+  const coaCategories = useMemo(() => 
+    transactionType === "INCOME" ? incomeCategories : expenseCategories,
+    [transactionType]
+  );
+  const selectedCategory = useMemo(() => 
+    coaCategories.find(cat => cat.id === formData.categoryId),
+    [coaCategories, formData.categoryId]
+  );
   const availableTypes = selectedCategory?.types || [];
 
-  // Role-based chart title
-  const getChartTitle = () => {
+  // Role-based chart title - memoized
+  const chartTitle = useMemo(() => {
     return userRole === "TREASURER" 
       ? "Pemasukan vs Pengeluaran (3 Bulan)" 
       : "Pemasukan vs Pengeluaran (6 Bulan)";
-  };
+  }, [userRole]);
 
-  useEffect(() => {
-    fetchDashboardData(true, true);
-    fetchSchools();
-    
-    // Get user role from session
-    fetch('/api/auth/session')
-      .then(res => res.json())
-      .then(session => {
-        if (session?.user?.role) {
-          setUserRole(session.user.role);
-        }
-      })
-      .catch(err => console.error('Failed to get session:', err));
-    
-    // Auto refresh data setiap 15 detik untuk data yang lebih real-time
-    const interval = setInterval(() => {
-      fetchDashboardData(false, false);
-    }, 15000);
-    
-    return () => clearInterval(interval);
-  }, []);
-
-  const fetchSchools = async () => {
+  // Memoized fetch functions
+  const fetchSchools = useCallback(async () => {
     try {
       const response = await fetch("/api/schools");
       if (response.ok) {
@@ -177,40 +145,22 @@ export function DashboardContent() {
     } catch (error) {
       console.error("Failed to fetch schools:", error);
     }
-  };
+  }, []);
 
-  const fetchDashboardData = async (showToast = false, isInitial = false) => {
+  const fetchDashboardData = useCallback(async (showToast = false, isInitial = false) => {
     try {
       if (isInitial) setDashboardLoading(true);
       
       // Add timestamp to prevent caching
-      const timestamp = new Date().getTime();
+      const timestamp = Date.now();
       
-      console.log("🔄 Fetching dashboard data at:", new Date().toISOString());
-      
-      const [categoriesRes, transactionsRes, statsRes, chartDataRes] = await Promise.all([
-        fetch(`/api/categories?_t=${timestamp}`, { cache: 'no-store' }),
-        fetch(`/api/transactions?limit=5&_t=${timestamp}`, { cache: 'no-store' }),
-        fetch(`/api/dashboard/stats?_t=${timestamp}`, { cache: 'no-store' }),
-        fetch(`/api/transactions?chart=true&_t=${timestamp}`, { cache: 'no-store' }) // Fetch chart data from API
-      ]);
+      // Fetch stats first (most important for UI)
+      const statsRes = await fetch(`/api/dashboard/stats?_t=${timestamp}`, { 
+        cache: 'no-store',
+        next: { revalidate: 0 }
+      });
 
-      if (categoriesRes.ok) {
-        const data = await categoriesRes.json();
-        setCategories(data.categories || []);
-        
-        if (showToast && (!data.categories || data.categories.length === 0)) {
-          if (data.message) {
-            toast.info(data.message);
-          }
-        }
-      }
-
-      if (transactionsRes.ok) {
-        const data = await transactionsRes.json();
-        setTransactions(data.transactions || []);
-      }
-
+      // Process stats immediately
       if (statsRes.ok) {
         const data = await statsRes.json();
         
@@ -232,20 +182,12 @@ export function DashboardContent() {
           return;
         }
         
-        console.log("📊 Stats received:", {
-          totalIncome: data.stats?.totalIncome,
-          totalExpense: data.stats?.totalExpense,
-          balance: data.stats?.balance,
-          incomeCount: data.stats?.incomeCount,
-          expenseCount: data.stats?.expenseCount
-        });
         setStats(data.stats);
         
         // Set chart data based on real stats
-        if (data.stats && data.stats.monthlyData) {
+        if (data.stats?.monthlyData) {
           setChartData(data.stats.monthlyData);
         } else {
-          // Fallback with current month data if no monthly data
           const currentMonth = new Date().toLocaleDateString('id-ID', { month: 'short', year: 'numeric' });
           setChartData([
             { 
@@ -257,40 +199,64 @@ export function DashboardContent() {
         }
 
         // Set pie data based on category breakdown
-        if (data.stats && data.stats.categoryBreakdown) {
+        if (data.stats?.categoryBreakdown) {
           setPieData(data.stats.categoryBreakdown);
-        } else {
-          // Calculate pie data from transactions if no category breakdown
-          const categoryTotals: { [key: string]: number } = {};
-          if (transactionsRes.ok) {
-            const transactionData = await transactionsRes.json();
-            (transactionData.transactions || []).forEach((transaction: any) => {
-              if (transaction.type === 'EXPENSE') {
-                const categoryName = transaction.categoryName || transaction.category?.name || 'Lainnya';
-                categoryTotals[categoryName] = (categoryTotals[categoryName] || 0) + transaction.amount;
-              }
-            });
-            
-            const total = Object.values(categoryTotals).reduce((sum: number, value: number) => sum + value, 0);
-            const pieChartData = Object.entries(categoryTotals).map(([name, value], index) => ({
-              name,
-              value: total > 0 ? Math.round((value as number / total) * 100) : 0,
-              color: ['#3b82f6', '#f59e0b', '#10b981', '#8b5cf6', '#6b7280'][index % 5]
-            }));
-            
-            setPieData(pieChartData);
-          }
         }
       }
+      
+      // Mark loading complete after stats (most important data)
+      if (isInitial) setDashboardLoading(false);
+
+      // Fetch secondary data in background (non-blocking)
+      Promise.all([
+        fetch(`/api/categories?_t=${timestamp}`, { cache: 'no-store' }),
+        fetch(`/api/transactions?limit=5&_t=${timestamp}`, { cache: 'no-store' }),
+      ]).then(async ([categoriesRes, transactionsRes]) => {
+        if (categoriesRes.ok) {
+          const data = await categoriesRes.json();
+          setCategories(data.categories || []);
+        }
+        if (transactionsRes.ok) {
+          const data = await transactionsRes.json();
+          setTransactions(data.transactions || []);
+        }
+      });
 
       setLastUpdated(new Date());
     } catch (error) {
       console.error("Failed to fetch dashboard data:", error);
-      toast.error("Gagal memuat data dashboard");
-    } finally {
+      if (showToast) toast.error("Gagal memuat data dashboard");
       if (isInitial) setDashboardLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    // Delay initial fetch to after first paint for better LCP
+    const timeoutId = setTimeout(() => {
+      fetchDashboardData(true, true);
+      fetchSchools();
+    }, 0);
+    
+    // Get user role from session (non-blocking)
+    fetch('/api/auth/session')
+      .then(res => res.json())
+      .then(session => {
+        if (session?.user?.role) {
+          setUserRole(session.user.role);
+        }
+      })
+      .catch(err => console.error('Failed to get session:', err));
+    
+    // Auto refresh data setiap 30 detik (changed from 15s to reduce load)
+    const interval = setInterval(() => {
+      fetchDashboardData(false, false);
+    }, 30000);
+    
+    return () => {
+      clearTimeout(timeoutId);
+      clearInterval(interval);
+    };
+  }, [fetchDashboardData, fetchSchools]);
 
   const handleOpenDialog = (type: "INCOME" | "EXPENSE") => {
     setTransactionType(type);
@@ -424,17 +390,24 @@ export function DashboardContent() {
     }).format(numAmount);
   };
 
+  // Default stats untuk optimistic UI - render segera tanpa menunggu API
+  const displayStats = stats || {
+    balance: 0,
+    totalIncome: 0,
+    totalExpense: 0,
+    incomeCount: 0,
+    expenseCount: 0
+  };
+
   return (
     <div className="space-y-4">
-      {/* Header dengan indikator refresh */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-        <div>
+      {/* Header dengan indikator refresh - fixed height */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 min-h-[52px]">
+        <div className="min-h-[44px]">
           <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-          {lastUpdated && (
-            <p className="text-sm text-gray-500 mt-1">
-              Terakhir diperbarui: {lastUpdated.toLocaleString('id-ID')}
-            </p>
-          )}
+          <p className="text-sm text-gray-500 mt-1 min-h-[20px]">
+            {lastUpdated ? `Terakhir diperbarui: ${lastUpdated.toLocaleString('id-ID')}` : 'Memuat data...'}
+          </p>
         </div>
         <div className="flex items-center space-x-3">
           {dashboardLoading && (
@@ -455,10 +428,10 @@ export function DashboardContent() {
         </div>
       </div>
 
-      {/* Summary Cards */}
+      {/* Summary Cards - Render immediately with displayStats for fast LCP */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Saldo Saat Ini */}
-        <Card className={`hover:shadow-lg transition-shadow ${dashboardLoading ? 'opacity-50' : ''}`}>
+        <Card className="hover:shadow-lg transition-shadow min-h-[140px]">
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-2">
               <div className="p-2.5 bg-green-100 rounded-lg">
@@ -467,29 +440,20 @@ export function DashboardContent() {
             </div>
             <div className="space-y-1">
               <p className="text-sm text-gray-600">Saldo Saat Ini</p>
-              <div className="text-2xl font-bold text-gray-900">
-                {dashboardLoading ? (
-                  <div className="flex items-center space-x-2">
-                    <Loader2 className="h-6 w-6 animate-spin" />
-                    <span>Loading...</span>
-                  </div>
-                ) : (
-                  stats ? formatNumber(stats.balance) : "Rp 0"
-                )}
+              <div className={`text-2xl font-bold min-h-[32px] ${dashboardLoading && !stats ? 'text-gray-300' : 'text-gray-900'}`}>
+                {formatNumber(displayStats.balance)}
               </div>
-              <p className={`text-xs ${stats && stats.totalIncome - stats.totalExpense >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                {stats ? (
-                  stats.totalIncome - stats.totalExpense >= 0 
-                    ? `+${formatCurrency(stats.totalIncome - stats.totalExpense)}` 
-                    : formatCurrency(stats.totalIncome - stats.totalExpense)
-                ) : "Tidak ada data"} (Bulan ini)
+              <p className={`text-xs min-h-[16px] ${displayStats.totalIncome - displayStats.totalExpense >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                {displayStats.totalIncome - displayStats.totalExpense >= 0 
+                  ? `+${formatCurrency(displayStats.totalIncome - displayStats.totalExpense)}` 
+                  : formatCurrency(displayStats.totalIncome - displayStats.totalExpense)} (Bulan ini)
               </p>
             </div>
           </CardContent>
         </Card>
 
         {/* Pemasukan Bulan Ini */}
-        <Card className={`hover:shadow-lg transition-shadow ${dashboardLoading ? 'opacity-50' : ''}`}>
+        <Card className="hover:shadow-lg transition-shadow min-h-[140px]">
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-2">
               <div className="p-2.5 bg-blue-100 rounded-lg">
@@ -498,25 +462,18 @@ export function DashboardContent() {
             </div>
             <div className="space-y-1">
               <p className="text-sm text-gray-600">Pemasukan Bulan Ini</p>
-              <div className="text-2xl font-bold text-gray-900">
-                {dashboardLoading ? (
-                  <div className="flex items-center space-x-2">
-                    <Loader2 className="h-6 w-6 animate-spin" />
-                    <span>Loading...</span>
-                  </div>
-                ) : (
-                  stats ? formatNumber(stats.totalIncome) : "Rp 0"
-                )}
+              <div className={`text-2xl font-bold min-h-[32px] ${dashboardLoading && !stats ? 'text-gray-300' : 'text-gray-900'}`}>
+                {formatNumber(displayStats.totalIncome)}
               </div>
-              <p className="text-xs text-gray-500">
-                Berdasarkan {stats ? stats.incomeCount || 0 : 0} transaksi
+              <p className="text-xs text-gray-500 min-h-[16px]">
+                Berdasarkan {displayStats.incomeCount} transaksi
               </p>
             </div>
           </CardContent>
         </Card>
 
         {/* Pengeluaran Bulan Ini */}
-        <Card className={`hover:shadow-lg transition-shadow ${dashboardLoading ? 'opacity-50' : ''}`}>
+        <Card className="hover:shadow-lg transition-shadow min-h-[140px]">
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-2">
               <div className="p-2.5 bg-red-100 rounded-lg">
@@ -525,25 +482,18 @@ export function DashboardContent() {
             </div>
             <div className="space-y-1">
               <p className="text-sm text-gray-600">Pengeluaran Bulan Ini</p>
-              <div className="text-2xl font-bold text-gray-900">
-                {dashboardLoading ? (
-                  <div className="flex items-center space-x-2">
-                    <Loader2 className="h-6 w-6 animate-spin" />
-                    <span>Loading...</span>
-                  </div>
-                ) : (
-                  stats ? formatNumber(stats.totalExpense) : "Rp 0"
-                )}
+              <div className={`text-2xl font-bold min-h-[32px] ${dashboardLoading && !stats ? 'text-gray-300' : 'text-gray-900'}`}>
+                {formatNumber(displayStats.totalExpense)}
               </div>
-              <p className="text-xs text-gray-500">
-                Berdasarkan {stats ? stats.expenseCount || 0 : 0} transaksi
+              <p className="text-xs text-gray-500 min-h-[16px]">
+                Berdasarkan {displayStats.expenseCount} transaksi
               </p>
             </div>
           </CardContent>
         </Card>
 
         {/* Surplus/Defisit */}
-        <Card className={`hover:shadow-lg transition-shadow ${dashboardLoading ? 'opacity-50' : ''}`}>
+        <Card className="hover:shadow-lg transition-shadow min-h-[140px]">
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-2">
               <div className="p-2.5 bg-purple-100 rounded-lg">
@@ -552,241 +502,39 @@ export function DashboardContent() {
             </div>
             <div className="space-y-1">
               <p className="text-sm text-gray-600">Surplus/Defisit</p>
-              <div className="text-2xl font-bold text-gray-900">
-                {dashboardLoading ? (
-                  <div className="flex items-center space-x-2">
-                    <Loader2 className="h-6 w-6 animate-spin" />
-                    <span>Loading...</span>
-                  </div>
-                ) : (
-                  stats ? (stats.balance >= 0 ? '+' : '') + formatNumber(Math.abs(stats.balance)) : "Rp 0"
-                )}
+              <div className={`text-2xl font-bold min-h-[32px] ${dashboardLoading && !stats ? 'text-gray-300' : 'text-gray-900'}`}>
+                {(displayStats.balance >= 0 ? '+' : '') + formatNumber(Math.abs(displayStats.balance))}
               </div>
-              <p className="text-xs text-gray-500">
-                {stats ? (stats.balance >= 0 ? 'Surplus' : 'Defisit') : 'Tidak ada data'} (Bulan ini)
+              <p className="text-xs text-gray-500 min-h-[16px]">
+                {displayStats.balance >= 0 ? 'Surplus' : 'Defisit'} (Bulan ini)
               </p>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* Charts Section - Fixed min-height to prevent CLS */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Area Chart - 2 columns */}
-        <Card className="lg:col-span-2 border-none shadow-lg hover:shadow-xl transition-shadow duration-300 bg-gradient-to-br from-white to-gray-50">
-          <CardHeader className="flex flex-row items-center justify-between pb-2 border-b border-gray-100">
-            <CardTitle className="text-lg font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent flex items-center gap-2">
+        <Card className="lg:col-span-2 min-h-[380px]">
+          <CardHeader className="flex flex-row items-center justify-between pb-2 min-h-[48px]">
+            <CardTitle className="text-base font-semibold flex items-center gap-2">
               <TrendingUp className="h-5 w-5 text-blue-600" />
               {getChartTitle()}
             </CardTitle>
           </CardHeader>
-          <CardContent className="pb-6 pt-6">
-            <ResponsiveContainer width="100%" height={320}>
-              <AreaChart data={chartData}>
-                <defs>
-                  <linearGradient id="colorPemasukan" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#10b981" stopOpacity={0.6}/>
-                    <stop offset="40%" stopColor="#10b981" stopOpacity={0.3}/>
-                    <stop offset="100%" stopColor="#10b981" stopOpacity={0.05}/>
-                  </linearGradient>
-                  <linearGradient id="colorPengeluaran" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#ef4444" stopOpacity={0.6}/>
-                    <stop offset="40%" stopColor="#ef4444" stopOpacity={0.3}/>
-                    <stop offset="100%" stopColor="#ef4444" stopOpacity={0.05}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" opacity={0.5} vertical={false} />
-                <XAxis 
-                  dataKey="month" 
-                  tick={{ fontSize: 12, fill: '#475569', fontWeight: 500 }}
-                  axisLine={{ stroke: '#cbd5e1', strokeWidth: 1.5 }}
-                  tickLine={false}
-                  dy={10}
-                />
-                <YAxis 
-                  tick={{ fontSize: 12, fill: '#475569', fontWeight: 500 }}
-                  axisLine={{ stroke: '#cbd5e1', strokeWidth: 1.5 }}
-                  tickLine={false}
-                  dx={-5}
-                  label={{ value: 'Jutaan (Rp)', angle: -90, position: 'insideLeft', style: { textAnchor: 'middle', fontSize: '12px', fill: '#64748b', fontWeight: 600 } }}
-                />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: 'rgba(255, 255, 255, 0.98)', 
-                    border: 'none',
-                    borderRadius: '12px',
-                    fontSize: '13px',
-                    padding: '12px 16px',
-                    boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
-                  }}
-                  formatter={(value: any, name?: string) => [
-                    `Rp ${value}M`, 
-                    name === 'pemasukan' ? '💰 Pemasukan' : '💸 Pengeluaran'
-                  ]}
-                  labelStyle={{ fontWeight: 700, color: '#1e293b', marginBottom: '4px' }}
-                />
-                <Legend 
-                  wrapperStyle={{ fontSize: '13px', fontWeight: '600', paddingTop: '15px' }}
-                  iconType="circle"
-                  iconSize={12}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="pemasukan"
-                  stackId="1"
-                  stroke="#10b981"
-                  strokeWidth={3.5}
-                  fill="url(#colorPemasukan)"
-                  name="Pemasukan"
-                  dot={{ fill: '#10b981', strokeWidth: 3, r: 6, stroke: '#ffffff' }}
-                  activeDot={{ r: 9, strokeWidth: 3, stroke: '#10b981', fill: '#ffffff', filter: 'drop-shadow(0 2px 4px rgba(16, 185, 129, 0.3))' }}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="pengeluaran"
-                  stackId="2"
-                  stroke="#ef4444"
-                  strokeWidth={3.5}
-                  fill="url(#colorPengeluaran)"
-                  name="Pengeluaran"
-                  dot={{ fill: '#ef4444', strokeWidth: 3, r: 6, stroke: '#ffffff' }}
-                  activeDot={{ r: 9, strokeWidth: 3, stroke: '#ef4444', fill: '#ffffff', filter: 'drop-shadow(0 2px 4px rgba(239, 68, 68, 0.3))' }}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
+          <CardContent className="pb-6 min-h-[300px]">
+            <AreaChartComponent data={chartData} />
           </CardContent>
         </Card>
 
         {/* Pie Chart - 1 column */}
-        <Card className="border-none shadow-lg hover:shadow-xl transition-shadow duration-300 bg-gradient-to-br from-white to-blue-50">
-          <CardHeader className="pb-4 border-b border-gray-100">
-            <CardTitle className="text-lg font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-              Kategori Terbesar
-            </CardTitle>
-            <p className="text-xs text-gray-500 mt-1">Distribusi pengeluaran berdasarkan kategori</p>
+        <Card className="min-h-[380px]">
+          <CardHeader className="pb-2 min-h-[48px]">
+            <CardTitle className="text-base font-semibold">Kategori Terbesar</CardTitle>
           </CardHeader>
-          <CardContent className="pt-6">
-            {pieData && pieData.length > 0 ? (
-              <>
-                <ResponsiveContainer width="100%" height={240}>
-                  <PieChart>
-                    <Pie
-                      data={pieData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={60}
-                      outerRadius={95}
-                      paddingAngle={4}
-                      dataKey="value"
-                      animationBegin={0}
-                      animationDuration={1000}
-                      animationEasing="ease-out"
-                      label={({
-                        cx,
-                        cy,
-                        midAngle,
-                        innerRadius,
-                        outerRadius,
-                        percent
-                      }: any) => {
-                        if (!midAngle || !percent) return null;
-                        
-                        const RADIAN = Math.PI / 180;
-                        const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
-                        const x = cx + radius * Math.cos(-midAngle * RADIAN);
-                        const y = cy + radius * Math.sin(-midAngle * RADIAN);
-                        
-                        return percent > 0.05 ? (
-                          <text
-                            x={x}
-                            y={y}
-                            fill="white"
-                            textAnchor={x > cx ? 'start' : 'end'}
-                            dominantBaseline="central"
-                            className="text-xs font-bold"
-                            style={{ 
-                              textShadow: '0 1px 2px rgba(0,0,0,0.3)',
-                              pointerEvents: 'none'
-                            }}
-                          >
-                            {`${(percent * 100).toFixed(0)}%`}
-                          </text>
-                        ) : null;
-                      }}
-                    >
-                      {pieData.map((entry, index) => (
-                        <Cell 
-                          key={`cell-${index}`} 
-                          fill={entry.color}
-                          style={{
-                            filter: 'drop-shadow(0 4px 8px rgba(0, 0, 0, 0.15))',
-                            cursor: 'pointer',
-                            transition: 'all 0.3s ease'
-                          }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.filter = 'drop-shadow(0 6px 12px rgba(0, 0, 0, 0.25))';
-                            e.currentTarget.style.transform = 'scale(1.05)';
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.filter = 'drop-shadow(0 4px 8px rgba(0, 0, 0, 0.15))';
-                            e.currentTarget.style.transform = 'scale(1)';
-                          }}
-                        />
-                      ))}
-                    </Pie>
-                    <Tooltip 
-                      formatter={(value, name, props) => [`${value}%`, props.payload.name]}
-                      contentStyle={{ 
-                        backgroundColor: 'rgba(255, 255, 255, 0.98)', 
-                        border: 'none',
-                        borderRadius: '12px',
-                        fontSize: '13px',
-                        padding: '12px 16px',
-                        boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
-                      }}
-                      labelStyle={{
-                        fontWeight: 700,
-                        marginBottom: '4px',
-                        color: '#1f2937'
-                      }}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-                
-                {/* Custom Legend */}
-                <div className="mt-6 grid grid-cols-1 gap-2">
-                  {pieData.map((entry, index) => (
-                    <div 
-                      key={`legend-${index}`}
-                      className="flex items-center justify-between p-2 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer group"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div 
-                          className="w-3 h-3 rounded-full transition-transform group-hover:scale-110"
-                          style={{ 
-                            backgroundColor: entry.color,
-                            boxShadow: `0 2px 6px ${entry.color}40`
-                          }}
-                        />
-                        <span className="text-xs font-medium text-gray-700 group-hover:text-gray-900">
-                          {entry.name}
-                        </span>
-                      </div>
-                      <span className="text-xs font-bold text-gray-900">
-                        {entry.value}%
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </>
-            ) : (
-              <div className="h-[320px] flex items-center justify-center text-gray-400">
-                <div className="text-center">
-                  <Scale className="h-12 w-12 mx-auto mb-3 opacity-30" />
-                  <p className="text-sm">Belum ada data kategori</p>
-                </div>
-              </div>
-            )}
+          <CardContent className="min-h-[300px]">
+            <PieChartComponent data={pieData} />
           </CardContent>
         </Card>
       </div>

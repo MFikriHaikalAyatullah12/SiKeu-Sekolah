@@ -13,15 +13,16 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Bell, LogOut, Settings, User, Search, ChevronDown, Menu } from 'lucide-react'
+import { LogOut, Settings, User, Search, ChevronDown, Menu } from 'lucide-react'
 
 interface HeaderProps {
   onMenuClick?: () => void
   onToggleSidebar?: () => void
   sidebarCollapsed?: boolean
+  isMobile?: boolean
 }
 
-export function Header({ onMenuClick, onToggleSidebar, sidebarCollapsed }: HeaderProps) {
+export function Header({ onMenuClick, onToggleSidebar, sidebarCollapsed, isMobile }: HeaderProps) {
   const { data: session } = useSession()
   const router = useRouter()
 
@@ -45,58 +46,44 @@ export function Header({ onMenuClick, onToggleSidebar, sidebarCollapsed }: Heade
 
   return (
     <header className="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-20 w-full">
-      <div className="flex items-center justify-between px-3 sm:px-6 py-2 sm:py-3 gap-2 sm:gap-4">
-        {/* Desktop toggle button */}
+      <div className="flex items-center justify-between px-3 sm:px-4 lg:px-6 py-2 sm:py-3 gap-2 sm:gap-3 lg:gap-4">
+        {/* Toggle button - visible on all screen sizes */}
         <button
-          onClick={onToggleSidebar}
-          className="hidden md:block p-2 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100"
-          suppressHydrationWarning
-        >
-          <Menu className="h-5 w-5" />
-        </button>
-        
-        {/* Mobile menu button */}
-        <button
-          onClick={onMenuClick}
-          className="md:hidden p-2 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100"
+          onClick={isMobile ? onMenuClick : onToggleSidebar}
+          className="p-2 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors duration-200 flex-shrink-0"
+          aria-label={sidebarCollapsed ? "Open sidebar" : "Close sidebar"}
           suppressHydrationWarning
         >
           <Menu className="h-5 w-5" />
         </button>
 
-        {/* Search Bar - Hidden on small mobile */}
-        <div className="hidden sm:flex flex-1 max-w-xl ml-4 md:ml-0">
+        {/* Search Bar - Responsive visibility */}
+        <div className="flex-1 max-w-xs sm:max-w-md lg:max-w-xl">
           <div className="relative w-full">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
             <Input 
               type="text" 
-              placeholder="Cari transaksi atau siswa..." 
-              className="pl-10 bg-gray-50 border-gray-200 focus:bg-white w-full text-sm"
+              placeholder={isMobile ? "Cari..." : "Cari transaksi atau siswa..."} 
+              className="pl-9 sm:pl-10 bg-gray-50 border-gray-200 focus:bg-white w-full text-sm h-9 sm:h-10"
             />
           </div>
         </div>
         
-        <div className="flex items-center space-x-2 sm:space-x-4">
-          {/* Notifications */}
-          <Button variant="ghost" size="sm" className="relative hover:bg-gray-100 rounded-full p-2 sm:p-2">
-            <Bell className="h-5 w-5 text-gray-600" />
-            <span className="absolute top-1 right-1 h-2 w-2 bg-red-500 rounded-full"></span>
-          </Button>
-
+        <div className="flex items-center space-x-1 sm:space-x-2 lg:space-x-4 flex-shrink-0">
           {/* User Profile Dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="flex items-center gap-1 sm:gap-2 hover:bg-gray-100 rounded-lg px-2 sm:px-3">
-                <Avatar className="h-7 w-7 sm:h-8 sm:w-8">
+              <Button variant="ghost" className="flex items-center gap-1 sm:gap-2 hover:bg-gray-100 rounded-lg px-1.5 sm:px-2 lg:px-3 h-9 sm:h-10">
+                <Avatar className="h-6 w-6 sm:h-7 sm:w-7 lg:h-8 lg:w-8">
                   <AvatarImage src={session?.user?.image || ''} alt={session?.user?.name || ''} />
-                  <AvatarFallback className="bg-blue-600 text-white font-semibold text-sm">
+                  <AvatarFallback className="bg-blue-600 text-white font-semibold text-xs sm:text-sm">
                     {session?.user?.name?.charAt(0) || 'U'}
                   </AvatarFallback>
                 </Avatar>
-                <span className="text-xs sm:text-sm font-medium text-gray-700 hidden md:block">
+                <span className="text-xs sm:text-sm font-medium text-gray-700 hidden lg:block max-w-[120px] truncate">
                   {session?.user?.name || 'Bendahara'}
                 </span>
-                <ChevronDown className="h-4 w-4 text-gray-500" />
+                <ChevronDown className="h-3 w-3 sm:h-4 sm:w-4 text-gray-500 hidden sm:block" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-64" align="end" forceMount>

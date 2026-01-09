@@ -26,6 +26,7 @@ interface SidebarProps {
   isOpen: boolean
   onClose: () => void
   isCollapsed?: boolean
+  isMobile?: boolean
 }
 
 const navigation = [
@@ -40,7 +41,7 @@ const navigation = [
   { name: 'Pengaturan', href: '/dashboard/settings', icon: Settings, roles: ['SUPER_ADMIN', 'TREASURER'] },
 ]
 
-export function Sidebar({ isOpen, onClose, isCollapsed = false }: SidebarProps) {
+export function Sidebar({ isOpen, onClose, isCollapsed = false, isMobile = false }: SidebarProps) {
   const pathname = usePathname()
   const { data: session, status } = useSession()
 
@@ -50,24 +51,29 @@ export function Sidebar({ isOpen, onClose, isCollapsed = false }: SidebarProps) 
     return item.roles.includes(session.user.role)
   })
 
+  // Determine if sidebar should be visible
+  const shouldShowSidebar = isMobile ? isOpen : !isCollapsed
+
   // Always show sidebar structure even when loading
   if (status === 'loading') {
     return (
       <>
         {/* Mobile backdrop */}
-        {isOpen && (
+        {isOpen && isMobile && (
           <div 
-            className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden"
+            className="fixed inset-0 bg-black/50 z-40 lg:hidden transition-opacity duration-300"
             onClick={onClose}
           />
         )}
         
         {/* Sidebar */}
         <div className={cn(
-          "fixed inset-y-0 left-0 z-50 flex w-60 flex-col transform transition-transform duration-200 ease-in-out",
-          "-translate-x-full md:translate-x-0",
-          isOpen && "translate-x-0",
-          isCollapsed && "md:-translate-x-full"
+          "fixed inset-y-0 left-0 z-50 flex w-60 flex-col transform transition-all duration-300 ease-in-out",
+          isMobile ? (
+            isOpen ? "translate-x-0" : "-translate-x-full"
+          ) : (
+            isCollapsed ? "-translate-x-full" : "translate-x-0"
+          )
         )}>
           <div className="flex flex-col flex-grow bg-slate-800 overflow-y-auto shadow-xl">
             {/* Header with close button for mobile */}
@@ -90,7 +96,7 @@ export function Sidebar({ isOpen, onClose, isCollapsed = false }: SidebarProps) 
               {/* Close button for mobile */}
               <button
                 onClick={onClose}
-                className="md:hidden p-2 rounded-md text-gray-400 hover:text-white hover:bg-gray-700"
+                className="lg:hidden p-2 rounded-md text-gray-400 hover:text-white hover:bg-gray-700"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -107,19 +113,21 @@ export function Sidebar({ isOpen, onClose, isCollapsed = false }: SidebarProps) 
   return (
     <>
       {/* Mobile backdrop */}
-      {isOpen && (
+      {isOpen && isMobile && (
         <div 
-          className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden"
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden transition-opacity duration-300"
           onClick={onClose}
         />
       )}
       
       {/* Sidebar */}
       <div className={cn(
-        "fixed inset-y-0 left-0 z-50 flex w-60 flex-col transform transition-transform duration-200 ease-in-out",
-        "-translate-x-full md:translate-x-0",
-        isOpen && "translate-x-0",
-        isCollapsed && "md:-translate-x-full"
+        "fixed inset-y-0 left-0 z-50 flex w-60 flex-col transform transition-all duration-300 ease-in-out",
+        isMobile ? (
+          isOpen ? "translate-x-0" : "-translate-x-full"
+        ) : (
+          isCollapsed ? "-translate-x-full" : "translate-x-0"
+        )
       )}>
         <div className="flex flex-col flex-grow bg-slate-800 overflow-y-auto shadow-xl">
           {/* Header with close button for mobile */}
@@ -142,7 +150,7 @@ export function Sidebar({ isOpen, onClose, isCollapsed = false }: SidebarProps) 
             {/* Close button for mobile */}
             <button
               onClick={onClose}
-              className="md:hidden p-2 rounded-md text-gray-400 hover:text-white hover:bg-slate-700"
+              className="lg:hidden p-2 rounded-md text-gray-400 hover:text-white hover:bg-slate-700"
             >
               <X className="h-5 w-5" />
             </button>
@@ -158,7 +166,12 @@ export function Sidebar({ isOpen, onClose, isCollapsed = false }: SidebarProps) 
               <Link
                 key={item.name}
                 href={item.href}
-                onClick={() => onClose()} // Close sidebar on mobile after navigation
+                onClick={() => {
+                  // Only close sidebar on mobile (when using overlay mode)
+                  if (isMobile) {
+                    onClose()
+                  }
+                }}
                 className={cn(
                   'group flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200',
                   isActive

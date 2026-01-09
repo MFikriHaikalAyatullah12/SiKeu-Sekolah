@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,6 +37,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { TransactionPageSkeleton } from "./transaction-skeleton";
 
 type TransactionType = "INCOME" | "EXPENSE";
 type PaymentMethod = "CASH" | "BANK_TRANSFER" | "E_WALLET";
@@ -89,6 +90,7 @@ export function TransactionContent() {
   // States
   const [activeTab, setActiveTab] = useState<TransactionType>("INCOME");
   const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [coaData, setCoaData] = useState<any[]>([]);
@@ -148,7 +150,71 @@ export function TransactionContent() {
   const availableTypes = selectedCategory?.types || [];
   
   // Categories for dialog form
-  const dialogCategories = transactionType === "INCOME" ? incomeCategories : expenseCategories;
+  const dialogCategories = useMemo(() => 
+    transactionType === "INCOME" ? incomeCategories : expenseCategories,
+    [transactionType, incomeCategories, expenseCategories]
+  );
+
+  // Memoized fetch functions
+  const fetchSchools = useCallback(async () => {
+    try {
+      const response = await fetch("/api/schools");
+      if (response.ok) {
+        const data = await response.json();
+        setSchools(data.schools || []);
+      }
+    } catch (error) {
+      console.error("Failed to fetch schools:", error);
+    }
+  }, []);
+
+  const fetchTransactions = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/transactions`);
+      if (response.ok) {
+        const data = await response.json();
+        setTransactions(data.transactions || []);
+      } else {
+        console.error("Failed to fetch transactions:", response.status);
+        setTransactions([]);
+      }
+    } catch (error) {
+      console.error("Failed to fetch transactions:", error);
+      setTransactions([]);
+    }
+  }, []);
+
+  const fetchCategories = useCallback(async () => {
+    try {
+      const coaResponse = await fetch("/api/coa?format=hierarchy");
+      if (coaResponse.ok) {
+        const coaData = await coaResponse.json();
+        setCoaData(coaData);
+        
+        const incomeCategories = getIncomeCategories(coaData);
+        const expenseCategories = getExpenseCategories(coaData);
+        
+        setIncomeCategories(incomeCategories);
+        setExpenseCategories(expenseCategories);
+      } else {
+        setIncomeCategories([]);
+        setExpenseCategories([]);
+      }
+      
+      const response = await fetch("/api/categories");
+      if (response.ok) {
+        const data = await response.json();
+        setCategories(data.categories || []);
+      } else {
+        setCategories([]);
+      }
+    } catch (error) {
+      console.error("Failed to fetch categories:", error);
+      setCategories([]);
+      setIncomeCategories([]);
+      setExpenseCategories([]);
+    }
+  }, []);
 
   // Set initial values on client-side only
   useEffect(() => {
@@ -169,102 +235,46 @@ export function TransactionContent() {
     }
   }, [schools]);
 
+  // Initial data fetch
   useEffect(() => {
     if (mounted) {
-      fetchTransactions();
-      fetchCategories();
-      fetchSchools();
-      
-      // Reset category and type when tab changes
+      const loadInitialData = async () => {
+        setInitialLoading(true);
+        try {
+          await Promise.all([
+            fetchTransactions(),
+            fetchCategories(),
+            fetchSchools()
+          ]);
+        } finally {
+          setInitialLoading(false);
+        }
+      };
+      loadInitialData();
+    }
+  }, [mounted, fetchTransactions, fetchCategories, fetchSchools]);
+
+  // Reset category when tab changes
+  useEffect(() => {
+    if (mounted && !initialLoading) {
       setFormData(prev => ({
         ...prev,
         categoryId: "",
         typeId: ""
       }));
     }
-  }, [activeTab, mounted]);
+  }, [activeTab, mounted, initialLoading]);
   
   // Separate effect for periodic refresh
   useEffect(() => {
-    if (mounted) {
+    if (mounted && !initialLoading) {
       const interval = setInterval(() => {
         fetchTransactions();
-      }, 30000); // Refresh every 30 seconds
+      }, 30000);
       
       return () => clearInterval(interval);
     }
-  }, [mounted]);
-
-  const fetchSchools = async () => {
-    try {
-      const response = await fetch("/api/schools");
-      if (response.ok) {
-        const data = await response.json();
-        setSchools(data.schools || []);
-      }
-    } catch (error) {
-      console.error("Failed to fetch schools:", error);
-    }
-  };
-
-  const fetchTransactions = async () => {
-    try {
-      setLoading(true);
-      
-      const response = await fetch(`/api/transactions`);
-      if (response.ok) {
-        const data = await response.json();
-        setTransactions(data.transactions || []);
-      } else {
-        console.error("Failed to fetch transactions:", response.status);
-        setTransactions([]);
-      }
-    } catch (error) {
-      console.error("Failed to fetch transactions:", error);
-      toast.error("Gagal mengambil data transaksi");
-      setTransactions([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchCategories = async () => {
-    try {
-      // Fetch COA data for transaction form (hierarchical format)
-      const coaResponse = await fetch("/api/coa?format=hierarchy");
-      if (coaResponse.ok) {
-        const coaData = await coaResponse.json();
-        setCoaData(coaData);
-        
-        // Process COA data for income and expense categories
-        const incomeCategories = getIncomeCategories(coaData);
-        const expenseCategories = getExpenseCategories(coaData);
-        
-        setIncomeCategories(incomeCategories);
-        setExpenseCategories(expenseCategories);
-      } else {
-        console.error("Failed to fetch COA categories:", coaResponse.status);
-        setIncomeCategories([]);
-        setExpenseCategories([]);
-      }
-      
-      // Also fetch legacy categories for backward compatibility
-      const response = await fetch("/api/categories");
-      if (response.ok) {
-        const data = await response.json();
-        setCategories(data.categories || []);
-      } else {
-        console.error("Failed to fetch legacy categories:", response.status);
-        setCategories([]);
-      }
-    } catch (error) {
-      console.error("Failed to fetch categories:", error);
-      toast.error("Gagal mengambil data kategori");
-      setCategories([]);
-      setIncomeCategories([]);
-      setExpenseCategories([]);
-    }
-  };
+  }, [mounted, initialLoading, fetchTransactions]);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -463,24 +473,27 @@ export function TransactionContent() {
     }
   };
 
-  // Filter transactions berdasarkan activeTab
-  const displayTransactions = transactions.filter(transaction => {
-    return transaction.type === activeTab;
-  });
+  // Memoized filtered transactions untuk menghindari re-computation
+  const filteredTransactions = useMemo(() => {
+    // Filter transactions berdasarkan activeTab
+    const displayTransactions = transactions.filter(transaction => {
+      return transaction.type === activeTab;
+    });
 
-  const filteredTransactions = displayTransactions.filter((transaction) => {
-    const searchLower = searchQuery.toLowerCase();
-    const matchesSearch =
-      transaction.fromTo?.toLowerCase().includes(searchLower) ||
-      transaction.description?.toLowerCase().includes(searchLower) ||
-      transaction.category?.name?.toLowerCase().includes(searchLower);
-    
-    // Filter by petugas
-    const matchesPetugas = filterPetugas === "semua" || 
-      transaction.createdBy?.name?.toLowerCase().replace(/\s+/g, '-') === filterPetugas;
-    
-    return matchesSearch && matchesPetugas;
-  });
+    return displayTransactions.filter((transaction) => {
+      const searchLower = searchQuery.toLowerCase();
+      const matchesSearch =
+        transaction.fromTo?.toLowerCase().includes(searchLower) ||
+        transaction.description?.toLowerCase().includes(searchLower) ||
+        transaction.category?.name?.toLowerCase().includes(searchLower);
+      
+      // Filter by petugas
+      const matchesPetugas = filterPetugas === "semua" || 
+        transaction.createdBy?.name?.toLowerCase().replace(/\s+/g, '-') === filterPetugas;
+      
+      return matchesSearch && matchesPetugas;
+    });
+  }, [transactions, activeTab, searchQuery, filterPetugas]);
 
   const handleViewTransaction = (transaction: any) => {
     setSelectedTransaction(transaction);
@@ -614,24 +627,32 @@ export function TransactionContent() {
     }
   };
 
+  // Memoized pagination
   const itemsPerPage = 10;
-  const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage);
-  const paginatedTransactions = filteredTransactions.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
-
-  // Prevent hydration mismatch
-  if (!mounted) {
-    return (
-      <div className="p-4 sm:p-6 space-y-4 sm:space-y-6 bg-gray-50/80 min-h-screen">
-        <div className="animate-pulse space-y-6">
-          <div className="h-8 bg-gray-200 rounded w-48 sm:w-64"></div>
-          <div className="h-32 bg-gray-200 rounded"></div>
-          <div className="h-64 bg-gray-200 rounded"></div>
-        </div>
-      </div>
+  const { totalPages, paginatedTransactions } = useMemo(() => {
+    const total = Math.ceil(filteredTransactions.length / itemsPerPage);
+    const paginated = filteredTransactions.slice(
+      (currentPage - 1) * itemsPerPage,
+      currentPage * itemsPerPage
     );
+    return { totalPages: total, paginatedTransactions: paginated };
+  }, [filteredTransactions, currentPage]);
+
+  // Memoized transaction statistics
+  const transactionStats = useMemo(() => {
+    const totalIncome = transactions
+      .filter(t => t.type === "INCOME")
+      .reduce((sum, t) => sum + Number(t.amount), 0);
+    const totalExpense = transactions
+      .filter(t => t.type === "EXPENSE")
+      .reduce((sum, t) => sum + Number(t.amount), 0);
+    const balance = totalIncome - totalExpense;
+    return { totalIncome, totalExpense, balance };
+  }, [transactions]);
+
+  // Show skeleton during initial loading
+  if (!mounted || initialLoading) {
+    return <TransactionPageSkeleton />;
   }
 
   return (
@@ -644,19 +665,15 @@ export function TransactionContent() {
         </div>
       </div>
 
-      {/* Quick Stats Cards */}
+      {/* Quick Stats Cards - Fixed height to prevent CLS */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
+        <Card className="min-h-[100px]">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Total Pemasukan</p>
-                <p className="text-2xl font-bold text-green-600">
-                  {formatCurrency(
-                    transactions
-                      .filter(t => t.type === "INCOME")
-                      .reduce((sum, t) => sum + Number(t.amount), 0)
-                  )}
+                <p className="text-2xl font-bold text-green-600 min-h-[32px]">
+                  {formatCurrency(transactionStats.totalIncome)}
                 </p>
               </div>
               <div className="h-12 w-12 bg-green-100 rounded-full flex items-center justify-center">
@@ -666,17 +683,13 @@ export function TransactionContent() {
           </CardContent>
         </Card>
         
-        <Card>
+        <Card className="min-h-[100px]">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Total Pengeluaran</p>
-                <p className="text-2xl font-bold text-red-600">
-                  {formatCurrency(
-                    transactions
-                      .filter(t => t.type === "EXPENSE")
-                      .reduce((sum, t) => sum + Number(t.amount), 0)
-                  )}
+                <p className="text-2xl font-bold text-red-600 min-h-[32px]">
+                  {formatCurrency(transactionStats.totalExpense)}
                 </p>
               </div>
               <div className="h-12 w-12 bg-red-100 rounded-full flex items-center justify-center">
@@ -686,20 +699,15 @@ export function TransactionContent() {
           </CardContent>
         </Card>
         
-        <Card>
+        <Card className="min-h-[100px]">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Saldo</p>
-                <p className={`text-2xl font-bold ${
-                  (transactions.filter(t => t.type === "INCOME").reduce((sum, t) => sum + Number(t.amount), 0) -
-                   transactions.filter(t => t.type === "EXPENSE").reduce((sum, t) => sum + Number(t.amount), 0)) >= 0
-                    ? 'text-green-600' : 'text-red-600'
+                <p className={`text-2xl font-bold min-h-[32px] ${
+                  transactionStats.balance >= 0 ? 'text-green-600' : 'text-red-600'
                 }`}>
-                  {formatCurrency(
-                    transactions.filter(t => t.type === "INCOME").reduce((sum, t) => sum + Number(t.amount), 0) -
-                    transactions.filter(t => t.type === "EXPENSE").reduce((sum, t) => sum + Number(t.amount), 0)
-                  )}
+                  {formatCurrency(transactionStats.balance)}
                 </p>
               </div>
               <div className="h-12 w-12 bg-blue-100 rounded-full flex items-center justify-center">

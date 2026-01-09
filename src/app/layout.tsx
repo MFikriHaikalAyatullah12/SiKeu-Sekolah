@@ -7,6 +7,8 @@ import { Toaster } from "@/components/ui/sonner";
 const inter = Inter({
   subsets: ["latin"],
   variable: "--font-inter",
+  display: "swap", // Improve font loading performance
+  preload: true,
 });
 
 export const metadata: Metadata = {
@@ -14,12 +16,6 @@ export const metadata: Metadata = {
   description: "Aplikasi manajemen keuangan sekolah yang komprehensif dengan fitur transaksi, kwitansi, dan laporan otomatis.",
   keywords: "sistem keuangan sekolah, manajemen keuangan, kwitansi digital, laporan keuangan",
   authors: [{ name: "SiKeu Sekolah Team" }],
-  viewport: {
-    width: "device-width",
-    initialScale: 1,
-    maximumScale: 5,
-    userScalable: true,
-  },
   icons: {
     icon: [{ url: "/icon.png", type: "image/png" }],
   },
@@ -28,6 +24,14 @@ export const metadata: Metadata = {
     description: "Kelola keuangan sekolah dengan mudah dan akurat",
     type: "website",
   },
+};
+
+// Separate viewport export for Next.js 14+
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  userScalable: true,
 };
 
 export default function RootLayout({

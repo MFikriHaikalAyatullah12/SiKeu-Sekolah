@@ -3,6 +3,21 @@ import bcrypt from 'bcryptjs'
 
 const prisma = new PrismaClient()
 
+// Helper function to get dynamic date for current month
+function getCurrentMonthDate(dayOffset: number = 0): Date {
+  const now = new Date()
+  const date = new Date(now.getFullYear(), now.getMonth(), now.getDate() - dayOffset)
+  return date
+}
+
+// Generate receipt number with current year and month
+function generateReceiptNumber(index: number): string {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  return `KW-${year}${month}-${String(index).padStart(3, '0')}`
+}
+
 async function main() {
   console.log('🌱 Starting database seeding...')
 
@@ -177,9 +192,9 @@ async function main() {
   // Create sample income transactions
   const incomeTransactions = [
     {
-      receiptNumber: 'KW-202512-001',
+      receiptNumber: generateReceiptNumber(1),
       type: 'INCOME',
-      date: new Date('2025-12-18'),
+      date: getCurrentMonthDate(0), // Today
       amount: 1500000,
       categoryId: pendapatanCategory.id,
       description: '4100 - Pendapatan SPP Siswa',
@@ -190,9 +205,9 @@ async function main() {
       schoolProfileId: schoolProfile.id,
     },
     {
-      receiptNumber: 'KW-202512-002',
+      receiptNumber: generateReceiptNumber(2),
       type: 'INCOME',
-      date: new Date('2025-12-17'),
+      date: getCurrentMonthDate(1), // Yesterday
       amount: 10000000,
       categoryId: modalCategory.id,
       description: '3100 - Modal Awal Sekolah',
@@ -203,9 +218,9 @@ async function main() {
       schoolProfileId: schoolProfile.id,
     },
     {
-      receiptNumber: 'KW-202512-003',
+      receiptNumber: generateReceiptNumber(3),
       type: 'INCOME',
-      date: new Date('2025-12-16'),
+      date: getCurrentMonthDate(2), // 2 days ago
       amount: 5000000,
       categoryId: pendapatanCategory.id,
       description: '4200 - Dana BOS',
@@ -216,9 +231,9 @@ async function main() {
       schoolProfileId: schoolProfile.id,
     },
     {
-      receiptNumber: 'KW-202512-004',
+      receiptNumber: generateReceiptNumber(4),
       type: 'INCOME',
-      date: new Date('2025-12-15'),
+      date: getCurrentMonthDate(3), // 3 days ago
       amount: 1200000,
       categoryId: aktivaLancarCategory.id,
       description: '1110 - Kas di Bendahara',
@@ -229,9 +244,9 @@ async function main() {
       schoolProfileId: schoolProfile.id,
     },
     {
-      receiptNumber: 'KW-202512-005',
+      receiptNumber: generateReceiptNumber(5),
       type: 'INCOME',
-      date: new Date('2025-12-14'),
+      date: getCurrentMonthDate(4), // 4 days ago
       amount: 2500000,
       categoryId: pendapatanCategory.id,
       description: '4300 - Pendapatan Lain-lain (Donasi)',
@@ -254,9 +269,9 @@ async function main() {
   // Create sample expense transactions
   const expenseTransactions = [
     {
-      receiptNumber: 'KW-202512-006',
+      receiptNumber: generateReceiptNumber(6),
       type: 'EXPENSE',
-      date: new Date('2025-12-17'),
+      date: getCurrentMonthDate(1), // Yesterday
       amount: 750000,
       categoryId: bebanCategory.id,
       description: '5300 - Beban Perlengkapan (ATK)',
@@ -267,9 +282,9 @@ async function main() {
       schoolProfileId: schoolProfile.id,
     },
     {
-      receiptNumber: 'KW-202512-007',
+      receiptNumber: generateReceiptNumber(7),
       type: 'EXPENSE',
-      date: new Date('2025-12-15'),
+      date: getCurrentMonthDate(3), // 3 days ago
       amount: 2200000,
       categoryId: bebanCategory.id,
       description: '5400 - Beban Pemeliharaan (Perbaikan AC)',
@@ -280,9 +295,9 @@ async function main() {
       schoolProfileId: schoolProfile.id,
     },
     {
-      receiptNumber: 'KW-202512-008',
+      receiptNumber: generateReceiptNumber(8),
       type: 'EXPENSE',
-      date: new Date('2025-12-14'),
+      date: getCurrentMonthDate(4), // 4 days ago
       amount: 15000000,
       categoryId: bebanCategory.id,
       description: '5100 - Beban Gaji Guru',
@@ -293,9 +308,9 @@ async function main() {
       schoolProfileId: schoolProfile.id,
     },
     {
-      receiptNumber: 'KW-202512-009',
+      receiptNumber: generateReceiptNumber(9),
       type: 'EXPENSE',
-      date: new Date('2025-12-13'),
+      date: getCurrentMonthDate(5), // 5 days ago
       amount: 3500000,
       categoryId: bebanCategory.id,
       description: '5200 - Beban Operasional (Listrik, Air)',
@@ -306,9 +321,9 @@ async function main() {
       schoolProfileId: schoolProfile.id,
     },
     {
-      receiptNumber: 'KW-202512-010',
+      receiptNumber: generateReceiptNumber(10),
       type: 'EXPENSE',
-      date: new Date('2025-12-12'),
+      date: getCurrentMonthDate(6), // 6 days ago
       amount: 1500000,
       categoryId: kewajibanCategory.id,
       description: '2110 - Utang Gaji Guru (Cicilan)',
