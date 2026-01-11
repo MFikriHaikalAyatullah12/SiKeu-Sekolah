@@ -1,5 +1,27 @@
 import type { NextConfig } from "next";
 
+// Validate required environment variables at build time
+// Skip validation if explicitly disabled (e.g., during Vercel build)
+if (process.env.SKIP_ENV_VALIDATION !== "1") {
+  const requiredEnvVars = [
+    'DATABASE_URL',
+    'NEXTAUTH_URL',
+    'NEXTAUTH_SECRET',
+  ];
+
+  const missingEnvVars = requiredEnvVars.filter(
+    (envVar) => !process.env[envVar]
+  );
+
+  if (missingEnvVars.length > 0) {
+    console.warn(
+      `⚠️  Warning: Missing environment variables: ${missingEnvVars.join(', ')}`
+    );
+    console.warn('⚠️  Build may fail if these are required at runtime.');
+    console.warn('⚠️  Set SKIP_ENV_VALIDATION=1 to bypass this check.');
+  }
+}
+
 const nextConfig: NextConfig = {
   /* Performance optimizations */
   reactCompiler: true,
