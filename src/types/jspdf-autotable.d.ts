@@ -11,6 +11,7 @@ declare module 'jspdf-autotable' {
     columnStyles?: any
     margin?: any
     didDrawPage?: (data: any) => void
+    alternateRowStyles?: any
   }
   
   export default function autoTable(doc: jsPDF, options: AutoTableOptions): void
