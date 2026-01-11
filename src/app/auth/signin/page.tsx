@@ -64,11 +64,19 @@ export default function SignInPage() {
         email: formData.email,
         password: formData.password,
         redirect: false,
+        callbackUrl: "/dashboard",
       })
 
+      console.log("🔐 Sign in result:", result)
+
       if (result?.error) {
+        console.error("❌ Login error:", result.error)
         setError("Email atau password salah")
-      } else {
+        setIsLoading(false)
+        return
+      }
+
+      if (result?.ok) {
         try {
           if (rememberMe) {
             window.localStorage.setItem("sikeu.rememberMe", "true")
@@ -81,11 +89,23 @@ export default function SignInPage() {
           // ignore (private mode / disabled storage)
         }
 
-        router.push("/dashboard")
+        // Prefetch dashboard assets before redirect for faster load
+        console.log("✅ Login successful, prefetching dashboard...")
+        
+        // Use router.push with prefetch for optimized navigation
+        router.prefetch("/dashboard")
+        
+        // Small delay to allow prefetch, then navigate
+        setTimeout(() => {
+          router.push("/dashboard")
+        }, 100)
+      } else {
+        setError("Login gagal, silakan coba lagi")
+        setIsLoading(false)
       }
-    } catch {
+    } catch (err) {
+      console.error("❌ Login exception:", err)
       setError("Terjadi kesalahan saat masuk")
-    } finally {
       setIsLoading(false)
     }
   }

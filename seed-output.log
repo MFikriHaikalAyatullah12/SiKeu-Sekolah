@@ -1,0 +1,29 @@
+Environment variables loaded from .env
+Running seed command `tsx prisma/seed.ts` ...
+🌱 Starting database seeding...
+✅ Super Admin user ready: superadmin@sikeu.com
+✅ School profile created: Sekolah Menengah Atas Negeri 1
+✅ Admin user created: admin@smanjakarta.sch.id
+✅ Treasurer user created: treasurer@smanjakarta.sch.id
+✅ Categories created
+❌ Seeding failed: PrismaClientKnownRequestError: 
+Invalid `prisma.transaction.create()` invocation in
+/workspaces/SiKeu-Sekolah/prisma/seed.ts:262:30
+
+  259 ]
+  260 
+  261 for (const transaction of incomeTransactions) {
+→ 262   await prisma.transaction.create(
+Unique constraint failed on the fields: (`receiptNumber`)
+    at $n.handleRequestError (/workspaces/SiKeu-Sekolah/node_modules/@prisma/client/runtime/library.js:121:7315)
+    at $n.handleAndLogRequestError (/workspaces/SiKeu-Sekolah/node_modules/@prisma/client/runtime/library.js:121:6623)
+    at $n.request (/workspaces/SiKeu-Sekolah/node_modules/@prisma/client/runtime/library.js:121:6307)
+    at async l (/workspaces/SiKeu-Sekolah/node_modules/@prisma/client/runtime/library.js:130:9633)
+    at async main (/workspaces/SiKeu-Sekolah/prisma/seed.ts:262:5) {
+  code: 'P2002',
+  clientVersion: '5.22.0',
+  meta: { modelName: 'Transaction', target: [ 'receiptNumber' ] }
+}
+
+An error occurred while running the seed command:
+Error: Command failed with exit code 1: tsx prisma/seed.ts

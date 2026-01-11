@@ -95,7 +95,7 @@ export function DashboardContent() {
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState<any>(null);
   const [loading, setLoading] = useState(false);
-  const [dashboardLoading, setDashboardLoading] = useState(false); // Start false for instant render
+  const [dashboardLoading, setDashboardLoading] = useState(true); // Show skeleton initially
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [categories, setCategories] = useState<any[]>([]);
   const [transactions, setTransactions] = useState<any[]>([]);
@@ -149,8 +149,6 @@ export function DashboardContent() {
 
   const fetchDashboardData = useCallback(async (showToast = false, isInitial = false) => {
     try {
-      if (isInitial) setDashboardLoading(true);
-      
       // Add timestamp to prevent caching
       const timestamp = Date.now();
       
@@ -231,13 +229,11 @@ export function DashboardContent() {
   }, []);
 
   useEffect(() => {
-    // Delay initial fetch to after first paint for better LCP
-    const timeoutId = setTimeout(() => {
-      fetchDashboardData(true, true);
-      fetchSchools();
-    }, 0);
+    // Immediate fetch for faster initial load (no timeout delay)
+    fetchDashboardData(true, true);
+    fetchSchools();
     
-    // Get user role from session (non-blocking)
+    // Get user role from session (cached by NextAuth)
     fetch('/api/auth/session')
       .then(res => res.json())
       .then(session => {
@@ -247,13 +243,12 @@ export function DashboardContent() {
       })
       .catch(err => console.error('Failed to get session:', err));
     
-    // Auto refresh data setiap 30 detik (changed from 15s to reduce load)
+    // Auto refresh data every 60 seconds (reduced from 30s)
     const interval = setInterval(() => {
       fetchDashboardData(false, false);
-    }, 30000);
+    }, 60000);
     
     return () => {
-      clearTimeout(timeoutId);
       clearInterval(interval);
     };
   }, [fetchDashboardData, fetchSchools]);
