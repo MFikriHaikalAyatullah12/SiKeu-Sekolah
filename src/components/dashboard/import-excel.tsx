@@ -123,19 +123,19 @@ export default function ImportExcel() {
             Sistem akan otomatis mengelompokkan ke pemasukan/pengeluaran dan membuat kwitansi.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <CardContent className="space-y-4 md:space-y-6">
           {/* Template Download Section */}
-          <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-            <div className="flex items-start gap-3">
-              <AlertCircle className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5" />
-              <div className="flex-1">
-                <h3 className="font-semibold text-blue-900 dark:text-blue-100 mb-2">
+          <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-3 md:p-4">
+            <div className="flex items-start gap-2 md:gap-3">
+              <AlertCircle className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <h3 className="font-semibold text-blue-900 dark:text-blue-100 mb-2 text-sm md:text-base">
                   Format Excel yang Diperlukan
                 </h3>
-                <p className="text-sm text-blue-800 dark:text-blue-200 mb-3">
+                <p className="text-xs md:text-sm text-blue-800 dark:text-blue-200 mb-3">
                   File Excel harus memiliki kolom berikut (urutan tidak harus sama):
                 </p>
-                <ul className="text-sm text-blue-800 dark:text-blue-200 space-y-1 ml-4 list-disc mb-3">
+                <ul className="text-xs md:text-sm text-blue-800 dark:text-blue-200 space-y-1 ml-4 list-disc mb-3">
                   <li><strong>Tanggal</strong> - Format: DD/MM/YYYY atau DD-MM-YYYY (wajib)</li>
                   <li><strong>Keterangan</strong> - Deskripsi transaksi (wajib)</li>
                   <li><strong>Nominal</strong> - Jumlah uang (wajib)</li>
@@ -148,9 +148,9 @@ export default function ImportExcel() {
                   variant="outline" 
                   size="sm"
                   onClick={downloadTemplate}
-                  className="border-blue-300 dark:border-blue-700"
+                  className="border-blue-300 dark:border-blue-700 text-xs md:text-sm"
                 >
-                  <Download className="h-4 w-4 mr-2" />
+                  <Download className="h-3 w-3 md:h-4 md:w-4 mr-2" />
                   Download Template
                 </Button>
               </div>
@@ -159,7 +159,7 @@ export default function ImportExcel() {
 
           {/* Upload Section */}
           <div className="space-y-4">
-            <div className="border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg p-8 text-center">
+            <div className="border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg p-4 md:p-8 text-center">
               <input
                 type="file"
                 id="excel-upload"
@@ -171,12 +171,12 @@ export default function ImportExcel() {
                 htmlFor="excel-upload"
                 className="cursor-pointer flex flex-col items-center gap-2"
               >
-                <Upload className="h-12 w-12 text-gray-400" />
+                <Upload className="h-8 w-8 md:h-12 md:w-12 text-gray-400" />
                 <div>
-                  <p className="text-sm font-medium">
+                  <p className="text-xs md:text-sm font-medium">
                     Klik untuk memilih file atau drag & drop
                   </p>
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-[10px] md:text-xs text-gray-500 mt-1">
                     Excel (.xlsx, .xls) atau CSV (maks. 10MB)
                   </p>
                 </div>
@@ -275,29 +275,29 @@ export default function ImportExcel() {
             )}
 
             {/* Summary Stats */}
-            <div className="grid grid-cols-3 gap-4">
-              <div className="bg-blue-50 dark:bg-blue-950 rounded-lg p-4 border border-blue-200 dark:border-blue-800">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4">
+              <div className="bg-blue-50 dark:bg-blue-950 rounded-lg p-3 md:p-4 border border-blue-200 dark:border-blue-800">
                 <div className="flex items-center gap-2 mb-1">
                   <FileSpreadsheet className="h-4 w-4 text-blue-600" />
-                  <span className="text-sm text-blue-800 dark:text-blue-200">Total</span>
+                  <span className="text-xs md:text-sm text-blue-800 dark:text-blue-200">Total</span>
                 </div>
-                <p className="text-2xl font-bold text-blue-900 dark:text-blue-100">{result.total}</p>
+                <p className="text-xl md:text-2xl font-bold text-blue-900 dark:text-blue-100">{result.total}</p>
               </div>
               
-              <div className="bg-green-50 dark:bg-green-950 rounded-lg p-4 border border-green-200 dark:border-green-800">
+              <div className="bg-green-50 dark:bg-green-950 rounded-lg p-3 md:p-4 border border-green-200 dark:border-green-800">
                 <div className="flex items-center gap-2 mb-1">
                   <CheckCircle className="h-4 w-4 text-green-600" />
-                  <span className="text-sm text-green-800 dark:text-green-200">Berhasil</span>
+                  <span className="text-xs md:text-sm text-green-800 dark:text-green-200">Berhasil</span>
                 </div>
-                <p className="text-2xl font-bold text-green-900 dark:text-green-100">{result.success}</p>
+                <p className="text-xl md:text-2xl font-bold text-green-900 dark:text-green-100">{result.success}</p>
               </div>
               
-              <div className="bg-red-50 dark:bg-red-950 rounded-lg p-4 border border-red-200 dark:border-red-800">
+              <div className="bg-red-50 dark:bg-red-950 rounded-lg p-3 md:p-4 border border-red-200 dark:border-red-800">
                 <div className="flex items-center gap-2 mb-1">
                   <XCircle className="h-4 w-4 text-red-600" />
-                  <span className="text-sm text-red-800 dark:text-red-200">Gagal</span>
+                  <span className="text-xs md:text-sm text-red-800 dark:text-red-200">Gagal</span>
                 </div>
-                <p className="text-2xl font-bold text-red-900 dark:text-red-100">{result.failed}</p>
+                <p className="text-xl md:text-2xl font-bold text-red-900 dark:text-red-100">{result.failed}</p>
               </div>
             </div>
 

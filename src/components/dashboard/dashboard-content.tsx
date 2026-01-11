@@ -395,9 +395,9 @@ export function DashboardContent() {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3 md:space-y-4 w-full overflow-x-hidden">
       {/* Header dengan indikator refresh - fixed height */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 min-h-[52px]">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 md:gap-3">
         <div className="min-h-[44px]">
           <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
           <p className="text-sm text-gray-500 mt-1 min-h-[20px]">
@@ -424,21 +424,21 @@ export function DashboardContent() {
       </div>
 
       {/* Summary Cards - Render immediately with displayStats for fast LCP */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
         {/* Saldo Saat Ini */}
-        <Card className="hover:shadow-lg transition-shadow min-h-[140px]">
-          <CardContent className="p-6">
+        <Card className="hover:shadow-lg transition-shadow">
+          <CardContent className="p-4 md:p-6">
             <div className="flex items-center justify-between mb-2">
-              <div className="p-2.5 bg-green-100 rounded-lg">
-                <Wallet className="h-6 w-6 text-green-600" />
+              <div className="p-2 md:p-2.5 bg-green-100 rounded-lg">
+                <Wallet className="h-5 w-5 md:h-6 md:w-6 text-green-600" />
               </div>
             </div>
             <div className="space-y-1">
-              <p className="text-sm text-gray-600">Saldo Saat Ini</p>
-              <div className={`text-2xl font-bold min-h-[32px] ${dashboardLoading && !stats ? 'text-gray-300' : 'text-gray-900'}`}>
+              <p className="text-xs md:text-sm text-gray-600">Saldo Saat Ini</p>
+              <div className={`text-sm sm:text-base lg:text-lg font-bold ${dashboardLoading && !stats ? 'text-gray-300' : 'text-gray-900'}`}>
                 {formatNumber(displayStats.balance)}
               </div>
-              <p className={`text-xs min-h-[16px] ${displayStats.totalIncome - displayStats.totalExpense >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+              <p className={`text-[10px] md:text-xs leading-tight ${displayStats.totalIncome - displayStats.totalExpense >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                 {displayStats.totalIncome - displayStats.totalExpense >= 0 
                   ? `+${formatCurrency(displayStats.totalIncome - displayStats.totalExpense)}` 
                   : formatCurrency(displayStats.totalIncome - displayStats.totalExpense)} (Bulan ini)
@@ -448,19 +448,19 @@ export function DashboardContent() {
         </Card>
 
         {/* Pemasukan Bulan Ini */}
-        <Card className="hover:shadow-lg transition-shadow min-h-[140px]">
-          <CardContent className="p-6">
+        <Card className="hover:shadow-lg transition-shadow">
+          <CardContent className="p-4 md:p-6">
             <div className="flex items-center justify-between mb-2">
-              <div className="p-2.5 bg-blue-100 rounded-lg">
-                <ArrowUpIcon className="h-6 w-6 text-blue-600" />
+              <div className="p-2 md:p-2.5 bg-blue-100 rounded-lg">
+                <ArrowUpIcon className="h-5 w-5 md:h-6 md:w-6 text-blue-600" />
               </div>
             </div>
             <div className="space-y-1">
-              <p className="text-sm text-gray-600">Pemasukan Bulan Ini</p>
-              <div className={`text-2xl font-bold min-h-[32px] ${dashboardLoading && !stats ? 'text-gray-300' : 'text-gray-900'}`}>
+              <p className="text-xs md:text-sm text-gray-600">Pemasukan Bulan Ini</p>
+              <div className={`text-sm sm:text-base lg:text-lg font-bold ${dashboardLoading && !stats ? 'text-gray-300' : 'text-gray-900'}`}>
                 {formatNumber(displayStats.totalIncome)}
               </div>
-              <p className="text-xs text-gray-500 min-h-[16px]">
+              <p className="text-[10px] md:text-xs text-gray-500 leading-tight">
                 Berdasarkan {displayStats.incomeCount} transaksi
               </p>
             </div>
@@ -468,19 +468,19 @@ export function DashboardContent() {
         </Card>
 
         {/* Pengeluaran Bulan Ini */}
-        <Card className="hover:shadow-lg transition-shadow min-h-[140px]">
-          <CardContent className="p-6">
+        <Card className="hover:shadow-lg transition-shadow">
+          <CardContent className="p-4 md:p-6">
             <div className="flex items-center justify-between mb-2">
-              <div className="p-2.5 bg-red-100 rounded-lg">
-                <ArrowDownIcon className="h-6 w-6 text-red-600" />
+              <div className="p-2 md:p-2.5 bg-red-100 rounded-lg">
+                <ArrowDownIcon className="h-5 w-5 md:h-6 md:w-6 text-red-600" />
               </div>
             </div>
             <div className="space-y-1">
-              <p className="text-sm text-gray-600">Pengeluaran Bulan Ini</p>
-              <div className={`text-2xl font-bold min-h-[32px] ${dashboardLoading && !stats ? 'text-gray-300' : 'text-gray-900'}`}>
+              <p className="text-xs md:text-sm text-gray-600">Pengeluaran Bulan Ini</p>
+              <div className={`text-sm sm:text-base lg:text-lg font-bold ${dashboardLoading && !stats ? 'text-gray-300' : 'text-gray-900'}`}>
                 {formatNumber(displayStats.totalExpense)}
               </div>
-              <p className="text-xs text-gray-500 min-h-[16px]">
+              <p className="text-[10px] md:text-xs text-gray-500 leading-tight">
                 Berdasarkan {displayStats.expenseCount} transaksi
               </p>
             </div>
@@ -488,19 +488,19 @@ export function DashboardContent() {
         </Card>
 
         {/* Surplus/Defisit */}
-        <Card className="hover:shadow-lg transition-shadow min-h-[140px]">
-          <CardContent className="p-6">
+        <Card className="hover:shadow-lg transition-shadow">
+          <CardContent className="p-4 md:p-6">
             <div className="flex items-center justify-between mb-2">
-              <div className="p-2.5 bg-purple-100 rounded-lg">
-                <Scale className="h-6 w-6 text-purple-600" />
+              <div className="p-2 md:p-2.5 bg-purple-100 rounded-lg">
+                <Scale className="h-5 w-5 md:h-6 md:w-6 text-purple-600" />
               </div>
             </div>
             <div className="space-y-1">
-              <p className="text-sm text-gray-600">Surplus/Defisit</p>
-              <div className={`text-2xl font-bold min-h-[32px] ${dashboardLoading && !stats ? 'text-gray-300' : 'text-gray-900'}`}>
+              <p className="text-xs md:text-sm text-gray-600">Surplus/Defisit</p>
+              <div className={`text-sm sm:text-base lg:text-lg font-bold ${dashboardLoading && !stats ? 'text-gray-300' : 'text-gray-900'}`}>
                 {(displayStats.balance >= 0 ? '+' : '') + formatNumber(Math.abs(displayStats.balance))}
               </div>
-              <p className="text-xs text-gray-500 min-h-[16px]">
+              <p className="text-[10px] md:text-xs text-gray-500 leading-tight">
                 {displayStats.balance >= 0 ? 'Surplus' : 'Defisit'} (Bulan ini)
               </p>
             </div>
