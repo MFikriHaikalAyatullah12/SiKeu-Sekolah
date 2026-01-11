@@ -34,7 +34,7 @@ export async function GET(request: Request) {
     const where: any = {}
     
     // Get user's schoolId from session or database
-    let userSchoolId = session.user.schoolId
+    let userSchoolId: string | null = session.user.schoolId
     
     // If not in session, fetch from database
     if (!userSchoolId && session.user.role !== 'SUPER_ADMIN') {
