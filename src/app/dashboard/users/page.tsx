@@ -308,8 +308,8 @@ export default function UsersPage() {
 
       {/* Dialog for Add/Edit User */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
+        <DialogContent className="sm:max-w-[500px] max-h-[90vh] flex flex-col">
+          <DialogHeader className="flex-shrink-0">
             <DialogTitle>
               {editingUser ? "Edit Pengguna" : "Tambah Pengguna Baru"}
             </DialogTitle>
@@ -319,19 +319,20 @@ export default function UsersPage() {
                 : "Isi form di bawah untuk menambahkan pengguna baru"}
             </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
+          <div className="grid gap-4 py-4 overflow-y-auto flex-1">
             <div className="grid gap-2">
-              <Label htmlFor="name">Nama Lengkap</Label>
+              <Label htmlFor="name" className="text-sm font-medium">Nama Lengkap</Label>
               <Input
                 id="name"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 placeholder="Masukkan nama lengkap"
                 disabled={editingUser?.role === "SUPER_ADMIN"}
+                className="h-10"
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email" className="text-sm font-medium">Email</Label>
               <Input
                 id="email"
                 type="email"
@@ -339,10 +340,11 @@ export default function UsersPage() {
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 placeholder="nama@example.com"
                 disabled={editingUser?.role === "SUPER_ADMIN"}
+                className="h-10"
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="password">
+              <Label htmlFor="password" className="text-sm font-medium">
                 Password {editingUser && "(Kosongkan jika tidak ingin mengubah)"}
               </Label>
               <Input
@@ -351,16 +353,17 @@ export default function UsersPage() {
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                 placeholder="Masukkan password"
+                className="h-10"
               />
             </div>
             {editingUser?.role !== "SUPER_ADMIN" && (
               <div className="grid gap-2">
-                <Label htmlFor="role">Role</Label>
+                <Label htmlFor="role" className="text-sm font-medium">Role</Label>
                 <Select
                   value={formData.role}
                   onValueChange={(value) => setFormData({ ...formData, role: value })}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="h-10">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -374,12 +377,12 @@ export default function UsersPage() {
             )}
             {session?.user.role === "SUPER_ADMIN" && formData.role !== "SUPER_ADMIN" && (
               <div className="grid gap-2">
-                <Label htmlFor="schoolId">Sekolah</Label>
+                <Label htmlFor="schoolId" className="text-sm font-medium">Sekolah</Label>
                 <Select
                   value={formData.schoolId}
                   onValueChange={(value) => setFormData({ ...formData, schoolId: value })}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="h-10">
                     <SelectValue placeholder="Pilih sekolah" />
                   </SelectTrigger>
                   <SelectContent>
@@ -393,7 +396,7 @@ export default function UsersPage() {
               </div>
             )}
           </div>
-          <DialogFooter>
+          <DialogFooter className="flex-shrink-0 gap-2 sm:gap-0">
             <Button variant="outline" onClick={handleCloseDialog} disabled={isSaving}>
               Batal
             </Button>

@@ -3,10 +3,9 @@ import { prisma } from "@/lib/prisma"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 
-// Disable caching and enable streaming for faster response
+// Disable caching for this route
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
-export const runtime = 'nodejs' // Use Node.js runtime for better performance
 
 export async function GET(request: Request) {
   try {

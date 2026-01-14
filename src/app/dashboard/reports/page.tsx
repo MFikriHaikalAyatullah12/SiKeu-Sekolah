@@ -714,25 +714,99 @@ export default function ReportsPage() {
   
   // Get expense by category data from API and convert to chart format
   const expenseByCategory = reportData?.expenseByCategory || {}
-  const totalExpenseForChart = Object.values(expenseByCategory).reduce((sum: number, val: any) => sum + Number(val), 0)
+  const expenseByCOA = reportData?.expenseByCOA || []
+  const transactions = reportData?.transactions || []
   
-  const categoryChartData = Object.entries(expenseByCategory)
-    .map(([name, amount], index) => ({
-      name,
-      value: Number(amount),
-      percentage: totalExpenseForChart > 0 ? Math.round((Number(amount) / totalExpenseForChart) * 100) : 0,
-      color: ['#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899', '#6B7280'][index % 6]
-    }))
-    .filter(item => item.value > 0)
-    .sort((a, b) => b.value - a.value)
-    .slice(0, 5) // Top 5 categories
+  // Log for debugging
+  console.log("📊 Raw report data:", reportData)
+  console.log("📊 expenseByCategory:", expenseByCategory)
+  console.log("📊 expenseByCOA:", expenseByCOA)
+  console.log("📊 transactions count:", transactions.length)
+  console.log("📊 transactions sample:", transactions.slice(0, 3))
+  
+  let categoryChartData: any[] = []
+  
+  // PRIORITIZE: Generate from transactions directly for most accurate data
+  if (transactions.length > 0) {
+    console.log("📊 Processing transactions directly for category chart")
+    const expenseTransactions = transactions.filter((t: any) => 
+      t.type === 'EXPENSE' && t.status === 'PAID'
+    )
+    console.log("📊 Paid expense transactions:", expenseTransactions.length)
+    
+    if (expenseTransactions.length > 0) {
+      // Group by category name or COA name
+      const categoryMap: Record<string, number> = {}
+      expenseTransactions.forEach((t: any) => {
+        const categoryName = t.category?.name || t.coaAccount?.name || 'Lainnya'
+        categoryMap[categoryName] = (categoryMap[categoryName] || 0) + Number(t.amount)
+      })
+      
+      const totalExpenseForChart = Object.values(categoryMap).reduce((sum, val) => sum + val, 0)
+      console.log("📊 Category map from transactions:", categoryMap)
+      console.log("📊 Total expense for chart:", totalExpenseForChart)
+      
+      if (totalExpenseForChart > 0) {
+        categoryChartData = Object.entries(categoryMap)
+          .map(([name, amount], index) => ({
+            name,
+            value: Number(amount),
+            percentage: Math.round((Number(amount) / totalExpenseForChart) * 100),
+            color: ['#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899', '#6B7280'][index % 6]
+          }))
+          .filter((item: any) => item.value > 0)
+          .sort((a: any, b: any) => b.value - a.value)
+          .slice(0, 5)
+      }
+    }
+  }
+  
+  // Fallback 1: Try to use expenseByCategory from API
+  if (categoryChartData.length === 0 && Object.keys(expenseByCategory).length > 0) {
+    const totalExpenseForChart = Object.values(expenseByCategory).reduce((sum: number, val: any) => sum + Number(val), 0)
+    console.log("📊 Using expenseByCategory from API, total:", totalExpenseForChart)
+    
+    categoryChartData = Object.entries(expenseByCategory)
+      .map(([name, amount], index) => ({
+        name,
+        value: Number(amount),
+        percentage: totalExpenseForChart > 0 ? Math.round((Number(amount) / totalExpenseForChart) * 100) : 0,
+        color: ['#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899', '#6B7280'][index % 6]
+      }))
+      .filter((item: any) => item.value > 0)
+      .sort((a: any, b: any) => b.value - a.value)
+      .slice(0, 5)
+  } 
+  
+  // Fallback 2: Try expenseByCOA
+  if (categoryChartData.length === 0 && expenseByCOA.length > 0) {
+    const totalExpenseForChart = expenseByCOA.reduce((sum: number, item: any) => sum + Number(item.amount), 0)
+    console.log("📊 Using expenseByCOA, total:", totalExpenseForChart)
+    
+    categoryChartData = expenseByCOA
+      .map((item: any, index: number) => ({
+        name: item.name,
+        value: Number(item.amount),
+        percentage: totalExpenseForChart > 0 ? Math.round((Number(item.amount) / totalExpenseForChart) * 100) : 0,
+        color: ['#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899', '#6B7280'][index % 6]
+      }))
+      .filter((item: any) => item.value > 0)
+      .sort((a: any, b: any) => b.value - a.value)
+      .slice(0, 5)
+  }
 
-  // If no expense data, show placeholder
-  const displayCategoryData = categoryChartData.length > 0 ? categoryChartData : [
-    { name: "Belum ada data", value: 100, percentage: 100, color: "#E5E7EB" }
-  ]
-
-  console.log("📊 Chart data:", { monthlyData, categoryChartData })
+  // Use real data if available, otherwise empty array to show "no data" message
+  const displayCategoryData = categoryChartData
+  const hasRealExpenseData = categoryChartData.length > 0
+  
+  console.log("📈 Final category chart data:", categoryChartData)
+  console.log("📈 Has real expense data:", hasRealExpenseData)
+  console.log("📊 Chart data summary:", { 
+    monthlyDataCount: monthlyData.length, 
+    categoryChartDataCount: categoryChartData.length,
+    transactionsCount: transactions.length,
+    expenseTransactionsCount: transactions.filter((t: any) => t.type === 'EXPENSE').length
+  })
 
   if (loading && !reportData) {
     return (
@@ -892,16 +966,16 @@ export default function ReportsPage() {
           {/* Total Pemasukan */}
           <Card className="rounded-2xl border-0 shadow-sm bg-gradient-to-br from-blue-50 to-white">
             <CardContent className="p-5">
-              <div className="flex items-start gap-4">
-                <div className="p-3 bg-blue-100 rounded-xl">
-                  <ArrowUpRight className="h-6 w-6 text-blue-600" />
+              <div className="flex items-start gap-3">
+                <div className="p-2.5 bg-blue-100 rounded-xl flex-shrink-0">
+                  <ArrowUpRight className="h-5 w-5 text-blue-600" />
                 </div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-gray-500">Total Pemasukan</p>
-                  <p className="text-2xl font-bold text-gray-900 mt-1">
-                    Rp {(summaryData.totalIncome / 1000000).toFixed(0)}.000.000
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium text-gray-500 mb-1.5">Total Pemasukan</p>
+                  <p className="text-base md:text-lg font-bold text-gray-900 leading-tight break-words">
+                    Rp{summaryData.totalIncome.toLocaleString('id-ID')}
                   </p>
-                  <p className="text-xs text-gray-400 mt-1">Bulan Ini</p>
+                  <p className="text-[10px] text-gray-400 mt-1.5">Bulan Ini</p>
                 </div>
               </div>
             </CardContent>
@@ -910,16 +984,16 @@ export default function ReportsPage() {
           {/* Total Pengeluaran */}
           <Card className="rounded-2xl border-0 shadow-sm bg-gradient-to-br from-red-50 to-white">
             <CardContent className="p-5">
-              <div className="flex items-start gap-4">
-                <div className="p-3 bg-red-100 rounded-xl">
-                  <ArrowDownRight className="h-6 w-6 text-red-600" />
+              <div className="flex items-start gap-3">
+                <div className="p-2.5 bg-red-100 rounded-xl flex-shrink-0">
+                  <ArrowDownRight className="h-5 w-5 text-red-600" />
                 </div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-gray-500">Total Pengeluaran</p>
-                  <p className="text-2xl font-bold text-red-600 mt-1">
-                    Rp {(summaryData.totalExpense / 1000000).toFixed(0)}.000.000
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium text-gray-500 mb-1.5">Total Pengeluaran</p>
+                  <p className="text-base md:text-lg font-bold text-red-600 leading-tight break-words">
+                    Rp{summaryData.totalExpense.toLocaleString('id-ID')}
                   </p>
-                  <p className="text-xs text-gray-400 mt-1">Bulan Ini</p>
+                  <p className="text-[10px] text-gray-400 mt-1.5">Bulan Ini</p>
                 </div>
               </div>
             </CardContent>
@@ -928,16 +1002,16 @@ export default function ReportsPage() {
           {/* Surplus/Defisit */}
           <Card className="rounded-2xl border-0 shadow-sm bg-gradient-to-br from-green-50 to-white">
             <CardContent className="p-5">
-              <div className="flex items-start gap-4">
-                <div className="p-3 bg-green-100 rounded-xl">
-                  <TrendingUp className="h-6 w-6 text-green-600" />
+              <div className="flex items-start gap-3">
+                <div className="p-2.5 bg-green-100 rounded-xl flex-shrink-0">
+                  <TrendingUp className="h-5 w-5 text-green-600" />
                 </div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-gray-500">Surplus/Defisit</p>
-                  <p className="text-2xl font-bold text-green-600 mt-1">
-                    +Rp {(summaryData.balance / 1000000).toFixed(0)}.000.000
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium text-gray-500 mb-1.5">Surplus/Defisit</p>
+                  <p className={`text-base md:text-lg font-bold leading-tight break-words ${summaryData.balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {summaryData.balance >= 0 ? '+' : ''}Rp{Math.abs(summaryData.balance).toLocaleString('id-ID')}
                   </p>
-                  <p className="text-xs text-gray-400 mt-1">Bulan Ini</p>
+                  <p className="text-[10px] text-gray-400 mt-1.5">Bulan Ini</p>
                 </div>
               </div>
             </CardContent>
@@ -946,16 +1020,16 @@ export default function ReportsPage() {
           {/* Saldo Akhir */}
           <Card className="rounded-2xl border-0 shadow-sm bg-gradient-to-br from-purple-50 to-white">
             <CardContent className="p-5">
-              <div className="flex items-start gap-4">
-                <div className="p-3 bg-purple-100 rounded-xl">
-                  <Wallet className="h-6 w-6 text-purple-600" />
+              <div className="flex items-start gap-3">
+                <div className="p-2.5 bg-purple-100 rounded-xl flex-shrink-0">
+                  <Wallet className="h-5 w-5 text-purple-600" />
                 </div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-gray-500">Saldo Akhir</p>
-                  <p className="text-2xl font-bold text-gray-900 mt-1">
-                    Rp {(summaryData.finalBalance / 1000000).toFixed(0)}.000.000
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium text-gray-500 mb-1.5">Saldo Akhir</p>
+                  <p className="text-base md:text-lg font-bold text-gray-900 leading-tight break-words">
+                    Rp{summaryData.finalBalance.toLocaleString('id-ID')}
                   </p>
-                  <p className="text-xs text-gray-400 mt-1">Per 31 Des 2025</p>
+                  <p className="text-[10px] text-gray-400 mt-1.5">Per 31 Des 2025</p>
                 </div>
               </div>
             </CardContent>
@@ -1101,74 +1175,87 @@ export default function ReportsPage() {
           {/* Donut Chart - Komposisi Kategori */}
           <Card className="rounded-2xl border-0 shadow-sm">
             <CardHeader className="pb-2">
-              <CardTitle className="text-base font-semibold">Komposisi Kategori</CardTitle>
+              <CardTitle className="text-base font-semibold">Komposisi Kategori Pengeluaran</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="flex items-center gap-6">
-                {/* Legend */}
-                <div className="space-y-3 text-sm">
-                  {displayCategoryData.map((item, index) => (
-                    <div key={index} className="flex items-center gap-2">
-                      <span 
-                        className="w-3 h-3 rounded-full" 
-                        style={{ backgroundColor: item.color }}
-                      ></span>
-                      <span className="text-gray-600 text-xs">{item.name}</span>
+              {hasRealExpenseData ? (
+                <div className="flex items-center gap-6">
+                  {/* Legend */}
+                  <div className="space-y-2 text-sm flex-shrink-0">
+                    {displayCategoryData.map((item, index) => (
+                        <div key={index} className="flex items-center gap-2">
+                          <span 
+                            className="w-3 h-3 rounded-full flex-shrink-0" 
+                            style={{ backgroundColor: item.color }}
+                          ></span>
+                          <div className="flex flex-col">
+                            <span className="text-gray-700 text-xs font-medium truncate max-w-[120px]" title={item.name}>
+                              {item.name}
+                            </span>
+                            <span className="text-gray-500 text-[10px]">
+                              {item.percentage}%
+                            </span>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-                
-                {/* Donut Chart SVG */}
-                <div className="relative w-[180px] h-[180px]">
-                  <svg viewBox="0 0 100 100" className="w-full h-full transform -rotate-90">
-                    {/* Background circle */}
-                    <circle cx="50" cy="50" r="40" fill="none" stroke="#f3f4f6" strokeWidth="20" />
                     
-                    {/* Segments */}
-                    {(() => {
-                      let cumulativeOffset = 0;
-                      return displayCategoryData.map((item, index) => {
-                        const circumference = 2 * Math.PI * 40;
-                        const strokeDasharray = `${(item.percentage / 100) * circumference} ${circumference}`;
-                        const strokeDashoffset = -cumulativeOffset * circumference / 100;
-                        cumulativeOffset += item.percentage;
+                    {/* Donut Chart SVG */}
+                    <div className="relative w-[180px] h-[180px] flex-shrink-0">
+                      <svg viewBox="0 0 100 100" className="w-full h-full transform -rotate-90">
+                        {/* Background circle */}
+                        <circle cx="50" cy="50" r="40" fill="none" stroke="#f3f4f6" strokeWidth="20" />
                         
-                        return (
-                          <circle
-                            key={index}
-                            cx="50"
-                            cy="50"
-                            r="40"
-                            fill="none"
-                            stroke={item.color}
-                            strokeWidth="20"
-                            strokeDasharray={strokeDasharray}
-                            strokeDashoffset={strokeDashoffset}
-                          />
-                        );
-                      });
-                    })()}
-                  </svg>
-                  
-                  {/* Percentage labels overlay */}
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="text-center">
-                      {displayCategoryData.length > 0 && displayCategoryData[0].name !== "Belum ada data" ? (
-                        <>
-                          <span className="text-2xl font-bold" style={{ color: displayCategoryData[0].color }}>
-                            {displayCategoryData[0].percentage}%
-                          </span>
-                          <p className="text-[10px] text-gray-500 mt-0.5 max-w-[100px] truncate">
-                            {displayCategoryData[0].name}
-                          </p>
-                        </>
-                      ) : (
-                        <span className="text-sm text-gray-400">Belum ada data</span>
-                      )}
+                        {/* Segments */}
+                        {(() => {
+                          let cumulativeOffset = 0;
+                          return displayCategoryData.map((item, index) => {
+                            const circumference = 2 * Math.PI * 40;
+                            const strokeDasharray = `${(item.percentage / 100) * circumference} ${circumference}`;
+                            const strokeDashoffset = -cumulativeOffset * circumference / 100;
+                            cumulativeOffset += item.percentage;
+                            
+                            return (
+                              <circle
+                                key={index}
+                                cx="50"
+                                cy="50"
+                                r="40"
+                                fill="none"
+                                stroke={item.color}
+                                strokeWidth="20"
+                                strokeDasharray={strokeDasharray}
+                                strokeDashoffset={strokeDashoffset}
+                              />
+                            );
+                          });
+                      })()}
+                    </svg>
+                    
+                    {/* Center label */}
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="text-center">
+                        <span className="text-2xl font-bold text-gray-800">
+                          {displayCategoryData.length}
+                        </span>
+                        <p className="text-[10px] text-gray-500 mt-0.5">
+                          Kategori
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
+              ) : (
+                <div className="flex items-center justify-center h-[180px] text-gray-400">
+                  <div className="text-center">
+                    <div className="w-16 h-16 mx-auto mb-3 rounded-full bg-gray-100 flex items-center justify-center">
+                      <TrendingDown className="h-8 w-8 text-gray-300" />
+                    </div>
+                    <p className="text-sm font-medium text-gray-600">Belum ada transaksi pengeluaran</p>
+                    <p className="text-xs mt-1 text-gray-400">Kategori akan muncul setelah ada transaksi pengeluaran</p>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>

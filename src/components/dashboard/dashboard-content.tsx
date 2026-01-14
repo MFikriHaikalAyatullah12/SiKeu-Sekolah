@@ -428,15 +428,15 @@ export function DashboardContent() {
         {/* Saldo Saat Ini */}
         <Card className="hover:shadow-lg transition-shadow">
           <CardContent className="p-4 md:p-6">
-            <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center justify-between mb-3">
               <div className="p-2 md:p-2.5 bg-green-100 rounded-lg">
                 <Wallet className="h-5 w-5 md:h-6 md:w-6 text-green-600" />
               </div>
             </div>
-            <div className="space-y-1">
-              <p className="text-xs md:text-sm text-gray-600">Saldo Saat Ini</p>
-              <div className={`text-sm sm:text-base lg:text-lg font-bold ${dashboardLoading && !stats ? 'text-gray-300' : 'text-gray-900'}`}>
-                {formatNumber(displayStats.balance)}
+            <div className="space-y-1.5">
+              <p className="text-xs md:text-sm text-gray-600 font-medium">Saldo Saat Ini</p>
+              <div className={`text-lg md:text-xl font-bold leading-tight ${dashboardLoading && !stats ? 'text-gray-300' : 'text-gray-900'}`}>
+                {formatNumber(displayStats.balance).replace('Rp\u00A0', 'Rp')}
               </div>
               <p className={`text-[10px] md:text-xs leading-tight ${displayStats.totalIncome - displayStats.totalExpense >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                 {displayStats.totalIncome - displayStats.totalExpense >= 0 
@@ -450,15 +450,15 @@ export function DashboardContent() {
         {/* Pemasukan Bulan Ini */}
         <Card className="hover:shadow-lg transition-shadow">
           <CardContent className="p-4 md:p-6">
-            <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center justify-between mb-3">
               <div className="p-2 md:p-2.5 bg-blue-100 rounded-lg">
                 <ArrowUpIcon className="h-5 w-5 md:h-6 md:w-6 text-blue-600" />
               </div>
             </div>
-            <div className="space-y-1">
-              <p className="text-xs md:text-sm text-gray-600">Pemasukan Bulan Ini</p>
-              <div className={`text-sm sm:text-base lg:text-lg font-bold ${dashboardLoading && !stats ? 'text-gray-300' : 'text-gray-900'}`}>
-                {formatNumber(displayStats.totalIncome)}
+            <div className="space-y-1.5">
+              <p className="text-xs md:text-sm text-gray-600 font-medium">Pemasukan Bulan Ini</p>
+              <div className={`text-lg md:text-xl font-bold leading-tight ${dashboardLoading && !stats ? 'text-gray-300' : 'text-gray-900'}`}>
+                {formatNumber(displayStats.totalIncome).replace('Rp\u00A0', 'Rp')}
               </div>
               <p className="text-[10px] md:text-xs text-gray-500 leading-tight">
                 Berdasarkan {displayStats.incomeCount} transaksi
@@ -470,15 +470,15 @@ export function DashboardContent() {
         {/* Pengeluaran Bulan Ini */}
         <Card className="hover:shadow-lg transition-shadow">
           <CardContent className="p-4 md:p-6">
-            <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center justify-between mb-3">
               <div className="p-2 md:p-2.5 bg-red-100 rounded-lg">
                 <ArrowDownIcon className="h-5 w-5 md:h-6 md:w-6 text-red-600" />
               </div>
             </div>
-            <div className="space-y-1">
-              <p className="text-xs md:text-sm text-gray-600">Pengeluaran Bulan Ini</p>
-              <div className={`text-sm sm:text-base lg:text-lg font-bold ${dashboardLoading && !stats ? 'text-gray-300' : 'text-gray-900'}`}>
-                {formatNumber(displayStats.totalExpense)}
+            <div className="space-y-1.5">
+              <p className="text-xs md:text-sm text-gray-600 font-medium">Pengeluaran Bulan Ini</p>
+              <div className={`text-lg md:text-xl font-bold leading-tight ${dashboardLoading && !stats ? 'text-gray-300' : 'text-gray-900'}`}>
+                {formatNumber(displayStats.totalExpense).replace('Rp\u00A0', 'Rp')}
               </div>
               <p className="text-[10px] md:text-xs text-gray-500 leading-tight">
                 Berdasarkan {displayStats.expenseCount} transaksi
@@ -490,15 +490,15 @@ export function DashboardContent() {
         {/* Surplus/Defisit */}
         <Card className="hover:shadow-lg transition-shadow">
           <CardContent className="p-4 md:p-6">
-            <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center justify-between mb-3">
               <div className="p-2 md:p-2.5 bg-purple-100 rounded-lg">
                 <Scale className="h-5 w-5 md:h-6 md:w-6 text-purple-600" />
               </div>
             </div>
-            <div className="space-y-1">
-              <p className="text-xs md:text-sm text-gray-600">Surplus/Defisit</p>
-              <div className={`text-sm sm:text-base lg:text-lg font-bold ${dashboardLoading && !stats ? 'text-gray-300' : 'text-gray-900'}`}>
-                {(displayStats.balance >= 0 ? '+' : '') + formatNumber(Math.abs(displayStats.balance))}
+            <div className="space-y-1.5">
+              <p className="text-xs md:text-sm text-gray-600 font-medium">Surplus/Defisit</p>
+              <div className={`text-lg md:text-xl font-bold leading-tight ${dashboardLoading && !stats ? 'text-gray-300' : displayStats.balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                {(displayStats.balance >= 0 ? '+' : '') + formatNumber(Math.abs(displayStats.balance)).replace('Rp\u00A0', 'Rp')}
               </div>
               <p className="text-[10px] md:text-xs text-gray-500 leading-tight">
                 {displayStats.balance >= 0 ? 'Surplus' : 'Defisit'} (Bulan ini)

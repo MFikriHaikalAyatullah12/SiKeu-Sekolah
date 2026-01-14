@@ -136,20 +136,27 @@ export async function DELETE(
       return NextResponse.json({ error: "User not found" }, { status: 404 })
     }
 
-    // Check if user has transactions
+    // Super Admin can delete users regardless of transaction history
+    // We'll reassign transactions to the Super Admin performing the deletion
+    
+    // Get transaction count for logging
     const transactionCount = await prisma.transaction.count({
       where: { createdById: id }
     })
-
-    if (transactionCount > 0) {
-      return NextResponse.json(
-        { error: `Tidak dapat menghapus user karena memiliki ${transactionCount} transaksi. Nonaktifkan user sebagai gantinya.` },
-        { status: 400 }
-      )
-    }
+    
+    console.log(`Deleting user ${id} with ${transactionCount} transactions`)
 
     // Delete related data first (to handle foreign key constraints)
     await prisma.$transaction(async (tx) => {
+      // Reassign user's transactions to the current Super Admin
+      if (transactionCount > 0) {
+        await tx.transaction.updateMany({
+          where: { createdById: id },
+          data: { createdById: session.user.id }
+        })
+        console.log(`Reassigned ${transactionCount} transactions to ${session.user.id}`)
+      }
+      
       // Delete user's sessions
       await tx.session.deleteMany({
         where: { userId: id }
