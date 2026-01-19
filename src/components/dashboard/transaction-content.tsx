@@ -143,6 +143,24 @@ export function TransactionContent() {
     notes: "",
     schoolId: "",
   });
+  
+  // State untuk preview gambar
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+
+  // Helper functions untuk format currency input
+  const formatCurrencyInput = (value: string): string => {
+    // Hapus semua karakter non-digit
+    const numbers = value.replace(/\D/g, '');
+    if (!numbers) return '';
+    
+    // Format dengan pemisah ribuan (titik)
+    return numbers.replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1.');
+  };
+
+  const parseCurrencyInput = (value: string): string => {
+    // Hapus semua titik pemisah untuk mendapatkan angka murni
+    return value.replace(/\./g, '');
+  };
 
   // Get available types based on selected category
   const currentCategories = activeTab === "INCOME" ? incomeCategories : expenseCategories;
@@ -279,13 +297,29 @@ export function TransactionContent() {
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const maxSize = 5 * 1024 * 1024; // 5MB
-      if (file.size > maxSize) {
-        toast.error("Ukuran file maksimal 5MB");
+      // Validasi tipe file
+      const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+      if (!validTypes.includes(file.type)) {
+        toast.error("Format file harus JPG, PNG, GIF, atau WebP");
         return;
       }
+      
+      const maxSize = 10 * 1024 * 1024; // 10MB
+      if (file.size > maxSize) {
+        toast.error("Ukuran file maksimal 10MB");
+        return;
+      }
+      
       setFormData({ ...formData, proof: file });
-      toast.success("File berhasil dipilih");
+      
+      // Buat preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+      
+      toast.success("Gambar berhasil dipilih");
     }
   };
 
@@ -297,13 +331,29 @@ export function TransactionContent() {
     e.preventDefault();
     const file = e.dataTransfer.files?.[0];
     if (file) {
-      const maxSize = 5 * 1024 * 1024;
-      if (file.size > maxSize) {
-        toast.error("Ukuran file maksimal 5MB");
+      // Validasi tipe file
+      const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+      if (!validTypes.includes(file.type)) {
+        toast.error("Format file harus JPG, PNG, GIF, atau WebP");
         return;
       }
+      
+      const maxSize = 10 * 1024 * 1024; // 10MB
+      if (file.size > maxSize) {
+        toast.error("Ukuran file maksimal 10MB");
+        return;
+      }
+      
       setFormData({ ...formData, proof: file });
-      toast.success("File berhasil dipilih");
+      
+      // Buat preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+      
+      toast.success("Gambar berhasil dipilih");
     }
   };
 
@@ -321,6 +371,7 @@ export function TransactionContent() {
       notes: "",
       schoolId: "",
     });
+    setImagePreview(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
@@ -343,6 +394,27 @@ export function TransactionContent() {
       const selectedCat = currentCategories.find((c: any) => c.id === formData.categoryId);
       const selectedType = selectedCat?.types.find((t: any) => t.id === formData.typeId);
       
+      // Upload gambar terlebih dahulu jika ada
+      let receiptFileUrl = null;
+      if (formData.proof) {
+        const uploadFormData = new FormData();
+        uploadFormData.append('file', formData.proof);
+        
+        const uploadResponse = await fetch('/api/upload', {
+          method: 'POST',
+          body: uploadFormData,
+        });
+        
+        if (uploadResponse.ok) {
+          const uploadData = await uploadResponse.json();
+          receiptFileUrl = uploadData.url;
+        } else {
+          toast.error('Gagal mengupload gambar');
+          setLoading(false);
+          return;
+        }
+      }
+      
       // Prepare request body
       // categoryId di form adalah COA Category ID, typeId adalah COA Account ID
       // Kita perlu create/find proper Category untuk transaction
@@ -356,6 +428,8 @@ export function TransactionContent() {
         status: formData.status,
         schoolId: formData.schoolId || undefined,
         coaAccountId: formData.typeId || undefined, // typeId adalah COA Account ID
+        receiptFileUrl: receiptFileUrl || undefined,
+        notes: formData.notes || undefined,
       };
 
       // Gunakan nama kategori sebagai categoryId untuk auto-create di backend
@@ -831,10 +905,14 @@ export function TransactionContent() {
                   <Label htmlFor="amount">Nominal (Rp)</Label>
                   <Input
                     id="amount"
-                    type="number"
-                    value={formData.amount}
-                    onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-                    placeholder="Masukkan nominal"
+                    type="text"
+                    inputMode="numeric"
+                    value={formatCurrencyInput(formData.amount)}
+                    onChange={(e) => {
+                      const rawValue = parseCurrencyInput(e.target.value);
+                      setFormData({ ...formData, amount: rawValue });
+                    }}
+                    placeholder="Masukkan nominal (contoh: 1.000.000)"
                   />
                 </div>
 
@@ -909,6 +987,68 @@ export function TransactionContent() {
                   placeholder="Tambahkan catatan jika diperlukan"
                   rows={3}
                 />
+              </div>
+
+              {/* Upload Bukti Transaksi */}
+              <div className="space-y-2">
+                <Label htmlFor="receipt-upload">Bukti Transaksi (Opsional)</Label>
+                <div 
+                  className="border-2 border-dashed border-gray-300 rounded-lg p-6 hover:border-gray-400 transition-colors cursor-pointer"
+                  onDragOver={handleDragOver}
+                  onDrop={handleDrop}
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFileUpload}
+                    className="hidden"
+                    id="receipt-upload"
+                  />
+                  
+                  {imagePreview ? (
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-center">
+                        <img 
+                          src={imagePreview} 
+                          alt="Preview bukti transaksi" 
+                          className="max-h-48 rounded-lg object-contain"
+                        />
+                      </div>
+                      <div className="flex items-center justify-center gap-2">
+                        <p className="text-sm text-gray-600">
+                          {formData.proof?.name}
+                        </p>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setFormData({ ...formData, proof: null });
+                            setImagePreview(null);
+                            if (fileInputRef.current) {
+                              fileInputRef.current.value = "";
+                            }
+                          }}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center">
+                      <Upload className="h-10 w-10 mx-auto mb-3 text-gray-400" />
+                      <p className="text-sm text-gray-600 mb-1">
+                        Klik untuk upload atau drag & drop
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        Format: JPG, PNG, GIF, WebP (Max 10MB)
+                      </p>
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Submit Buttons */}
@@ -1141,61 +1281,81 @@ export function TransactionContent() {
 
       {/* Transaction Detail Modal */}
       <Dialog open={showDetailModal} onOpenChange={setShowDetailModal}>
-        <DialogContent className="sm:max-w-[600px]">
-          <DialogHeader>
+        <DialogContent className="sm:max-w-[700px] max-h-[90vh] flex flex-col">
+          <DialogHeader className="flex-shrink-0">
             <DialogTitle>Detail Transaksi</DialogTitle>
           </DialogHeader>
           
           {selectedTransaction && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-3 overflow-y-auto flex-1 pr-2">
+              <div className="grid grid-cols-2 gap-3 text-sm">
                 <div>
-                  <Label className="text-sm font-medium text-gray-500">Tanggal</Label>
-                  <p className="text-sm">{formatDateTime(selectedTransaction.date)}</p>
+                  <Label className="text-xs font-medium text-gray-500">Tanggal</Label>
+                  <p className="text-sm mt-1">{formatDateTime(selectedTransaction.date)}</p>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium text-gray-500">Tipe</Label>
-                  <Badge className={selectedTransaction.type === "INCOME" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}>
-                    {selectedTransaction.type === "INCOME" ? "Pemasukan" : "Pengeluaran"}
-                  </Badge>
+                  <Label className="text-xs font-medium text-gray-500">Tipe</Label>
+                  <div className="mt-1">
+                    <Badge className={selectedTransaction.type === "INCOME" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}>
+                      {selectedTransaction.type === "INCOME" ? "Pemasukan" : "Pengeluaran"}
+                    </Badge>
+                  </div>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium text-gray-500">Nominal</Label>
-                  <p className="text-lg font-bold">{formatCurrency(selectedTransaction.amount)}</p>
+                  <Label className="text-xs font-medium text-gray-500">Nominal</Label>
+                  <p className="text-base font-bold mt-1">{formatCurrency(selectedTransaction.amount)}</p>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium text-gray-500">Status</Label>
-                  <Badge className={getStatusBadgeClass(selectedTransaction.status)}>
-                    {getStatusLabel(selectedTransaction.status)}
-                  </Badge>
+                  <Label className="text-xs font-medium text-gray-500">Status</Label>
+                  <div className="mt-1">
+                    <Badge className={getStatusBadgeClass(selectedTransaction.status)}>
+                      {getStatusLabel(selectedTransaction.status)}
+                    </Badge>
+                  </div>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium text-gray-500">
+                  <Label className="text-xs font-medium text-gray-500">
                     {selectedTransaction.type === "INCOME" ? "Dari" : "Kepada"}
                   </Label>
-                  <p className="text-sm">{selectedTransaction.fromTo}</p>
+                  <p className="text-sm mt-1">{selectedTransaction.fromTo}</p>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium text-gray-500">Metode Pembayaran</Label>
-                  <p className="text-sm">{getPaymentMethodLabel(selectedTransaction.paymentMethod)}</p>
+                  <Label className="text-xs font-medium text-gray-500">Metode Pembayaran</Label>
+                  <p className="text-sm mt-1">{getPaymentMethodLabel(selectedTransaction.paymentMethod)}</p>
                 </div>
               </div>
               
               <div>
-                <Label className="text-sm font-medium text-gray-500">Deskripsi</Label>
-                <p className="text-sm">{selectedTransaction.description}</p>
+                <Label className="text-xs font-medium text-gray-500">Deskripsi</Label>
+                <p className="text-sm mt-1">{selectedTransaction.description}</p>
               </div>
 
               {selectedTransaction.notes && (
                 <div>
-                  <Label className="text-sm font-medium text-gray-500">Catatan</Label>
-                  <p className="text-sm">{selectedTransaction.notes}</p>
+                  <Label className="text-xs font-medium text-gray-500">Catatan</Label>
+                  <p className="text-sm mt-1">{selectedTransaction.notes}</p>
+                </div>
+              )}
+
+              {selectedTransaction.receiptFileUrl && (
+                <div>
+                  <Label className="text-xs font-medium text-gray-500">Bukti Pembayaran</Label>
+                  <div className="mt-2 border rounded-lg p-2 bg-gray-50">
+                    <img 
+                      src={selectedTransaction.receiptFileUrl} 
+                      alt="Bukti pembayaran" 
+                      className="w-full h-auto max-h-48 object-contain rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
+                      onClick={() => window.open(selectedTransaction.receiptFileUrl, '_blank')}
+                      title="Klik untuk melihat ukuran penuh"
+                    />
+                    <p className="text-xs text-center text-gray-500 mt-2">Klik gambar untuk melihat ukuran penuh</p>
+                  </div>
                 </div>
               )}
 
               <div className="bg-gray-50 p-3 rounded-lg">
-                <Label className="text-sm font-medium text-gray-500">Informasi Sistem</Label>
-                <div className="grid grid-cols-2 gap-4 mt-2">
+                <Label className="text-xs font-medium text-gray-500">Informasi Sistem</Label>
+                <div className="grid grid-cols-2 gap-3 mt-2">
                   <div>
                     <p className="text-xs text-gray-500">Dibuat oleh</p>
                     <p className="text-sm">{selectedTransaction.createdBy?.name || 'System'}</p>
@@ -1209,7 +1369,7 @@ export function TransactionContent() {
             </div>
           )}
           
-          <DialogFooter>
+          <DialogFooter className="flex-shrink-0 mt-4">
             <Button onClick={() => setShowDetailModal(false)}>Tutup</Button>
           </DialogFooter>
         </DialogContent>
@@ -1291,10 +1451,14 @@ export function TransactionContent() {
               <Label htmlFor="amount">Nominal (Rp)</Label>
               <Input
                 id="amount"
-                type="number"
-                value={dialogFormData.amount}
-                onChange={(e) => setDialogFormData({ ...dialogFormData, amount: e.target.value })}
-                placeholder="Masukkan nominal"
+                type="text"
+                inputMode="numeric"
+                value={formatCurrencyInput(dialogFormData.amount)}
+                onChange={(e) => {
+                  const rawValue = parseCurrencyInput(e.target.value);
+                  setDialogFormData({ ...dialogFormData, amount: rawValue });
+                }}
+                placeholder="Masukkan nominal (contoh: 1.000.000)"
               />
             </div>
             

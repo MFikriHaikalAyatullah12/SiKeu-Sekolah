@@ -116,6 +116,21 @@ export function DashboardContent() {
     schoolId: ""
   });
 
+  // Helper functions untuk format currency input
+  const formatCurrencyInput = (value: string): string => {
+    // Hapus semua karakter non-digit
+    const numbers = value.replace(/\D/g, '');
+    if (!numbers) return '';
+    
+    // Format dengan pemisah ribuan (titik)
+    return numbers.replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1.');
+  };
+
+  const parseCurrencyInput = (value: string): string => {
+    // Hapus semua titik pemisah untuk mendapatkan angka murni
+    return value.replace(/\./g, '');
+  };
+
   // Get current COA categories based on transaction type
   const coaCategories = useMemo(() => 
     transactionType === "INCOME" ? incomeCategories : expenseCategories,
@@ -708,10 +723,14 @@ export function DashboardContent() {
               <Label htmlFor="amount">Nominal (Rp)</Label>
               <Input
                 id="amount"
-                type="number"
-                value={formData.amount}
-                onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-                placeholder="Masukkan nominal"
+                type="text"
+                inputMode="numeric"
+                value={formatCurrencyInput(formData.amount)}
+                onChange={(e) => {
+                  const rawValue = parseCurrencyInput(e.target.value);
+                  setFormData({ ...formData, amount: rawValue });
+                }}
+                placeholder="Masukkan nominal (contoh: 1.000.000)"
               />
             </div>
             <div className="grid gap-2">
