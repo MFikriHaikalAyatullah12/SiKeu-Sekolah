@@ -164,13 +164,19 @@ export function DashboardContent() {
 
   const fetchDashboardData = useCallback(async (showToast = false, isInitial = false) => {
     try {
-      // Add timestamp to prevent caching
+      // Add timestamp and random string to prevent any caching
       const timestamp = Date.now();
+      const random = Math.random().toString(36).substring(7);
       
-      // Fetch stats first (most important for UI)
-      const statsRes = await fetch(`/api/dashboard/stats?_t=${timestamp}`, { 
+      // Fetch stats first (most important for UI) with aggressive cache busting
+      const statsRes = await fetch(`/api/dashboard/stats?_t=${timestamp}&_r=${random}`, { 
         cache: 'no-store',
-        next: { revalidate: 0 }
+        next: { revalidate: 0 },
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
       });
 
       // Process stats immediately
@@ -222,8 +228,20 @@ export function DashboardContent() {
 
       // Fetch secondary data in background (non-blocking)
       Promise.all([
-        fetch(`/api/categories?_t=${timestamp}`, { cache: 'no-store' }),
-        fetch(`/api/transactions?limit=5&_t=${timestamp}`, { cache: 'no-store' }),
+        fetch(`/api/categories?_t=${timestamp}&_r=${random}`, { 
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache'
+          }
+        }),
+        fetch(`/api/transactions?limit=5&_t=${timestamp}&_r=${random}`, { 
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache'
+          }
+        }),
       ]).then(async ([categoriesRes, transactionsRes]) => {
         if (categoriesRes.ok) {
           const data = await categoriesRes.json();
@@ -258,10 +276,10 @@ export function DashboardContent() {
       })
       .catch(err => console.error('Failed to get session:', err));
     
-    // Auto refresh data every 60 seconds (reduced from 30s)
+    // Auto refresh data every 10 seconds for real-time updates
     const interval = setInterval(() => {
       fetchDashboardData(false, false);
-    }, 60000);
+    }, 10000);
     
     return () => {
       clearInterval(interval);
@@ -336,7 +354,8 @@ export function DashboardContent() {
       if (response.ok) {
         toast.success(`${transactionType === "INCOME" ? "Pemasukan" : "Pengeluaran"} berhasil ditambahkan`);
         handleCloseDialog();
-        await fetchDashboardData(false, false);
+        // Immediate refresh to show updated data
+        await fetchDashboardData(true, false);
       } else {
         toast.error(data.error || "Gagal menambahkan transaksi");
       }
@@ -368,7 +387,8 @@ export function DashboardContent() {
 
       if (response.ok) {
         toast.success("Transaksi berhasil dihapus");
-        fetchDashboardData(false, false);
+        // Immediate refresh to show updated data
+        await fetchDashboardData(true, false);
       } else {
         const data = await response.json();
         toast.error(data.error || "Gagal menghapus transaksi");
@@ -415,8 +435,16 @@ export function DashboardContent() {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 md:gap-3">
         <div className="min-h-[44px]">
           <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-          <p className="text-sm text-gray-500 mt-1 min-h-[20px]">
-            {lastUpdated ? `Terakhir diperbarui: ${lastUpdated.toLocaleString('id-ID')}` : 'Memuat data...'}
+          <p className="text-sm text-gray-500 mt-1 min-h-[20px] flex items-center gap-2">
+            {lastUpdated ? (
+              <>
+                Terakhir diperbarui: {lastUpdated.toLocaleString('id-ID')}
+                <span className="inline-flex items-center gap-1 text-xs text-green-600">
+                  <span className="h-2 w-2 bg-green-500 rounded-full animate-pulse"></span>
+                  Auto-refresh 10 detik
+                </span>
+              </>
+            ) : 'Memuat data...'}
           </p>
         </div>
         <div className="flex items-center space-x-3">

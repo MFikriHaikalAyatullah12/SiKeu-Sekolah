@@ -3,9 +3,11 @@ import { prisma } from "@/lib/prisma"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 
-// Disable caching for this route
+// Disable caching for this route - FORCE NO CACHE
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
+export const fetchCache = 'force-no-store'
+export const runtime = 'nodejs'
 
 export async function GET(request: Request) {
   try {
@@ -100,40 +102,26 @@ export async function GET(request: Request) {
       }
     }
 
-    // For Super Admin, show all data regardless of date range for better dashboard visibility
-    // For Treasurer, limit to 3 months only
-    if (session.user.role === 'SUPER_ADMIN' && !startDate && !endDate) {
-      // Don't filter by date for Super Admin's dashboard overview
-      console.log("🔓 SUPER_ADMIN: No date filter applied")
-    } else if (session.user.role === 'TREASURER') {
-      // Always limit Treasurer to 3 months regardless of date parameters
-      const now = new Date()
-      now.setHours(23, 59, 59, 999) // End of today
-      
-      // Start from first day of 3 months ago
-      const threeMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 3, 1, 0, 0, 0, 0)
-      
-      where.date = {
-        gte: threeMonthsAgo,
-        lte: now
-      }
-      
-      console.log("🔒 TREASURER 3-month filter applied:", {
-        from: threeMonthsAgo.toISOString(),
-        to: now.toISOString(),
-        rangeInDays: Math.ceil((now.getTime() - threeMonthsAgo.getTime()) / (1000 * 60 * 60 * 24))
-      })
-    } else if (startDate && endDate) {
+    // Filter berdasarkan date range
+    // Untuk summary stats (total income/expense), SELALU filter per bulan ini
+    // Untuk chart, ambil 3-6 bulan terakhir
+    if (startDate && endDate) {
+      // Custom date range from request
       where.date = {
         gte: new Date(startDate),
         lte: new Date(endDate)
       }
+      console.log("📅 Custom date filter applied:", { from: startDate, to: endDate })
     } else {
-      // For non-Super Admin or when specific date range is requested
+      // Default: filter bulan ini untuk summary cards
       where.date = {
         gte: firstDayOfMonth,
         lte: lastDayOfMonth
       }
+      console.log("📅 Current month filter applied:", {
+        from: firstDayOfMonth.toISOString(),
+        to: lastDayOfMonth.toISOString()
+      })
     }
 
     console.log("📊 Dashboard stats query:", {
@@ -327,7 +315,7 @@ export async function GET(request: Request) {
       })
     );
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       stats: {
         totalIncome,
         totalExpense,
@@ -339,6 +327,13 @@ export async function GET(request: Request) {
       },
       recentTransactions: transactions
     })
+    
+    // Add no-cache headers to force fresh data
+    response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
+    response.headers.set('Pragma', 'no-cache')
+    response.headers.set('Expires', '0')
+    
+    return response
   } catch (error) {
     console.error("Get dashboard stats error:", error)
     return NextResponse.json(

@@ -965,17 +965,17 @@ export default function ReportsPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Total Pemasukan */}
           <Card className="rounded-2xl border-0 shadow-sm bg-gradient-to-br from-blue-50 to-white">
-            <CardContent className="p-5">
-              <div className="flex items-start gap-3">
-                <div className="p-2.5 bg-blue-100 rounded-xl flex-shrink-0">
-                  <ArrowUpRight className="h-5 w-5 text-blue-600" />
+            <CardContent className="p-4">
+              <div className="flex items-start gap-2.5">
+                <div className="p-2 bg-blue-100 rounded-xl flex-shrink-0">
+                  <ArrowUpRight className="h-4 w-4 text-blue-600" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs font-medium text-gray-500 mb-1.5">Total Pemasukan</p>
-                  <p className="text-base md:text-lg font-bold text-gray-900 leading-tight break-words">
+                  <p className="text-xs font-medium text-gray-500 mb-1">Total Pemasukan</p>
+                  <p className="text-xs font-bold text-gray-900 break-words leading-tight">
                     Rp{summaryData.totalIncome.toLocaleString('id-ID')}
                   </p>
-                  <p className="text-[10px] text-gray-400 mt-1.5">Bulan Ini</p>
+                  <p className="text-[10px] text-gray-400 mt-1">Bulan Ini</p>
                 </div>
               </div>
             </CardContent>
@@ -983,17 +983,17 @@ export default function ReportsPage() {
 
           {/* Total Pengeluaran */}
           <Card className="rounded-2xl border-0 shadow-sm bg-gradient-to-br from-red-50 to-white">
-            <CardContent className="p-5">
-              <div className="flex items-start gap-3">
-                <div className="p-2.5 bg-red-100 rounded-xl flex-shrink-0">
-                  <ArrowDownRight className="h-5 w-5 text-red-600" />
+            <CardContent className="p-4">
+              <div className="flex items-start gap-2.5">
+                <div className="p-2 bg-red-100 rounded-xl flex-shrink-0">
+                  <ArrowDownRight className="h-4 w-4 text-red-600" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs font-medium text-gray-500 mb-1.5">Total Pengeluaran</p>
-                  <p className="text-base md:text-lg font-bold text-red-600 leading-tight break-words">
+                  <p className="text-xs font-medium text-gray-500 mb-1">Total Pengeluaran</p>
+                  <p className="text-xs font-bold text-red-600 break-words leading-tight">
                     Rp{summaryData.totalExpense.toLocaleString('id-ID')}
                   </p>
-                  <p className="text-[10px] text-gray-400 mt-1.5">Bulan Ini</p>
+                  <p className="text-[10px] text-gray-400 mt-1">Bulan Ini</p>
                 </div>
               </div>
             </CardContent>
@@ -1001,17 +1001,17 @@ export default function ReportsPage() {
 
           {/* Surplus/Defisit */}
           <Card className="rounded-2xl border-0 shadow-sm bg-gradient-to-br from-green-50 to-white">
-            <CardContent className="p-5">
-              <div className="flex items-start gap-3">
-                <div className="p-2.5 bg-green-100 rounded-xl flex-shrink-0">
-                  <TrendingUp className="h-5 w-5 text-green-600" />
+            <CardContent className="p-4">
+              <div className="flex items-start gap-2.5">
+                <div className="p-2 bg-green-100 rounded-xl flex-shrink-0">
+                  <TrendingUp className="h-4 w-4 text-green-600" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs font-medium text-gray-500 mb-1.5">Surplus/Defisit</p>
-                  <p className={`text-base md:text-lg font-bold leading-tight break-words ${summaryData.balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  <p className="text-xs font-medium text-gray-500 mb-1">Surplus/Defisit</p>
+                  <p className={`text-xs font-bold break-words leading-tight ${summaryData.balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                     {summaryData.balance >= 0 ? '+' : ''}Rp{Math.abs(summaryData.balance).toLocaleString('id-ID')}
                   </p>
-                  <p className="text-[10px] text-gray-400 mt-1.5">Bulan Ini</p>
+                  <p className="text-[10px] text-gray-400 mt-1">Bulan Ini</p>
                 </div>
               </div>
             </CardContent>
@@ -1019,17 +1019,17 @@ export default function ReportsPage() {
 
           {/* Saldo Akhir */}
           <Card className="rounded-2xl border-0 shadow-sm bg-gradient-to-br from-purple-50 to-white">
-            <CardContent className="p-5">
-              <div className="flex items-start gap-3">
-                <div className="p-2.5 bg-purple-100 rounded-xl flex-shrink-0">
-                  <Wallet className="h-5 w-5 text-purple-600" />
+            <CardContent className="p-4">
+              <div className="flex items-start gap-2.5">
+                <div className="p-2 bg-purple-100 rounded-xl flex-shrink-0">
+                  <Wallet className="h-4 w-4 text-purple-600" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs font-medium text-gray-500 mb-1.5">Saldo Akhir</p>
-                  <p className="text-base md:text-lg font-bold text-gray-900 leading-tight break-words">
+                  <p className="text-xs font-medium text-gray-500 mb-1">Saldo Akhir</p>
+                  <p className="text-xs font-bold text-gray-900 break-words leading-tight">
                     Rp{summaryData.finalBalance.toLocaleString('id-ID')}
                   </p>
-                  <p className="text-[10px] text-gray-400 mt-1.5">Per 31 Des 2025</p>
+                  <p className="text-[10px] text-gray-400 mt-1">Per 31 Des 2025</p>
                 </div>
               </div>
             </CardContent>

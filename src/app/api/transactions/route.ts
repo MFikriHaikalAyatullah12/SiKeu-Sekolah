@@ -5,6 +5,10 @@ import { prisma } from '@/lib/prisma'
 import { getDateRangeForRole } from '@/lib/permissions'
 import { z } from 'zod'
 
+// Disable caching for this route
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 const transactionSchema = z.object({
   type: z.enum(['INCOME', 'EXPENSE']),
   date: z.string(),

@@ -712,13 +712,23 @@ export function TransactionContent() {
     return { totalPages: total, paginatedTransactions: paginated };
   }, [filteredTransactions, currentPage]);
 
-  // Memoized transaction statistics
+  // Memoized transaction statistics - filter by current month only
   const transactionStats = useMemo(() => {
-    const totalIncome = transactions
-      .filter(t => t.type === "INCOME")
+    const now = new Date();
+    const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+    
+    // Filter transactions for current month only
+    const currentMonthTransactions = transactions.filter(t => {
+      const transactionDate = new Date(t.date);
+      return transactionDate >= firstDayOfMonth && transactionDate <= lastDayOfMonth;
+    });
+    
+    const totalIncome = currentMonthTransactions
+      .filter(t => t.type === "INCOME" && t.status === "PAID")
       .reduce((sum, t) => sum + Number(t.amount), 0);
-    const totalExpense = transactions
-      .filter(t => t.type === "EXPENSE")
+    const totalExpense = currentMonthTransactions
+      .filter(t => t.type === "EXPENSE" && t.status === "PAID")
       .reduce((sum, t) => sum + Number(t.amount), 0);
     const balance = totalIncome - totalExpense;
     return { totalIncome, totalExpense, balance };
@@ -749,6 +759,7 @@ export function TransactionContent() {
                 <p className="text-2xl font-bold text-green-600 min-h-[32px]">
                   {formatCurrency(transactionStats.totalIncome)}
                 </p>
+                <p className="text-xs text-gray-500 mt-1">Bulan Ini</p>
               </div>
               <div className="h-12 w-12 bg-green-100 rounded-full flex items-center justify-center">
                 <Plus className="h-6 w-6 text-green-600" />
@@ -765,6 +776,7 @@ export function TransactionContent() {
                 <p className="text-2xl font-bold text-red-600 min-h-[32px]">
                   {formatCurrency(transactionStats.totalExpense)}
                 </p>
+                <p className="text-xs text-gray-500 mt-1">Bulan Ini</p>
               </div>
               <div className="h-12 w-12 bg-red-100 rounded-full flex items-center justify-center">
                 <Trash2 className="h-6 w-6 text-red-600" />
@@ -783,6 +795,7 @@ export function TransactionContent() {
                 }`}>
                   {formatCurrency(transactionStats.balance)}
                 </p>
+                <p className="text-xs text-gray-500 mt-1">Bulan Ini</p>
               </div>
               <div className="h-12 w-12 bg-blue-100 rounded-full flex items-center justify-center">
                 <Eye className="h-6 w-6 text-blue-600" />
