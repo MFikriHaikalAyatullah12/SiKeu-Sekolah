@@ -15,16 +15,7 @@ import {
   Calendar,
   Eye,
   Download,
-  Send,
-  Ban,
-  Plus,
   FileText,
-  Printer,
-  User,
-  Clock,
-  CheckCircle,
-  Filter,
-  ArrowUpDown,
 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -212,14 +203,6 @@ export default function ReceiptsPage() {
     })
   }
 
-  const handleCreateReceipt = () => {
-    toast.success("Membuka form buat kwitansi baru...")
-  }
-
-  const handleExportPDF = () => {
-    toast.success("Mengekspor semua kwitansi ke PDF...")
-  }
-
   // Filter receipts
   const filteredReceipts = receipts.filter((receipt) => {
     const matchesSearch = 
@@ -241,23 +224,6 @@ export default function ReceiptsPage() {
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Kwitansi</h1>
             <p className="text-gray-500 mt-1">Kelola bukti pembayaran & kirim kwitansi</p>
-          </div>
-          <div className="flex gap-3">
-            <Button 
-              variant="outline"
-              onClick={handleExportPDF}
-              className="h-10 rounded-lg border-gray-200"
-            >
-              <FileText className="mr-2 h-4 w-4" />
-              Export PDF (Kwitansi)
-            </Button>
-            <Button 
-              onClick={handleCreateReceipt}
-              className="h-10 bg-blue-600 hover:bg-blue-700 rounded-lg"
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              Buat Kwitansi
-            </Button>
           </div>
         </div>
 

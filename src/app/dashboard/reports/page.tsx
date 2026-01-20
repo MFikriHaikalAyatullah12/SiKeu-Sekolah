@@ -110,6 +110,9 @@ export default function ReportsPage() {
   const [loading, setLoading] = useState(false)
   const [reportData, setReportData] = useState<any>(null)
   const [currentPage, setCurrentPage] = useState(1)
+  const [schoolProfile, setSchoolProfile] = useState<any>(null)
+  const [schools, setSchools] = useState<any[]>([])
+  const [selectedSchoolId, setSelectedSchoolId] = useState<string>("")
   
   // Filter states
   const [dateRange, setDateRange] = useState("bulan-ini")
@@ -148,7 +151,36 @@ export default function ReportsPage() {
     }
 
     fetchReportData()
+    fetchSchools()
   }, [session, status, router])
+
+  const fetchSchools = async () => {
+    try {
+      const response = await fetch('/api/schools', { cache: 'no-store' })
+      if (response.ok) {
+        const data = await response.json()
+        if (data.schools && data.schools.length > 0) {
+          setSchools(data.schools)
+          // Set default selected school to first one
+          setSelectedSchoolId(data.schools[0].id)
+          setSchoolProfile(data.schools[0])
+          console.log("🏫 Schools loaded:", data.schools.length)
+        }
+      }
+    } catch (error) {
+      console.error("Failed to fetch schools:", error)
+    }
+  }
+
+  // Update schoolProfile when selectedSchoolId changes
+  useEffect(() => {
+    if (selectedSchoolId && schools.length > 0) {
+      const selected = schools.find(s => s.id === selectedSchoolId)
+      if (selected) {
+        setSchoolProfile(selected)
+      }
+    }
+  }, [selectedSchoolId, schools])
 
   const fetchReportData = async () => {
     setLoading(true)
@@ -215,19 +247,15 @@ export default function ReportsPage() {
   
   const executeExport = async () => {
     try {
-      // Validate date range - maximum 1 month
-      const startDate = new Date(exportStartDate)
-      const endDate = new Date(exportEndDate)
-      
-      // Calculate difference in days
-      const diffTime = Math.abs(endDate.getTime() - startDate.getTime())
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-      
-      // Check if more than 31 days (approximately 1 month)
-      if (diffDays > 31) {
-        toast.error('Rentang tanggal maksimal 1 bulan (31 hari)')
+      // Validate school selection
+      if (!selectedSchoolId) {
+        toast.error('Pilih sekolah terlebih dahulu')
         return
       }
+      
+      // Validate date range
+      const startDate = new Date(exportStartDate)
+      const endDate = new Date(exportEndDate)
       
       // Check if start date is after end date
       if (startDate > endDate) {
@@ -235,8 +263,8 @@ export default function ReportsPage() {
         return
       }
       
-      // Fetch data for the selected date range
-      const response = await fetch(`/api/reports?startDate=${exportStartDate}&endDate=${exportEndDate}&_t=${Date.now()}`, {
+      // Fetch data for the selected date range AND school
+      const response = await fetch(`/api/reports?startDate=${exportStartDate}&endDate=${exportEndDate}&schoolId=${selectedSchoolId}&_t=${Date.now()}`, {
         cache: 'no-store'
       })
       
@@ -250,7 +278,7 @@ export default function ReportsPage() {
       if (exportType === 'excel') {
         exportToExcel(data)
       } else {
-        exportToPDF(data)
+        await exportToPDF(data)
       }
       
       setIsExportDialogOpen(false)
@@ -262,8 +290,12 @@ export default function ReportsPage() {
   
   const exportToExcel = (data: any) => {
     try {
+      // Get school name for header
+      const schoolName = schoolProfile?.name || 'Nama Sekolah'
+      
       // Prepare summary data
       const summaryData = [
+        [schoolName.toUpperCase()],
         ['LAPORAN KEUANGAN'],
         [`Periode: ${new Date(exportStartDate).toLocaleDateString('id-ID')} - ${new Date(exportEndDate).toLocaleDateString('id-ID')}`],
         [],
@@ -273,7 +305,7 @@ export default function ReportsPage() {
         ['Saldo (Surplus/Defisit)', formatCurrency(data.summary?.balance || 0)],
         [],
         ['DETAIL TRANSAKSI'],
-        ['Tanggal', 'Tipe', 'Kategori', 'Akun COA', 'Deskripsi', 'Nominal', 'Metode Pembayaran', 'Status']
+        ['Tanggal', 'Tipe', 'Kategori', 'Akun COA', 'Nama/Pihak', 'Catatan', 'Nominal', 'Metode Pembayaran', 'Status']
       ]
       
       // Add transaction details
@@ -282,7 +314,8 @@ export default function ReportsPage() {
         t.type === 'INCOME' ? 'Pemasukan' : 'Pengeluaran',
         t.category?.name || 'N/A',
         t.coaAccount?.name || t.description || 'N/A',
-        t.payerName || t.recipientName || 'N/A',
+        t.fromTo || t.payerName || t.recipientName || 'N/A',
+        t.notes || '-',
         Number(t.amount),
         t.paymentMethod === 'CASH' ? 'Tunai' : t.paymentMethod === 'BANK_TRANSFER' ? 'Transfer Bank' : t.paymentMethod === 'QRIS' ? 'QRIS' : 'N/A',
         t.status === 'PAID' ? 'Lunas' : t.status === 'PENDING' ? 'Menunggu' : 'Void'
@@ -299,7 +332,8 @@ export default function ReportsPage() {
         { wch: 12 }, // Tipe
         { wch: 20 }, // Kategori
         { wch: 25 }, // Akun COA
-        { wch: 30 }, // Deskripsi
+        { wch: 25 }, // Nama/Pihak
+        { wch: 35 }, // Catatan
         { wch: 18 }, // Nominal
         { wch: 18 }, // Metode
         { wch: 12 }  // Status
@@ -322,7 +356,24 @@ export default function ReportsPage() {
     }
   }
   
-  const exportToPDF = (data: any) => {
+  // Helper function to convert image URL to base64
+  const getImageBase64 = async (url: string): Promise<string | null> => {
+    try {
+      const response = await fetch(url)
+      const blob = await response.blob()
+      return new Promise((resolve) => {
+        const reader = new FileReader()
+        reader.onloadend = () => resolve(reader.result as string)
+        reader.onerror = () => resolve(null)
+        reader.readAsDataURL(blob)
+      })
+    } catch (error) {
+      console.warn('Failed to load image:', error)
+      return null
+    }
+  }
+  
+  const exportToPDF = async (data: any) => {
     try {
       console.log('📄 PDF Export - Data received:', {
         summary: data.summary,
@@ -341,24 +392,53 @@ export default function ReportsPage() {
       let yPos = 15
       
       // ========== HEADER SECTION ==========
-      // School logo placeholder (you can add actual logo later)
-      doc.setFillColor(37, 99, 235) // Blue color for logo placeholder
-      doc.rect(14, yPos, 12, 12, 'F')
-      doc.setTextColor(255, 255, 255)
-      doc.setFontSize(10)
-      doc.text('$', 20, yPos + 8, { align: 'center' } as any)
+      // School logo from database or placeholder
+      const logoUrl = schoolProfile?.logoUrl
+      let logoAdded = false
       
-      // School name and info (left side)
+      if (logoUrl) {
+        try {
+          // Convert logo URL to base64 first
+          const logoBase64 = await getImageBase64(logoUrl)
+          if (logoBase64) {
+            // Detect image type from base64
+            const imageType = logoBase64.includes('image/png') ? 'PNG' : 
+                             logoBase64.includes('image/jpeg') ? 'JPEG' : 
+                             logoBase64.includes('image/jpg') ? 'JPEG' : 'PNG'
+            doc.addImage(logoBase64, imageType, 14, yPos, 12, 12)
+            logoAdded = true
+          }
+        } catch (logoError) {
+          console.warn('Failed to add logo to PDF:', logoError)
+          logoAdded = false
+        }
+      }
+      
+      // Fallback: Show placeholder if no logo or failed to load
+      if (!logoAdded) {
+        doc.setFillColor(37, 99, 235) // Blue color for logo placeholder
+        doc.rect(14, yPos, 12, 12, 'F')
+        doc.setTextColor(255, 255, 255)
+        doc.setFontSize(10)
+        doc.text('S', 20, yPos + 8, { align: 'center' } as any)
+      }
+      
+      // School name and info (left side) - Use actual school data
+      const schoolName = schoolProfile?.name || 'Nama Sekolah'
+      const schoolAddress = schoolProfile?.address || 'Alamat Sekolah'
+      const schoolPhone = schoolProfile?.phone || '-'
+      const schoolEmail = schoolProfile?.email || '-'
+      
       doc.setTextColor(0, 0, 0)
       doc.setFontSize(12)
       doc.setFont('helvetica', 'bold')
-      doc.text('SEKOLAH MENENGAH ATAS NEGERI 1 (contoh)', 30, yPos + 3)
+      doc.text(schoolName.toUpperCase(), 30, yPos + 3)
       
       doc.setFontSize(8)
       doc.setFont('helvetica', 'normal')
       doc.setTextColor(100, 100, 100)
-      doc.text('Jl. Pendidikan No. 123, Kota Contoh, Indonesia', 30, yPos + 8)
-      doc.text('Telp: (021) 12345678 | Email: info@sman1contoh.sch.id', 30, yPos + 12)
+      doc.text(schoolAddress, 30, yPos + 8)
+      doc.text(`Telp: ${schoolPhone} | Email: ${schoolEmail}`, 30, yPos + 12)
       
       // Document title (right side)
       doc.setFontSize(14)
@@ -558,43 +638,43 @@ export default function ReportsPage() {
           t.type === 'INCOME' ? 'Pemasukan' : 'Pengeluaran',
           t.coaAccount?.code || 'N/A',
           t.coaAccount?.name || t.description || 'N/A',
-          t.payerName || t.recipientName || '-',
+          t.fromTo || t.payerName || t.recipientName || '-',
+          t.notes || '-',
           formatCurrency(Number(t.amount)),
-          statusColor,
-          t.createdBy?.name || session?.user?.name || 'Admin'
+          statusColor
         ]
       })
       
       autoTable(doc, {
         startY: yPos,
-        head: [['Tanggal', 'Tipe', 'Kode COA', 'Nama Akun', 'Nama/Vendor', 'Nominal', 'Status', 'Petugas']],
+        head: [['Tanggal', 'Tipe', 'Kode COA', 'Nama Akun', 'Nama/Pihak', 'Catatan', 'Nominal', 'Status']],
         body: transactionData,
         theme: 'striped',
         headStyles: { 
           fillColor: [30, 58, 138],
           textColor: [255, 255, 255],
-          fontSize: 9,
+          fontSize: 8,
           fontStyle: 'bold',
           halign: 'center',
           valign: 'middle'
         },
         styles: { 
-          fontSize: 8,
-          cellPadding: 3,
+          fontSize: 7.5,
+          cellPadding: 2.5,
           lineColor: [229, 231, 235],
           lineWidth: 0.1,
           valign: 'middle',
           overflow: 'linebreak'
         },
         columnStyles: {
-          0: { cellWidth: 25, halign: 'center' },
-          1: { cellWidth: 28, halign: 'center' },
-          2: { cellWidth: 22, halign: 'center' },
-          3: { cellWidth: 65, halign: 'left' },
-          4: { cellWidth: 40, halign: 'left' },
-          5: { cellWidth: 35, halign: 'right', fontStyle: 'bold' },
-          6: { cellWidth: 22, halign: 'center' },
-          7: { cellWidth: 35, halign: 'center', fontSize: 7.5, textColor: [100, 100, 100] }
+          0: { cellWidth: 22, halign: 'center' },
+          1: { cellWidth: 22, halign: 'center' },
+          2: { cellWidth: 18, halign: 'center' },
+          3: { cellWidth: 50, halign: 'left' },
+          4: { cellWidth: 35, halign: 'left' },
+          5: { cellWidth: 55, halign: 'left' },
+          6: { cellWidth: 32, halign: 'right', fontStyle: 'bold' },
+          7: { cellWidth: 22, halign: 'center' }
         },
         margin: { left: 14, right: 14, bottom: 35 },
         alternateRowStyles: { fillColor: [249, 250, 251] }
@@ -965,17 +1045,17 @@ export default function ReportsPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Total Pemasukan */}
           <Card className="rounded-2xl border-0 shadow-sm bg-gradient-to-br from-blue-50 to-white">
-            <CardContent className="p-4">
-              <div className="flex items-start gap-2.5">
-                <div className="p-2 bg-blue-100 rounded-xl flex-shrink-0">
-                  <ArrowUpRight className="h-4 w-4 text-blue-600" />
+            <CardContent className="p-5">
+              <div className="flex items-start gap-3">
+                <div className="p-2.5 bg-blue-100 rounded-xl flex-shrink-0">
+                  <ArrowUpRight className="h-5 w-5 text-blue-600" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs font-medium text-gray-500 mb-1">Total Pemasukan</p>
-                  <p className="text-xs font-bold text-gray-900 break-words leading-tight">
+                  <p className="text-sm font-medium text-gray-500 mb-1">Total Pemasukan</p>
+                  <p className="text-lg font-bold text-blue-600 break-words leading-tight">
                     Rp{summaryData.totalIncome.toLocaleString('id-ID')}
                   </p>
-                  <p className="text-[10px] text-gray-400 mt-1">Bulan Ini</p>
+                  <p className="text-xs text-gray-400 mt-1">Bulan Ini</p>
                 </div>
               </div>
             </CardContent>
@@ -983,17 +1063,17 @@ export default function ReportsPage() {
 
           {/* Total Pengeluaran */}
           <Card className="rounded-2xl border-0 shadow-sm bg-gradient-to-br from-red-50 to-white">
-            <CardContent className="p-4">
-              <div className="flex items-start gap-2.5">
-                <div className="p-2 bg-red-100 rounded-xl flex-shrink-0">
-                  <ArrowDownRight className="h-4 w-4 text-red-600" />
+            <CardContent className="p-5">
+              <div className="flex items-start gap-3">
+                <div className="p-2.5 bg-red-100 rounded-xl flex-shrink-0">
+                  <ArrowDownRight className="h-5 w-5 text-red-600" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs font-medium text-gray-500 mb-1">Total Pengeluaran</p>
-                  <p className="text-xs font-bold text-red-600 break-words leading-tight">
+                  <p className="text-sm font-medium text-gray-500 mb-1">Total Pengeluaran</p>
+                  <p className="text-lg font-bold text-red-600 break-words leading-tight">
                     Rp{summaryData.totalExpense.toLocaleString('id-ID')}
                   </p>
-                  <p className="text-[10px] text-gray-400 mt-1">Bulan Ini</p>
+                  <p className="text-xs text-gray-400 mt-1">Bulan Ini</p>
                 </div>
               </div>
             </CardContent>
@@ -1001,17 +1081,17 @@ export default function ReportsPage() {
 
           {/* Surplus/Defisit */}
           <Card className="rounded-2xl border-0 shadow-sm bg-gradient-to-br from-green-50 to-white">
-            <CardContent className="p-4">
-              <div className="flex items-start gap-2.5">
-                <div className="p-2 bg-green-100 rounded-xl flex-shrink-0">
-                  <TrendingUp className="h-4 w-4 text-green-600" />
+            <CardContent className="p-5">
+              <div className="flex items-start gap-3">
+                <div className="p-2.5 bg-green-100 rounded-xl flex-shrink-0">
+                  <TrendingUp className="h-5 w-5 text-green-600" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs font-medium text-gray-500 mb-1">Surplus/Defisit</p>
-                  <p className={`text-xs font-bold break-words leading-tight ${summaryData.balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  <p className="text-sm font-medium text-gray-500 mb-1">Surplus/Defisit</p>
+                  <p className={`text-lg font-bold break-words leading-tight ${summaryData.balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                     {summaryData.balance >= 0 ? '+' : ''}Rp{Math.abs(summaryData.balance).toLocaleString('id-ID')}
                   </p>
-                  <p className="text-[10px] text-gray-400 mt-1">Bulan Ini</p>
+                  <p className="text-xs text-gray-400 mt-1">Bulan Ini</p>
                 </div>
               </div>
             </CardContent>
@@ -1019,17 +1099,17 @@ export default function ReportsPage() {
 
           {/* Saldo Akhir */}
           <Card className="rounded-2xl border-0 shadow-sm bg-gradient-to-br from-purple-50 to-white">
-            <CardContent className="p-4">
-              <div className="flex items-start gap-2.5">
-                <div className="p-2 bg-purple-100 rounded-xl flex-shrink-0">
-                  <Wallet className="h-4 w-4 text-purple-600" />
+            <CardContent className="p-5">
+              <div className="flex items-start gap-3">
+                <div className="p-2.5 bg-purple-100 rounded-xl flex-shrink-0">
+                  <Wallet className="h-5 w-5 text-purple-600" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs font-medium text-gray-500 mb-1">Saldo Akhir</p>
-                  <p className="text-xs font-bold text-gray-900 break-words leading-tight">
+                  <p className="text-sm font-medium text-gray-500 mb-1">Saldo Akhir</p>
+                  <p className="text-lg font-bold text-purple-600 break-words leading-tight">
                     Rp{summaryData.finalBalance.toLocaleString('id-ID')}
                   </p>
-                  <p className="text-[10px] text-gray-400 mt-1">Per 31 Des 2025</p>
+                  <p className="text-xs text-gray-400 mt-1">Per {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
                 </div>
               </div>
             </CardContent>
@@ -1037,12 +1117,12 @@ export default function ReportsPage() {
         </div>
 
         {/* Charts Row */}
-        <div className="grid grid-cols-1 lg:grid-cols-[1.5fr_1fr] gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Line Chart - Pemasukan vs Pengeluaran */}
-          <Card className="rounded-2xl border-0 shadow-sm">
-            <CardHeader className="pb-2">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-base font-semibold">
+          <Card className="rounded-2xl border-0 shadow-sm lg:col-span-2">
+            <CardHeader className="pb-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <CardTitle className="text-lg font-semibold">
                   Pemasukan vs Pengeluaran (6 Bulan)
                 </CardTitle>
                 <div className="flex items-center gap-4 text-sm">
@@ -1059,13 +1139,13 @@ export default function ReportsPage() {
             </CardHeader>
             <CardContent>
               {/* Simple SVG Line Chart */}
-              <div className="h-[250px] relative">
+              <div className="h-[280px] relative overflow-hidden">
                 {monthlyData.length > 0 ? (
-                  <svg viewBox="0 0 600 200" className="w-full h-full">
+                  <svg viewBox="0 0 600 240" className="w-full h-full" preserveAspectRatio="xMidYMid meet">
                     {/* Grid lines */}
                     <g className="text-gray-200">
-                      {[0, 50, 100, 150, 200].map((y, i) => (
-                        <line key={i} x1="40" y1={200 - y} x2="580" y2={200 - y} stroke="currentColor" strokeDasharray="4" />
+                      {[0, 40, 80, 120, 160].map((y, i) => (
+                        <line key={i} x1="50" y1={180 - y} x2="580" y2={180 - y} stroke="currentColor" strokeDasharray="4" />
                       ))}
                     </g>
                     
@@ -1074,18 +1154,22 @@ export default function ReportsPage() {
                       const maxValue = Math.max(
                         ...monthlyData.map((d: any) => Math.max(Number(d.income) || 0, Number(d.expense) || 0))
                       )
-                      const scale = maxValue > 0 ? 180 / maxValue : 1
+                      const scale = maxValue > 0 ? 150 / maxValue : 1
                       const yAxisMax = Math.ceil(maxValue / 100000000) * 100 // Round to nearest 100M
                       
+                      const dataCount = monthlyData.length
+                      const chartWidth = 520 // 580 - 60 margin
+                      const spacing = dataCount > 1 ? chartWidth / (dataCount - 1) : chartWidth
+                      
                       const incomePoints = monthlyData.map((d: any, i: number) => {
-                        const x = 60 + (i * 90)
-                        const y = 190 - (Number(d.income) * scale)
+                        const x = 60 + (i * spacing)
+                        const y = 170 - (Number(d.income) * scale)
                         return { x, y, value: Number(d.income) }
                       })
                       
                       const expensePoints = monthlyData.map((d: any, i: number) => {
-                        const x = 60 + (i * 90)
-                        const y = 190 - (Number(d.expense) * scale)
+                        const x = 60 + (i * spacing)
+                        const y = 170 - (Number(d.expense) * scale)
                         return { x, y, value: Number(d.expense) }
                       })
                       
@@ -1093,11 +1177,11 @@ export default function ReportsPage() {
                         <>
                           {/* Y-axis labels */}
                           <g className="text-xs fill-gray-400">
-                            <text x="30" y="195" textAnchor="end">0</text>
-                            <text x="30" y="150" textAnchor="end">{(yAxisMax * 0.25).toFixed(0)}M</text>
-                            <text x="30" y="100" textAnchor="end">{(yAxisMax * 0.5).toFixed(0)}M</text>
-                            <text x="30" y="50" textAnchor="end">{(yAxisMax * 0.75).toFixed(0)}M</text>
-                            <text x="30" y="10" textAnchor="end">{yAxisMax}M</text>
+                            <text x="45" y="175" textAnchor="end">0</text>
+                            <text x="45" y="135" textAnchor="end">{(yAxisMax * 0.25).toFixed(0)}M</text>
+                            <text x="45" y="95" textAnchor="end">{(yAxisMax * 0.5).toFixed(0)}M</text>
+                            <text x="45" y="55" textAnchor="end">{(yAxisMax * 0.75).toFixed(0)}M</text>
+                            <text x="45" y="20" textAnchor="end">{yAxisMax}M</text>
                           </g>
                           
                           {/* Income line (green) */}
@@ -1127,7 +1211,7 @@ export default function ReportsPage() {
                           {/* Income area fill */}
                           {incomePoints.length > 1 && (
                             <path
-                              d={`M ${incomePoints.map((p: any) => `${p.x} ${p.y}`).join(' L ')} L ${incomePoints[incomePoints.length - 1].x} 190 L ${incomePoints[0].x} 190 Z`}
+                              d={`M ${incomePoints.map((p: any) => `${p.x} ${p.y}`).join(' L ')} L ${incomePoints[incomePoints.length - 1].x} 170 L ${incomePoints[0].x} 170 Z`}
                               fill="url(#incomeGradient)"
                               opacity="0.2"
                             />
@@ -1146,7 +1230,7 @@ export default function ReportsPage() {
                           {/* X-axis labels */}
                           <g className="text-xs fill-gray-500">
                             {monthlyData.map((d: any, i: number) => (
-                              <text key={i} x={60 + (i * 90)} y="220" textAnchor="middle">
+                              <text key={i} x={60 + (i * spacing)} y="205" textAnchor="middle" fontSize="11">
                                 {d.month}
                               </text>
                             ))}
@@ -1173,62 +1257,42 @@ export default function ReportsPage() {
           </Card>
 
           {/* Donut Chart - Komposisi Kategori */}
-          <Card className="rounded-2xl border-0 shadow-sm">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base font-semibold">Komposisi Kategori Pengeluaran</CardTitle>
+          <Card className="rounded-2xl border-0 shadow-sm overflow-hidden">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg font-semibold">Komposisi Kategori Pengeluaran</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-4">
               {hasRealExpenseData ? (
-                <div className="flex items-center gap-6">
-                  {/* Legend */}
-                  <div className="space-y-2 text-sm flex-shrink-0">
-                    {displayCategoryData.map((item, index) => (
-                        <div key={index} className="flex items-center gap-2">
-                          <span 
-                            className="w-3 h-3 rounded-full flex-shrink-0" 
-                            style={{ backgroundColor: item.color }}
-                          ></span>
-                          <div className="flex flex-col">
-                            <span className="text-gray-700 text-xs font-medium truncate max-w-[120px]" title={item.name}>
-                              {item.name}
-                            </span>
-                            <span className="text-gray-500 text-[10px]">
-                              {item.percentage}%
-                            </span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                    
-                    {/* Donut Chart SVG */}
-                    <div className="relative w-[180px] h-[180px] flex-shrink-0">
-                      <svg viewBox="0 0 100 100" className="w-full h-full transform -rotate-90">
-                        {/* Background circle */}
-                        <circle cx="50" cy="50" r="40" fill="none" stroke="#f3f4f6" strokeWidth="20" />
-                        
-                        {/* Segments */}
-                        {(() => {
-                          let cumulativeOffset = 0;
-                          return displayCategoryData.map((item, index) => {
-                            const circumference = 2 * Math.PI * 40;
-                            const strokeDasharray = `${(item.percentage / 100) * circumference} ${circumference}`;
-                            const strokeDashoffset = -cumulativeOffset * circumference / 100;
-                            cumulativeOffset += item.percentage;
-                            
-                            return (
-                              <circle
-                                key={index}
-                                cx="50"
-                                cy="50"
-                                r="40"
-                                fill="none"
-                                stroke={item.color}
-                                strokeWidth="20"
-                                strokeDasharray={strokeDasharray}
-                                strokeDashoffset={strokeDashoffset}
-                              />
-                            );
-                          });
+                <div className="flex flex-col items-center gap-5 min-h-[260px]">
+                  {/* Donut Chart SVG */}
+                  <div className="relative w-[140px] h-[140px] flex-shrink-0">
+                    <svg viewBox="0 0 100 100" className="w-full h-full transform -rotate-90">
+                      {/* Background circle */}
+                      <circle cx="50" cy="50" r="38" fill="none" stroke="#f3f4f6" strokeWidth="16" />
+                      
+                      {/* Segments */}
+                      {(() => {
+                        let cumulativeOffset = 0;
+                        return displayCategoryData.map((item, index) => {
+                          const circumference = 2 * Math.PI * 38;
+                          const strokeDasharray = `${(item.percentage / 100) * circumference} ${circumference}`;
+                          const strokeDashoffset = -cumulativeOffset * circumference / 100;
+                          cumulativeOffset += item.percentage;
+                          
+                          return (
+                            <circle
+                              key={index}
+                              cx="50"
+                              cy="50"
+                              r="38"
+                              fill="none"
+                              stroke={item.color}
+                              strokeWidth="16"
+                              strokeDasharray={strokeDasharray}
+                              strokeDashoffset={strokeDashoffset}
+                            />
+                          );
+                        });
                       })()}
                     </svg>
                     
@@ -1244,9 +1308,29 @@ export default function ReportsPage() {
                       </div>
                     </div>
                   </div>
+                  
+                  {/* Legend */}
+                  <div className="w-full space-y-2">
+                    {displayCategoryData.map((item, index) => (
+                      <div key={index} className="flex items-center justify-between gap-2 py-1.5 px-3 bg-gray-50 rounded-lg">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span 
+                            className="w-3 h-3 rounded-full flex-shrink-0" 
+                            style={{ backgroundColor: item.color }}
+                          ></span>
+                          <span className="text-gray-700 text-sm font-medium truncate">
+                            {item.name}
+                          </span>
+                        </div>
+                        <span className="text-gray-600 text-sm font-semibold flex-shrink-0">
+                          {item.percentage}%
+                        </span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               ) : (
-                <div className="flex items-center justify-center h-[180px] text-gray-400">
+                <div className="flex items-center justify-center h-[260px] text-gray-400">
                   <div className="text-center">
                     <div className="w-16 h-16 mx-auto mb-3 rounded-full bg-gray-100 flex items-center justify-center">
                       <TrendingDown className="h-8 w-8 text-gray-300" />
@@ -1265,36 +1349,42 @@ export default function ReportsPage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Income by COA */}
             {reportData.incomeByCOA?.length > 0 && (
-              <Card className="rounded-2xl border-0 shadow-sm">
-                <CardHeader className="pb-4 bg-green-50 rounded-t-2xl">
-                  <CardTitle className="text-base font-semibold text-green-800">
+              <Card className="rounded-2xl border-0 shadow-md hover:shadow-lg transition-shadow">
+                <CardHeader className="pb-3 bg-gradient-to-r from-green-50 to-emerald-50 rounded-t-2xl border-b border-green-100">
+                  <CardTitle className="text-base font-semibold text-green-800 flex items-center gap-2">
+                    <ArrowUpRight className="h-5 w-5" />
                     Breakdown Pemasukan per Akun COA
                   </CardTitle>
+                  <p className="text-xs text-green-600 mt-1">
+                    Total: Rp {reportData.summary.totalIncome?.toLocaleString('id-ID') || 0} ({reportData.incomeByCOA.length} akun)
+                  </p>
                 </CardHeader>
-                <CardContent className="pt-4">
-                  <div className="space-y-3">
+                <CardContent className="pt-4 pb-5">
+                  <div className="space-y-4">
                     {reportData.incomeByCOA.map((item: any, index: number) => {
                       const percentage = reportData.summary.totalIncome > 0 
                         ? ((item.amount / reportData.summary.totalIncome) * 100).toFixed(1)
                         : 0
                       return (
-                        <div key={index} className="space-y-1">
-                          <div className="flex justify-between items-center text-sm">
-                            <span className="text-gray-700 font-medium">
-                              {item.code} - {item.name}
-                            </span>
-                            <span className="text-green-600 font-semibold">
+                        <div key={index} className="space-y-2 p-3 bg-gray-50 rounded-xl hover:bg-green-50/50 transition-colors">
+                          <div className="flex justify-between items-start">
+                            <div className="flex-1 min-w-0">
+                              <span className="text-sm text-gray-800 font-semibold block truncate">
+                                {item.code} - {item.name}
+                              </span>
+                            </div>
+                            <span className="text-green-600 font-bold text-sm ml-2 whitespace-nowrap">
                               Rp {item.amount.toLocaleString('id-ID')}
                             </span>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+                          <div className="flex items-center gap-3">
+                            <div className="flex-1 h-3 bg-gray-200 rounded-full overflow-hidden">
                               <div 
-                                className="h-full bg-green-500 transition-all duration-300"
+                                className="h-full bg-gradient-to-r from-green-400 to-emerald-500 transition-all duration-500 rounded-full"
                                 style={{ width: `${percentage}%` }}
                               />
                             </div>
-                            <span className="text-xs text-gray-500 w-12 text-right">{percentage}%</span>
+                            <span className="text-xs font-semibold text-green-600 w-14 text-right">{percentage}%</span>
                           </div>
                         </div>
                       )
@@ -1306,36 +1396,42 @@ export default function ReportsPage() {
 
             {/* Expense by COA */}
             {reportData.expenseByCOA?.length > 0 && (
-              <Card className="rounded-2xl border-0 shadow-sm">
-                <CardHeader className="pb-4 bg-red-50 rounded-t-2xl">
-                  <CardTitle className="text-base font-semibold text-red-800">
+              <Card className="rounded-2xl border-0 shadow-md hover:shadow-lg transition-shadow">
+                <CardHeader className="pb-3 bg-gradient-to-r from-red-50 to-rose-50 rounded-t-2xl border-b border-red-100">
+                  <CardTitle className="text-base font-semibold text-red-800 flex items-center gap-2">
+                    <ArrowDownRight className="h-5 w-5" />
                     Breakdown Pengeluaran per Akun COA
                   </CardTitle>
+                  <p className="text-xs text-red-600 mt-1">
+                    Total: Rp {reportData.summary.totalExpense?.toLocaleString('id-ID') || 0} ({reportData.expenseByCOA.length} akun)
+                  </p>
                 </CardHeader>
-                <CardContent className="pt-4">
-                  <div className="space-y-3">
+                <CardContent className="pt-4 pb-5">
+                  <div className="space-y-4">
                     {reportData.expenseByCOA.map((item: any, index: number) => {
                       const percentage = reportData.summary.totalExpense > 0 
                         ? ((item.amount / reportData.summary.totalExpense) * 100).toFixed(1)
                         : 0
                       return (
-                        <div key={index} className="space-y-1">
-                          <div className="flex justify-between items-center text-sm">
-                            <span className="text-gray-700 font-medium">
-                              {item.code} - {item.name}
-                            </span>
-                            <span className="text-red-600 font-semibold">
+                        <div key={index} className="space-y-2 p-3 bg-gray-50 rounded-xl hover:bg-red-50/50 transition-colors">
+                          <div className="flex justify-between items-start">
+                            <div className="flex-1 min-w-0">
+                              <span className="text-sm text-gray-800 font-semibold block truncate">
+                                {item.code} - {item.name}
+                              </span>
+                            </div>
+                            <span className="text-red-600 font-bold text-sm ml-2 whitespace-nowrap">
                               Rp {item.amount.toLocaleString('id-ID')}
                             </span>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+                          <div className="flex items-center gap-3">
+                            <div className="flex-1 h-3 bg-gray-200 rounded-full overflow-hidden">
                               <div 
-                                className="h-full bg-red-500 transition-all duration-300"
+                                className="h-full bg-gradient-to-r from-red-400 to-rose-500 transition-all duration-500 rounded-full"
                                 style={{ width: `${percentage}%` }}
                               />
                             </div>
-                            <span className="text-xs text-gray-500 w-12 text-right">{percentage}%</span>
+                            <span className="text-xs font-semibold text-red-600 w-14 text-right">{percentage}%</span>
                           </div>
                         </div>
                       )
@@ -1505,21 +1601,39 @@ export default function ReportsPage() {
               Export Laporan ke {exportType === 'excel' ? 'Excel' : 'PDF'}
             </DialogTitle>
             <DialogDescription className="text-sm text-gray-600 pt-2">
-              Pilih rentang tanggal untuk laporan yang akan di-export
+              Pilih sekolah dan rentang tanggal untuk laporan yang akan di-export
             </DialogDescription>
           </DialogHeader>
           
           <div className="space-y-4 py-4">
+            {/* School Selection */}
+            <div className="space-y-2">
+              <Label htmlFor="school-select" className="text-sm font-medium">Nama Sekolah</Label>
+              <Select value={selectedSchoolId} onValueChange={setSelectedSchoolId}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Pilih Sekolah" />
+                </SelectTrigger>
+                <SelectContent>
+                  {schools.map((school) => (
+                    <SelectItem key={school.id} value={school.id}>
+                      {school.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {schoolProfile && (
+                <div className="p-3 bg-gray-50 rounded-lg border text-xs text-gray-600 space-y-1">
+                  <p><strong>📍 Alamat:</strong> {schoolProfile.address || '-'}</p>
+                  <p><strong>📞 Telepon:</strong> {schoolProfile.phone || '-'}</p>
+                  <p><strong>📧 Email:</strong> {schoolProfile.email || '-'}</p>
+                </div>
+              )}
+            </div>
+            
             {/* Current Period Info */}
             <div className="p-3 bg-blue-50 dark:bg-blue-950 rounded-lg border border-blue-200 dark:border-blue-800">
               <p className="text-xs text-blue-800 dark:text-blue-200">
                 <strong>📊 Periode saat ini:</strong> {new Date(exportStartDate).toLocaleDateString('id-ID')} - {new Date(exportEndDate).toLocaleDateString('id-ID')}
-              </p>
-            </div>
-            
-            <div className="p-3 bg-amber-50 rounded-lg border border-amber-200">
-              <p className="text-xs text-amber-800">
-                <strong>Catatan:</strong> Rentang tanggal maksimal 31 hari (1 bulan). Export akan mengambil data sesuai periode yang dipilih.
               </p>
             </div>
             

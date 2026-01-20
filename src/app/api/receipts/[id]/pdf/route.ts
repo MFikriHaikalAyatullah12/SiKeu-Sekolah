@@ -68,23 +68,49 @@ export async function GET(
     // School header
     const schoolName = transaction.schoolProfile?.name || "SEKOLAH"
     const schoolAddress = transaction.schoolProfile?.address || "Alamat Sekolah"
+    const logoUrl = transaction.schoolProfile?.logoUrl
+    
+    // Add logo if available
+    let textStartX = 25 // Default start position without logo
+    
+    if (logoUrl) {
+      try {
+        // Fetch logo and convert to base64
+        const logoResponse = await fetch(logoUrl)
+        const logoBlob = await logoResponse.blob()
+        const logoArrayBuffer = await logoBlob.arrayBuffer()
+        const logoBase64 = Buffer.from(logoArrayBuffer).toString('base64')
+        const logoMimeType = logoBlob.type || 'image/png'
+        const logoDataUrl = `data:${logoMimeType};base64,${logoBase64}`
+        
+        // Add logo to PDF (left side)
+        const logoSize = 18
+        doc.addImage(logoDataUrl, 'PNG', 20, 12, logoSize, logoSize)
+        textStartX = 42 // Move text right to accommodate logo
+      } catch (logoError) {
+        console.warn('Failed to add logo to PDF:', logoError)
+        // Continue without logo
+      }
+    }
     
     // Professional header design with better layout
-    // School name - centered, bold styling
+    // School name - left aligned after logo
     doc.setFontSize(16)
     doc.setTextColor(0, 0, 0)
-    doc.text(schoolName.toUpperCase(), 105, 25, { align: "center" })
+    doc.text(schoolName.toUpperCase(), textStartX, 18)
     
-    // School address - centered, smaller font
+    // School address - left aligned, smaller font
     doc.setFontSize(9)
-    doc.text(schoolAddress, 105, 32, { align: "center" })
+    doc.text(schoolAddress, textStartX, 25)
     
     // Additional contact info if available
+    let contactY = 30
     if (transaction.schoolProfile?.phone) {
-      doc.text(`Telp: ${transaction.schoolProfile.phone}`, 105, 37, { align: "center" })
+      doc.text(`Telp: ${transaction.schoolProfile.phone}`, textStartX, contactY)
+      contactY += 4
     }
     if (transaction.schoolProfile?.email) {
-      doc.text(`Email: ${transaction.schoolProfile.email}`, 105, 42, { align: "center" })
+      doc.text(`Email: ${transaction.schoolProfile.email}`, textStartX, contactY)
     }
     
     // Professional header separator - solid line instead of dots

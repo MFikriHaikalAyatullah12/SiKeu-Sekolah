@@ -124,3 +124,78 @@ export async function PUT(request: Request) {
     )
   }
 }
+
+// POST - Tambah sekolah baru (hanya Super Admin)
+export async function POST(request: Request) {
+  try {
+    await requireRole(["SUPER_ADMIN"])
+
+    const body = await request.json()
+    const { name, address, phone, email } = body
+
+    // Validasi input
+    if (!name || !address || !phone || !email) {
+      return NextResponse.json(
+        { error: "Semua field harus diisi" },
+        { status: 400 }
+      )
+    }
+
+    // Cek apakah email sudah digunakan
+    const existingSchool = await prisma.schoolProfile.findFirst({
+      where: { email }
+    })
+
+    if (existingSchool) {
+      return NextResponse.json(
+        { error: "Email sekolah sudah digunakan" },
+        { status: 400 }
+      )
+    }
+
+    // Buat sekolah baru
+    const newSchool = await prisma.schoolProfile.create({
+      data: {
+        name,
+        address,
+        phone,
+        email,
+      }
+    })
+
+    console.log("✅ Created new school:", newSchool.name)
+
+    // Otomatis buat struktur COA default untuk sekolah baru
+    const coaCategories = [
+      { code: '1000', name: 'AKTIVA', type: 'ASSET' },
+      { code: '2000', name: 'KEWAJIBAN', type: 'LIABILITY' },
+      { code: '3000', name: 'MODAL', type: 'EQUITY' },
+      { code: '4000', name: 'PENDAPATAN', type: 'REVENUE' },
+      { code: '5000', name: 'BEBAN', type: 'EXPENSE' },
+    ]
+
+    for (const cat of coaCategories) {
+      await prisma.coaCategory.create({
+        data: {
+          code: cat.code,
+          name: cat.name,
+          type: cat.type as any,
+          schoolProfileId: newSchool.id,
+        }
+      })
+    }
+
+    console.log("✅ Created default COA categories for school")
+
+    return NextResponse.json({
+      message: "Sekolah berhasil ditambahkan",
+      school: newSchool
+    }, { status: 201 })
+  } catch (error) {
+    console.error("Create school error:", error)
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Gagal menambahkan sekolah" },
+      { status: 500 }
+    )
+  }
+}

@@ -149,15 +149,35 @@ export async function GET(request: Request) {
       withCurrentFilter: await prisma.transaction.count({ where })
     })
 
+    // Build where clause for ALL TIME balance (tanpa filter tanggal)
+    const whereAllTime: any = {}
+    if (userSchoolId) {
+      whereAllTime.schoolProfileId = userSchoolId
+    }
+
     // Get transactions
-    const [income, expense, transactions, monthlyStats, categoryStats] = await Promise.all([
+    const [income, expense, incomeAllTime, expenseAllTime, transactions, monthlyStats, categoryStats] = await Promise.all([
+      // Income bulan ini (untuk card "Pemasukan Bulan Ini")
       prisma.transaction.aggregate({
         where: { ...where, type: "INCOME", status: "PAID" },
         _sum: { amount: true },
         _count: true
       }),
+      // Expense bulan ini (untuk card "Pengeluaran Bulan Ini")
       prisma.transaction.aggregate({
         where: { ...where, type: "EXPENSE", status: "PAID" },
+        _sum: { amount: true },
+        _count: true
+      }),
+      // Income ALL TIME (untuk "Saldo Saat Ini")
+      prisma.transaction.aggregate({
+        where: { ...whereAllTime, type: "INCOME", status: "PAID" },
+        _sum: { amount: true },
+        _count: true
+      }),
+      // Expense ALL TIME (untuk "Saldo Saat Ini")
+      prisma.transaction.aggregate({
+        where: { ...whereAllTime, type: "EXPENSE", status: "PAID" },
         _sum: { amount: true },
         _count: true
       }),
@@ -247,17 +267,36 @@ export async function GET(request: Request) {
       expense: {
         sum: expense._sum.amount,
         count: expense._count
+      },
+      incomeAllTime: {
+        sum: incomeAllTime._sum.amount,
+        count: incomeAllTime._count
+      },
+      expenseAllTime: {
+        sum: expenseAllTime._sum.amount,
+        count: expenseAllTime._count
       }
     })
 
+    // Untuk "Pemasukan/Pengeluaran Bulan Ini" - pakai data bulan ini
     const totalIncome = Number(income._sum.amount || 0)
     const totalExpense = Number(expense._sum.amount || 0)
-    const balance = totalIncome - totalExpense
+    
+    // Untuk "Saldo Saat Ini" - pakai data ALL TIME
+    const totalIncomeAllTime = Number(incomeAllTime._sum.amount || 0)
+    const totalExpenseAllTime = Number(expenseAllTime._sum.amount || 0)
+    const balance = totalIncomeAllTime - totalExpenseAllTime
+    
+    // Surplus/Defisit bulan ini
+    const surplusDeficit = totalIncome - totalExpense
 
     console.log("💰 Dashboard stats calculated:", {
       totalIncome,
       totalExpense,
+      totalIncomeAllTime,
+      totalExpenseAllTime,
       balance,
+      surplusDeficit,
       incomeCount: income._count,
       expenseCount: expense._count
     })
@@ -317,9 +356,10 @@ export async function GET(request: Request) {
 
     const response = NextResponse.json({
       stats: {
-        totalIncome,
-        totalExpense,
-        balance,
+        totalIncome,        // Pemasukan bulan ini
+        totalExpense,       // Pengeluaran bulan ini
+        balance,            // Saldo ALL TIME (akumulasi semua transaksi)
+        surplusDeficit,     // Surplus/Defisit bulan ini
         incomeCount: income._count,
         expenseCount: expense._count,
         monthlyData: monthlyData, // Use processed monthly data

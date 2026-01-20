@@ -20,6 +20,7 @@ const transactionSchema = z.object({
   paymentMethod: z.enum(['CASH', 'BANK_TRANSFER', 'QRIS']).optional(),
   status: z.enum(['PAID', 'PENDING', 'VOID']).optional(),
   receiptFileUrl: z.string().optional(),
+  notes: z.string().optional(), // Catatan transaksi
   schoolId: z.string().optional(), // For Super Admin
 })
 
@@ -375,6 +376,7 @@ export async function POST(request: NextRequest) {
         fromTo: transactionData.fromTo || transactionData.description || 'N/A',
         paymentMethod: transactionData.paymentMethod || 'CASH',
         status: transactionData.status || 'PAID',
+        notes: transactionData.notes || null, // Include notes field
       },
       include: {
         category: true,

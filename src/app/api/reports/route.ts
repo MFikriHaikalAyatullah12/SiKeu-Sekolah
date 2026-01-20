@@ -25,13 +25,15 @@ export async function GET(request: NextRequest) {
     const period = searchParams.get('period') || 'thisMonth'
     const customStartDate = searchParams.get('startDate')
     const customEndDate = searchParams.get('endDate')
+    const requestedSchoolId = searchParams.get('schoolId')
 
     console.log("📅 Reports API - Period requested:", period)
+    console.log("🏫 Reports API - Requested schoolId:", requestedSchoolId)
 
-    // Get schoolId from session or database
-    let schoolId: string | null = session.user.schoolId || null
+    // Get schoolId from request param, session, or database
+    let schoolId: string | null = requestedSchoolId || session.user.schoolId || null
     
-    if (!schoolId) {
+    if (!schoolId && !requestedSchoolId) {
       const user = await prisma.user.findUnique({
         where: { id: session.user.id },
         select: { schoolProfileId: true }
@@ -39,7 +41,7 @@ export async function GET(request: NextRequest) {
       schoolId = user?.schoolProfileId || null
     }
 
-    // For Super Admin without schoolId, show all data
+    // For Super Admin without schoolId, show all data (unless specific school requested)
     const schoolFilter = schoolId ? { schoolProfileId: schoolId } : {}
     
     console.log("🏫 Reports API - School filter:", schoolFilter)
@@ -185,7 +187,10 @@ export async function GET(request: NextRequest) {
         where,
         include: { 
           category: true,
-          coaAccount: true 
+          coaAccount: true,
+          createdBy: {
+            select: { name: true, email: true }
+          }
         },
         orderBy: { date: 'desc' },
         take: 100 // Limit to recent 100 transactions

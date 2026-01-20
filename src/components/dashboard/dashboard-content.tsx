@@ -425,6 +425,7 @@ export function DashboardContent() {
     balance: 0,
     totalIncome: 0,
     totalExpense: 0,
+    surplusDeficit: 0,
     incomeCount: 0,
     expenseCount: 0
   };
@@ -540,11 +541,11 @@ export function DashboardContent() {
             </div>
             <div className="space-y-1.5">
               <p className="text-xs md:text-sm text-gray-600 font-medium">Surplus/Defisit</p>
-              <div className={`text-lg md:text-xl font-bold leading-tight ${dashboardLoading && !stats ? 'text-gray-300' : displayStats.balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                {(displayStats.balance >= 0 ? '+' : '') + formatNumber(Math.abs(displayStats.balance)).replace('Rp\u00A0', 'Rp')}
+              <div className={`text-lg md:text-xl font-bold leading-tight ${dashboardLoading && !stats ? 'text-gray-300' : (displayStats.surplusDeficit ?? (displayStats.totalIncome - displayStats.totalExpense)) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                {((displayStats.surplusDeficit ?? (displayStats.totalIncome - displayStats.totalExpense)) >= 0 ? '+' : '') + formatNumber(Math.abs(displayStats.surplusDeficit ?? (displayStats.totalIncome - displayStats.totalExpense))).replace('Rp\u00A0', 'Rp')}
               </div>
               <p className="text-[10px] md:text-xs text-gray-500 leading-tight">
-                {displayStats.balance >= 0 ? 'Surplus' : 'Defisit'} (Bulan ini)
+                {(displayStats.surplusDeficit ?? (displayStats.totalIncome - displayStats.totalExpense)) >= 0 ? 'Surplus' : 'Defisit'} (Bulan ini)
               </p>
             </div>
           </CardContent>
