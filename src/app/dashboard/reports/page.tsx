@@ -1595,22 +1595,22 @@ export default function ReportsPage() {
       
       {/* Export Dialog */}
       <Dialog open={isExportDialogOpen} onOpenChange={setIsExportDialogOpen}>
-        <DialogContent className="sm:max-w-[500px] rounded-2xl">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-semibold">
+        <DialogContent className="sm:max-w-[500px] rounded-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader className="pb-3">
+            <DialogTitle className="text-lg font-semibold">
               Export Laporan ke {exportType === 'excel' ? 'Excel' : 'PDF'}
             </DialogTitle>
-            <DialogDescription className="text-sm text-gray-600 pt-2">
+            <DialogDescription className="text-xs text-gray-600 pt-1">
               Pilih sekolah dan rentang tanggal untuk laporan yang akan di-export
             </DialogDescription>
           </DialogHeader>
           
-          <div className="space-y-4 py-4">
+          <div className="space-y-3 py-2">
             {/* School Selection */}
-            <div className="space-y-2">
-              <Label htmlFor="school-select" className="text-sm font-medium">Nama Sekolah</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="school-select" className="text-xs font-medium">Nama Sekolah</Label>
               <Select value={selectedSchoolId} onValueChange={setSelectedSchoolId}>
-                <SelectTrigger className="w-full">
+                <SelectTrigger className="w-full h-9">
                   <SelectValue placeholder="Pilih Sekolah" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1622,7 +1622,7 @@ export default function ReportsPage() {
                 </SelectContent>
               </Select>
               {schoolProfile && (
-                <div className="p-3 bg-gray-50 rounded-lg border text-xs text-gray-600 space-y-1">
+                <div className="p-2 bg-gray-50 rounded-md border text-[10px] text-gray-600 space-y-0.5">
                   <p><strong>📍 Alamat:</strong> {schoolProfile.address || '-'}</p>
                   <p><strong>📞 Telepon:</strong> {schoolProfile.phone || '-'}</p>
                   <p><strong>📧 Email:</strong> {schoolProfile.email || '-'}</p>
@@ -1631,54 +1631,58 @@ export default function ReportsPage() {
             </div>
             
             {/* Current Period Info */}
-            <div className="p-3 bg-blue-50 dark:bg-blue-950 rounded-lg border border-blue-200 dark:border-blue-800">
-              <p className="text-xs text-blue-800 dark:text-blue-200">
+            <div className="p-2 bg-blue-50 dark:bg-blue-950 rounded-md border border-blue-200 dark:border-blue-800">
+              <p className="text-[10px] text-blue-800 dark:text-blue-200">
                 <strong>📊 Periode saat ini:</strong> {new Date(exportStartDate).toLocaleDateString('id-ID')} - {new Date(exportEndDate).toLocaleDateString('id-ID')}
               </p>
             </div>
             
-            <div className="space-y-2">
-              <Label htmlFor="start-date" className="text-sm font-medium">Tanggal Mulai</Label>
-              <Input
-                id="start-date"
-                type="date"
-                value={exportStartDate}
-                onChange={(e) => {
-                  const selectedDate = e.target.value
-                  if (isTreasurer && treasurerMaxStartDate && selectedDate < treasurerMaxStartDate) {
-                    toast.error(`Bendahara hanya dapat mengakses data maksimal 3 bulan terakhir`)
-                    setExportStartDate(treasurerMaxStartDate)
-                  } else {
-                    setExportStartDate(selectedDate)
-                  }
-                }}
-                min={treasurerMaxStartDate || undefined}
-                className="w-full"
-              />
-              {isTreasurer && (
-                <p className="text-xs text-amber-600">
-                  ⚠️ Akses dibatasi maksimal 3 bulan terakhir
-                </p>
-              )}
+            {/* Date Inputs in Grid */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="start-date" className="text-xs font-medium">Tanggal Mulai</Label>
+                <Input
+                  id="start-date"
+                  type="date"
+                  value={exportStartDate}
+                  onChange={(e) => {
+                    const selectedDate = e.target.value
+                    if (isTreasurer && treasurerMaxStartDate && selectedDate < treasurerMaxStartDate) {
+                      toast.error(`Bendahara hanya dapat mengakses data maksimal 3 bulan terakhir`)
+                      setExportStartDate(treasurerMaxStartDate)
+                    } else {
+                      setExportStartDate(selectedDate)
+                    }
+                  }}
+                  min={treasurerMaxStartDate || undefined}
+                  className="w-full h-9 text-xs"
+                />
+              </div>
+              
+              <div className="space-y-1.5">
+                <Label htmlFor="end-date" className="text-xs font-medium">Tanggal Akhir</Label>
+                <Input
+                  id="end-date"
+                  type="date"
+                  value={exportEndDate}
+                  onChange={(e) => setExportEndDate(e.target.value)}
+                  className="w-full h-9 text-xs"
+                />
+              </div>
             </div>
             
-            <div className="space-y-2">
-              <Label htmlFor="end-date" className="text-sm font-medium">Tanggal Akhir</Label>
-              <Input
-                id="end-date"
-                type="date"
-                value={exportEndDate}
-                onChange={(e) => setExportEndDate(e.target.value)}
-                className="w-full"
-              />
-            </div>
+            {isTreasurer && (
+              <p className="text-[10px] text-amber-600 -mt-1">
+                ⚠️ Akses dibatasi maksimal 3 bulan terakhir
+              </p>
+            )}
             
-            <div className="p-4 bg-blue-50 rounded-lg border border-blue-100">
-              <div className="flex items-start gap-3">
-                <Calendar className="h-5 w-5 text-blue-600 mt-0.5" />
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-blue-900">Rentang Tanggal Terpilih</p>
-                  <p className="text-sm text-blue-700 mt-1">
+            <div className="p-2.5 bg-blue-50 rounded-md border border-blue-100">
+              <div className="flex items-start gap-2">
+                <Calendar className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium text-blue-900">Rentang Tanggal Terpilih</p>
+                  <p className="text-[11px] text-blue-700 mt-0.5">
                     {new Date(exportStartDate).toLocaleDateString('id-ID', { 
                       day: 'numeric', 
                       month: 'long', 
@@ -1691,7 +1695,7 @@ export default function ReportsPage() {
                       year: 'numeric' 
                     })}
                   </p>
-                  <p className="text-xs text-blue-600 mt-1">
+                  <p className="text-[10px] text-blue-600 mt-0.5">
                     {(() => {
                       const start = new Date(exportStartDate)
                       const end = new Date(exportEndDate)

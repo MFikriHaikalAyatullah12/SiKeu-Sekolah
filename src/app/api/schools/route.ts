@@ -166,6 +166,8 @@ export async function POST(request: Request) {
     console.log("✅ Created new school:", newSchool.name)
 
     // Otomatis buat struktur COA default untuk sekolah baru
+    // COA categories are global and shared across schools
+    // Check if they already exist, if not create them
     const coaCategories = [
       { code: '1000', name: 'AKTIVA', type: 'ASSET' },
       { code: '2000', name: 'KEWAJIBAN', type: 'LIABILITY' },
@@ -175,12 +177,13 @@ export async function POST(request: Request) {
     ]
 
     for (const cat of coaCategories) {
-      await prisma.coaCategory.create({
-        data: {
+      await prisma.coaCategory.upsert({
+        where: { code: cat.code },
+        update: {},
+        create: {
           code: cat.code,
           name: cat.name,
           type: cat.type as any,
-          schoolProfileId: newSchool.id,
         }
       })
     }
