@@ -1,50 +1,44 @@
-import { withAuth } from "next-auth/middleware"
 import { NextResponse } from "next/server"
+import type { NextRequest } from "next/server"
+import { getToken } from "next-auth/jwt"
 
-export default withAuth(
-  function middleware(req) {
-    const token = req.nextauth.token
-    const pathname = req.nextUrl.pathname
+export async function middleware(req: NextRequest) {
+  const pathname = req.nextUrl.pathname
 
-    // Public routes yang tidak memerlukan authentication
-    const publicRoutes = ['/', '/auth/signin', '/auth/register', '/api/auth']
-    const isPublicRoute = publicRoutes.some(route => 
-      route === '/' ? pathname === '/' : pathname.startsWith(route)
-    )
-
-    // Jika tidak ada token dan bukan public route, redirect ke login
-    if (!token && !isPublicRoute) {
-      const signInUrl = new URL('/auth/signin', req.url)
-      return NextResponse.redirect(signInUrl)
-    }
-
-    // Jika ada token dan mengakses landing page, redirect ke dashboard
-    if (pathname === '/' && token) {
-      const dashboardUrl = new URL('/dashboard', req.url)
-      return NextResponse.redirect(dashboardUrl)
-    }
-
+  // Public routes yang tidak memerlukan authentication
+  const publicRoutes = ['/', '/auth/signin', '/auth/register']
+  const isPublicRoute = publicRoutes.some(route => 
+    route === '/' ? pathname === '/' : pathname.startsWith(route)
+  )
+  
+  // Skip middleware for API auth routes and static files
+  if (pathname.startsWith('/api/auth') || 
+      pathname.startsWith('/_next') ||
+      pathname.includes('.')) {
     return NextResponse.next()
-  },
-  {
-    callbacks: {
-      authorized: ({ token, req }) => {
-        const pathname = req.nextUrl.pathname
-        
-        // Allow access ke public routes tanpa token
-        const publicRoutes = ['/', '/auth/signin', '/auth/register', '/api/auth']
-        if (publicRoutes.some(route => 
-          route === '/' ? pathname === '/' : pathname.startsWith(route)
-        )) {
-          return true
-        }
-
-        // Require token untuk semua route lainnya
-        return !!token
-      }
-    }
   }
-)
+
+  // Get token - use the same cookie name as configured in auth.ts
+  const token = await getToken({ 
+    req,
+    secret: process.env.NEXTAUTH_SECRET,
+    cookieName: "next-auth.session-token",
+  })
+
+  // Jika tidak ada token dan bukan public route, redirect ke login
+  if (!token && !isPublicRoute) {
+    const signInUrl = new URL('/auth/signin', req.url)
+    return NextResponse.redirect(signInUrl)
+  }
+
+  // Jika ada token dan mengakses landing page, redirect ke dashboard
+  if (pathname === '/' && token) {
+    const dashboardUrl = new URL('/dashboard', req.url)
+    return NextResponse.redirect(dashboardUrl)
+  }
+
+  return NextResponse.next()
+}
 
 export const config = {
   matcher: [
