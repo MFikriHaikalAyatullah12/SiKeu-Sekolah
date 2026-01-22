@@ -8,7 +8,7 @@ async function checkUsers() {
   const users = await prisma.user.findMany({
     where: {
       email: {
-        in: ['superadmin@sikeu.com', 'admin@smanjakarta.sch.id', 'treasurer@smanjakarta.sch.id']
+        in: ['sikeusekolah@gmail.com', 'admin@smanjakarta.sch.id', 'treasurer@smanjakarta.sch.id']
       }
     },
     select: {

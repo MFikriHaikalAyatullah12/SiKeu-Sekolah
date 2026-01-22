@@ -89,7 +89,7 @@
 ═══════════════════════════════════════════════════════════════
   🔑 CREDENTIALS LOGIN SETELAH DEPLOY:
 ═══════════════════════════════════════════════════════════════
-Email    : superadmin@sikeu.com
+Email    : sikeusekolah@gmail.com
 Password : superadmin123
 
 ═══════════════════════════════════════════════════════════════
@@ -99,7 +99,7 @@ Password : superadmin123
 □ Pilih environment: Production + Preview + Development
 □ Deployment status "Ready" (bukan "Error")
 □ Clear browser cache sudah dilakukan
-□ Bisa login dengan superadmin@sikeu.com
+□ Bisa login dengan sikeusekolah@gmail.com
 □ Setelah login redirect ke /dashboard
 □ Dashboard menampilkan data dengan benar
 

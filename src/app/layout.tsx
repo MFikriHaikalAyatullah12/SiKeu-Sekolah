@@ -9,6 +9,7 @@ const inter = Inter({
   variable: "--font-inter",
   display: "swap", // Improve font loading performance
   preload: true,
+  adjustFontFallback: true, // Better font matching to reduce CLS
 });
 
 export const metadata: Metadata = {

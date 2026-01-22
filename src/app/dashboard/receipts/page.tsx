@@ -10,12 +10,15 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { 
   Search, 
   Calendar,
   Eye,
   Download,
   FileText,
+  Printer,
+  X,
 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -27,6 +30,7 @@ export default function ReceiptsPage() {
   const [receipts, setReceipts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedReceipt, setSelectedReceipt] = useState<any>(null)
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
   
   // Filter states
@@ -155,6 +159,7 @@ export default function ReceiptsPage() {
 
   const handlePreview = (receipt: any) => {
     setSelectedReceipt(receipt)
+    setIsPreviewOpen(true)
   }
 
   const handleDownloadPDF = async (transactionId?: string) => {
@@ -393,6 +398,118 @@ export default function ReceiptsPage() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Preview Dialog */}
+        <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center justify-between">
+                <span>Preview Kwitansi</span>
+              </DialogTitle>
+            </DialogHeader>
+            
+            {selectedReceipt && (
+              <div className="space-y-6">
+                {/* Receipt Preview */}
+                <div className="border-2 border-dashed border-gray-200 rounded-xl p-6 bg-white">
+                  {/* Header */}
+                  <div className="text-center border-b pb-4 mb-4">
+                    <h2 className="text-xl font-bold text-gray-900">KWITANSI</h2>
+                    <p className="text-sm text-gray-500">Bukti Pembayaran</p>
+                  </div>
+                  
+                  {/* Receipt Number */}
+                  <div className="flex justify-between items-center mb-4">
+                    <span className="text-sm text-gray-600">Nomor Kwitansi:</span>
+                    <span className="font-mono font-bold text-blue-600">{selectedReceipt.nomor}</span>
+                  </div>
+                  
+                  {/* Receipt Details */}
+                  <div className="space-y-3 text-sm">
+                    <div className="grid grid-cols-3 gap-2 py-2 border-b border-gray-100">
+                      <span className="text-gray-500">Tanggal</span>
+                      <span className="col-span-2 font-medium">{formatDate(selectedReceipt.tanggal)}</span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 py-2 border-b border-gray-100">
+                      <span className="text-gray-500">Diterima dari</span>
+                      <span className="col-span-2 font-medium">{selectedReceipt.namaPembayar}</span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 py-2 border-b border-gray-100">
+                      <span className="text-gray-500">Untuk Pembayaran</span>
+                      <span className="col-span-2 font-medium">{selectedReceipt.untukPembayaran}</span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 py-2 border-b border-gray-100">
+                      <span className="text-gray-500">Kategori</span>
+                      <span className="col-span-2 font-medium">{selectedReceipt.kategori}</span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 py-2 border-b border-gray-100">
+                      <span className="text-gray-500">Metode Pembayaran</span>
+                      <span className="col-span-2 font-medium">{selectedReceipt.metodePembayaran}</span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 py-2 border-b border-gray-100">
+                      <span className="text-gray-500">Status</span>
+                      <span className="col-span-2">{getStatusBadge(selectedReceipt.status)}</span>
+                    </div>
+                    
+                    {/* Amount */}
+                    <div className="bg-green-50 rounded-lg p-4 mt-4">
+                      <div className="grid grid-cols-3 gap-2">
+                        <span className="text-gray-600 font-medium">Jumlah</span>
+                        <span className="col-span-2 text-2xl font-bold text-green-700">
+                          {formatCurrency(selectedReceipt.nominal)}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 mt-2">
+                        <span className="text-gray-500 text-xs">Terbilang</span>
+                        <span className="col-span-2 text-sm italic text-gray-600">
+                          {selectedReceipt.terbilang}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Footer */}
+                  <div className="mt-6 pt-4 border-t border-gray-200">
+                    <div className="flex justify-between text-xs text-gray-500">
+                      <div>
+                        <p>Dibuat oleh: {selectedReceipt.createdBy}</p>
+                        <p>Tanggal: {formatDateTime(selectedReceipt.createdAt)}</p>
+                      </div>
+                      <div className="text-right">
+                        <p>Petugas: {selectedReceipt.petugas}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Action Buttons */}
+                <div className="flex justify-end gap-3">
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsPreviewOpen(false)}
+                  >
+                    <X className="h-4 w-4 mr-2" />
+                    Tutup
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={handlePrint}
+                  >
+                    <Printer className="h-4 w-4 mr-2" />
+                    Cetak
+                  </Button>
+                  <Button
+                    onClick={() => handleDownloadPDF(selectedReceipt.id)}
+                    className="bg-blue-600 hover:bg-blue-700"
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Download PDF
+                  </Button>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </DashboardLayout>
   )

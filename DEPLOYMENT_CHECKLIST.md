@@ -21,7 +21,7 @@
 - [x] Database connection: **VERIFIED**
 - [x] Migrations: **UP TO DATE**
 - [x] Users seeded: **3 users ready**
-  - Super Admin: `superadmin@sikeu.com`
+  - Super Admin: `sikeusekolah@gmail.com`
   - Admin: `admin@smanjakarta.sch.id`
   - Treasurer: `treasurer@smanjakarta.sch.id`
 - [x] COA structure: **SEEDED**
@@ -117,7 +117,7 @@ git push origin main
 ### Step 4: Verify
 Tunggu 2-3 menit, lalu test:
 - URL: https://si-keu-sekolah.vercel.app
-- Login: `superadmin@sikeu.com` / `superadmin123`
+- Login: `sikeusekolah@gmail.com` / `superadmin123`
 
 ---
 

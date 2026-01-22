@@ -57,8 +57,19 @@ const nextConfig: NextConfig = {
   
   // Experimental performance features
   experimental: {
-    // Optimize package imports
-    optimizePackageImports: ['lucide-react', '@radix-ui/react-icons', 'recharts'],
+    // Optimize package imports - reduce bundle size significantly
+    optimizePackageImports: [
+      'lucide-react', 
+      '@radix-ui/react-icons', 
+      'recharts',
+      '@radix-ui/react-dialog',
+      '@radix-ui/react-select',
+      '@radix-ui/react-dropdown-menu',
+      '@radix-ui/react-avatar',
+      '@radix-ui/react-tabs',
+      'date-fns',
+      'sonner',
+    ],
   },
   
   // Empty turbopack config to acknowledge Turbopack usage

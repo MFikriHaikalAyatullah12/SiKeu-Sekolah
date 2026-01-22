@@ -17,11 +17,14 @@ export default async function DashboardPage() {
     redirect("/auth/signin")
   }
 
-  // Streaming UI for faster initial render
+  // Pass user info to client for immediate display
+  // Stats are fetched client-side with optimistic UI for faster LCP
   return (
     <DashboardLayout>
       <Suspense fallback={<DashboardSkeleton />}>
-        <DashboardContent />
+        <DashboardContent 
+          userName={session.user?.name || 'User'} 
+        />
       </Suspense>
     </DashboardLayout>
   )

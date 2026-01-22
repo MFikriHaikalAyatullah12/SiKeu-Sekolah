@@ -68,7 +68,7 @@ npx prisma db seed
 
 **Output yang diharapkan:**
 ```
-✅ Super Admin user ready: superadmin@sikeu.com
+✅ Super Admin user ready: sikeusekolah@gmail.com
 ✅ School profile created: Sekolah Menengah Atas Negeri 1
 ✅ Admin user created: admin@smanjakarta.sch.id
 ✅ Treasurer user created: treasurer@smanjakarta.sch.id
@@ -99,7 +99,7 @@ git push origin main
 Setelah deployment selesai, test login dengan credentials:
 
 ```
-Email: superadmin@sikeu.com
+Email: sikeusekolah@gmail.com
 Password: superadmin123
 ```
 
@@ -116,7 +116,7 @@ Password: superadmin123
 ### Problem: "Email atau password salah"
 **Solusi:**
 - Database belum di-seed → Jalankan `npx prisma db seed`
-- Pastikan menggunakan email `superadmin@sikeu.com` (bukan username)
+- Pastikan menggunakan email `sikeusekolah@gmail.com` (bukan username)
 
 ### Problem: Stuck di halaman login (tidak redirect)
 **Solusi:**
@@ -144,7 +144,7 @@ Sebelum consider "sudah fix", pastikan:
 - [ ] `NEXTAUTH_URL` tidak ada trailing slash
 - [ ] Database sudah di-seed (Super Admin exists)
 - [ ] Project sudah di-redeploy setelah set env vars
-- [ ] Bisa login dengan `superadmin@sikeu.com` / `superadmin123`
+- [ ] Bisa login dengan `sikeusekolah@gmail.com` / `superadmin123`
 - [ ] Redirect ke `/dashboard` setelah login berhasil
 - [ ] Session tidak expired setiap refresh page
 
@@ -155,7 +155,7 @@ Sebelum consider "sudah fix", pastikan:
 Setelah seed database, gunakan credentials berikut:
 
 ### Super Admin (Akses semua sekolah)
-- Email: `superadmin@sikeu.com`
+- Email: `sikeusekolah@gmail.com`
 - Password: `superadmin123`
 
 ### Admin SMAN 1 Jakarta

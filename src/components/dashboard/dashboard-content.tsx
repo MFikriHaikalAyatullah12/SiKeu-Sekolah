@@ -1,28 +1,39 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo, memo } from "react";
+import { useState, useEffect, useCallback, useMemo, memo, lazy, Suspense } from "react";
+import dynamic from "next/dynamic";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   ArrowUpIcon,
   ArrowDownIcon,
-  Scale,
-  Wallet,
   Plus,
   TrendingUp,
   Loader2,
   Calendar,
+  Scale,
+  Wallet,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import { DashboardSkeleton, StatsGridSkeleton } from "./dashboard-skeleton";
-import { AreaChartComponent, PieChartComponent, ChartSkeleton, PieChartSkeleton } from "./lazy-charts";
+import { AreaChartComponent, PieChartComponent } from "./lazy-charts";
+
+// Lazy load heavy dialog components - defer until user interaction
+const Dialog = dynamic(() => import("@/components/ui/dialog").then(m => m.Dialog), { ssr: false });
+const DialogContent = dynamic(() => import("@/components/ui/dialog").then(m => m.DialogContent), { ssr: false });
+const DialogDescription = dynamic(() => import("@/components/ui/dialog").then(m => m.DialogDescription), { ssr: false });
+const DialogFooter = dynamic(() => import("@/components/ui/dialog").then(m => m.DialogFooter), { ssr: false });
+const DialogHeader = dynamic(() => import("@/components/ui/dialog").then(m => m.DialogHeader), { ssr: false });
+const DialogTitle = dynamic(() => import("@/components/ui/dialog").then(m => m.DialogTitle), { ssr: false });
+const Input = dynamic(() => import("@/components/ui/input").then(m => m.Input), { ssr: false });
+const Label = dynamic(() => import("@/components/ui/label").then(m => m.Label), { ssr: false });
+const Textarea = dynamic(() => import("@/components/ui/textarea").then(m => m.Textarea), { ssr: false });
+const Select = dynamic(() => import("@/components/ui/select").then(m => m.Select), { ssr: false });
+const SelectContent = dynamic(() => import("@/components/ui/select").then(m => m.SelectContent), { ssr: false });
+const SelectItem = dynamic(() => import("@/components/ui/select").then(m => m.SelectItem), { ssr: false });
+const SelectTrigger = dynamic(() => import("@/components/ui/select").then(m => m.SelectTrigger), { ssr: false });
+const SelectValue = dynamic(() => import("@/components/ui/select").then(m => m.SelectValue), { ssr: false });
 
 // Chart of Accounts - Kategori Pemasukan
 const incomeCategories = [
@@ -87,7 +98,11 @@ const expenseCategories = [
   },
 ];
 
-export function DashboardContent() {
+interface DashboardContentProps {
+  userName?: string; // User name passed from server
+}
+
+export function DashboardContent({ userName = 'User' }: DashboardContentProps) {
   const router = useRouter();
   const [selectedMonth, setSelectedMonth] = useState("Bulan Ini");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -95,7 +110,7 @@ export function DashboardContent() {
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState<any>(null);
   const [loading, setLoading] = useState(false);
-  const [dashboardLoading, setDashboardLoading] = useState(true); // Show skeleton initially
+  const [dashboardLoading, setDashboardLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [categories, setCategories] = useState<any[]>([]);
   const [transactions, setTransactions] = useState<any[]>([]);
@@ -431,125 +446,102 @@ export function DashboardContent() {
   };
 
   return (
-    <div className="space-y-3 md:space-y-4 w-full overflow-x-hidden">
-      {/* Header dengan indikator refresh - fixed height */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 md:gap-3">
-        <div className="min-h-[44px]">
-          <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-          <p className="text-sm text-gray-500 mt-1 min-h-[20px] flex items-center gap-2">
-            {lastUpdated ? (
-              <>
-                Terakhir diperbarui: {lastUpdated.toLocaleString('id-ID')}
-                <span className="inline-flex items-center gap-1 text-xs text-green-600">
-                  <span className="h-2 w-2 bg-green-500 rounded-full animate-pulse"></span>
-                  Auto-refresh 10 detik
-                </span>
-              </>
-            ) : 'Memuat data...'}
-          </p>
-        </div>
-        <div className="flex items-center space-x-3">
-          {dashboardLoading && (
-            <div className="flex items-center space-x-2 text-sm text-gray-500">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              <span>Memuat...</span>
-            </div>
-          )}
-          <Button 
-            onClick={() => fetchDashboardData(false, false)} 
-            variant="outline" 
-            size="sm"
-            disabled={dashboardLoading}
-          >
-            <TrendingUp className="h-4 w-4 mr-2" />
-            Refresh
-          </Button>
-        </div>
-      </div>
-
-      {/* Summary Cards - Render immediately with displayStats for fast LCP */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-        {/* Saldo Saat Ini */}
-        <Card className="hover:shadow-lg transition-shadow">
-          <CardContent className="p-4 md:p-6">
-            <div className="flex items-center justify-between mb-3">
-              <div className="p-2 md:p-2.5 bg-green-100 rounded-lg">
-                <Wallet className="h-5 w-5 md:h-6 md:w-6 text-green-600" />
+    <>
+      {/* Stats Cards - Optimistic UI with instant render */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+        {/* Total Pemasukan */}
+        <Card className="bg-gradient-to-br from-green-50 to-white border-green-100 min-h-[100px]">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="p-1.5 rounded-lg bg-green-100">
+                <ArrowUpIcon className="h-4 w-4 text-green-600" />
               </div>
+              <span className="text-xs font-medium text-green-700">Pemasukan</span>
             </div>
-            <div className="space-y-1.5">
-              <p className="text-xs md:text-sm text-gray-600 font-medium">Saldo Saat Ini</p>
-              <div className={`text-lg md:text-xl font-bold leading-tight ${dashboardLoading && !stats ? 'text-gray-300' : 'text-gray-900'}`}>
-                {formatNumber(displayStats.balance).replace('Rp\u00A0', 'Rp')}
-              </div>
-              <p className={`text-[10px] md:text-xs leading-tight ${displayStats.totalIncome - displayStats.totalExpense >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                {displayStats.totalIncome - displayStats.totalExpense >= 0 
-                  ? `+${formatCurrency(displayStats.totalIncome - displayStats.totalExpense)}` 
-                  : formatCurrency(displayStats.totalIncome - displayStats.totalExpense)} (Bulan ini)
-              </p>
-            </div>
+            <p className={`text-lg md:text-xl font-bold leading-tight text-green-700 ${dashboardLoading ? 'animate-pulse' : ''}`}>
+              {formatCurrency(displayStats.totalIncome)}
+            </p>
+            <p className="text-xs text-gray-500 mt-1">{displayStats.incomeCount || 0} transaksi</p>
           </CardContent>
         </Card>
 
-        {/* Pemasukan Bulan Ini */}
-        <Card className="hover:shadow-lg transition-shadow">
-          <CardContent className="p-4 md:p-6">
-            <div className="flex items-center justify-between mb-3">
-              <div className="p-2 md:p-2.5 bg-blue-100 rounded-lg">
-                <ArrowUpIcon className="h-5 w-5 md:h-6 md:w-6 text-blue-600" />
+        {/* Total Pengeluaran */}
+        <Card className="bg-gradient-to-br from-red-50 to-white border-red-100 min-h-[100px]">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="p-1.5 rounded-lg bg-red-100">
+                <ArrowDownIcon className="h-4 w-4 text-red-600" />
               </div>
+              <span className="text-xs font-medium text-red-700">Pengeluaran</span>
             </div>
-            <div className="space-y-1.5">
-              <p className="text-xs md:text-sm text-gray-600 font-medium">Pemasukan Bulan Ini</p>
-              <div className={`text-lg md:text-xl font-bold leading-tight ${dashboardLoading && !stats ? 'text-gray-300' : 'text-gray-900'}`}>
-                {formatNumber(displayStats.totalIncome).replace('Rp\u00A0', 'Rp')}
-              </div>
-              <p className="text-[10px] md:text-xs text-gray-500 leading-tight">
-                Berdasarkan {displayStats.incomeCount} transaksi
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Pengeluaran Bulan Ini */}
-        <Card className="hover:shadow-lg transition-shadow">
-          <CardContent className="p-4 md:p-6">
-            <div className="flex items-center justify-between mb-3">
-              <div className="p-2 md:p-2.5 bg-red-100 rounded-lg">
-                <ArrowDownIcon className="h-5 w-5 md:h-6 md:w-6 text-red-600" />
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <p className="text-xs md:text-sm text-gray-600 font-medium">Pengeluaran Bulan Ini</p>
-              <div className={`text-lg md:text-xl font-bold leading-tight ${dashboardLoading && !stats ? 'text-gray-300' : 'text-gray-900'}`}>
-                {formatNumber(displayStats.totalExpense).replace('Rp\u00A0', 'Rp')}
-              </div>
-              <p className="text-[10px] md:text-xs text-gray-500 leading-tight">
-                Berdasarkan {displayStats.expenseCount} transaksi
-              </p>
-            </div>
+            <p className={`text-lg md:text-xl font-bold leading-tight text-red-700 ${dashboardLoading ? 'animate-pulse' : ''}`}>
+              {formatCurrency(displayStats.totalExpense)}
+            </p>
+            <p className="text-xs text-gray-500 mt-1">{displayStats.expenseCount || 0} transaksi</p>
           </CardContent>
         </Card>
 
         {/* Surplus/Defisit */}
-        <Card className="hover:shadow-lg transition-shadow">
-          <CardContent className="p-4 md:p-6">
-            <div className="flex items-center justify-between mb-3">
-              <div className="p-2 md:p-2.5 bg-purple-100 rounded-lg">
-                <Scale className="h-5 w-5 md:h-6 md:w-6 text-purple-600" />
+        <Card className={`bg-gradient-to-br ${displayStats.surplusDeficit >= 0 ? 'from-blue-50 border-blue-100' : 'from-orange-50 border-orange-100'} to-white min-h-[100px]`}>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <div className={`p-1.5 rounded-lg ${displayStats.surplusDeficit >= 0 ? 'bg-blue-100' : 'bg-orange-100'}`}>
+                <Scale className={`h-4 w-4 ${displayStats.surplusDeficit >= 0 ? 'text-blue-600' : 'text-orange-600'}`} />
               </div>
+              <span className={`text-xs font-medium ${displayStats.surplusDeficit >= 0 ? 'text-blue-700' : 'text-orange-700'}`}>
+                {displayStats.surplusDeficit >= 0 ? 'Surplus' : 'Defisit'}
+              </span>
             </div>
-            <div className="space-y-1.5">
-              <p className="text-xs md:text-sm text-gray-600 font-medium">Surplus/Defisit</p>
-              <div className={`text-lg md:text-xl font-bold leading-tight ${dashboardLoading && !stats ? 'text-gray-300' : (displayStats.surplusDeficit ?? (displayStats.totalIncome - displayStats.totalExpense)) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                {((displayStats.surplusDeficit ?? (displayStats.totalIncome - displayStats.totalExpense)) >= 0 ? '+' : '') + formatNumber(Math.abs(displayStats.surplusDeficit ?? (displayStats.totalIncome - displayStats.totalExpense))).replace('Rp\u00A0', 'Rp')}
-              </div>
-              <p className="text-[10px] md:text-xs text-gray-500 leading-tight">
-                {(displayStats.surplusDeficit ?? (displayStats.totalIncome - displayStats.totalExpense)) >= 0 ? 'Surplus' : 'Defisit'} (Bulan ini)
-              </p>
-            </div>
+            <p className={`text-lg md:text-xl font-bold leading-tight ${displayStats.surplusDeficit >= 0 ? 'text-blue-700' : 'text-orange-700'} ${dashboardLoading ? 'animate-pulse' : ''}`}>
+              {formatCurrency(Math.abs(displayStats.surplusDeficit))}
+            </p>
+            <p className="text-xs text-gray-500 mt-1">Bulan ini</p>
           </CardContent>
         </Card>
+
+        {/* Saldo */}
+        <Card className="bg-gradient-to-br from-purple-50 to-white border-purple-100 min-h-[100px]">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="p-1.5 rounded-lg bg-purple-100">
+                <Wallet className="h-4 w-4 text-purple-600" />
+              </div>
+              <span className="text-xs font-medium text-purple-700">Saldo</span>
+            </div>
+            <p className={`text-lg md:text-xl font-bold leading-tight text-purple-700 ${dashboardLoading ? 'animate-pulse' : ''}`}>
+              {formatCurrency(displayStats.balance)}
+            </p>
+            <p className="text-xs text-gray-500 mt-1">Total keseluruhan</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Refresh Button - Floating for interactivity */}
+      <div className="flex items-center justify-end gap-2 mb-2">
+        <p className="text-xs text-gray-500 flex items-center gap-2">
+          {lastUpdated ? (
+            <>
+              Terakhir: {lastUpdated.toLocaleTimeString('id-ID')}
+              <span className="inline-flex items-center gap-1 text-green-600">
+                <span className="h-1.5 w-1.5 bg-green-500 rounded-full animate-pulse"></span>
+              </span>
+            </>
+          ) : null}
+        </p>
+        <Button 
+          onClick={() => fetchDashboardData(true, false)} 
+          variant="outline" 
+          size="sm"
+          disabled={dashboardLoading}
+          className="h-8"
+        >
+          {dashboardLoading ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <TrendingUp className="h-3.5 w-3.5" />
+          )}
+          <span className="ml-1.5 text-xs">Refresh</span>
+        </Button>
       </div>
 
       {/* Charts Section - Fixed min-height to prevent CLS */}
@@ -894,6 +886,6 @@ export function DashboardContent() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 }

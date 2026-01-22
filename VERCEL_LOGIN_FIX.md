@@ -79,7 +79,7 @@ Tunggu 2-3 menit sampai deployment selesai, lalu:
 1. Buka https://si-keu-sekolah.vercel.app
 2. Klik "Masuk"
 3. Login dengan:
-   - **Email:** `superadmin@sikeu.com`
+   - **Email:** `sikeusekolah@gmail.com`
    - **Password:** `superadmin123`
 
 ---
@@ -124,7 +124,7 @@ Setelah redeploy, test semua ini:
 
 - [ ] Bisa buka landing page (https://si-keu-sekolah.vercel.app)
 - [ ] Bisa klik "Masuk" dan form login muncul
-- [ ] Login Super Admin berhasil (`superadmin@sikeu.com` / `superadmin123`)
+- [ ] Login Super Admin berhasil (`sikeusekolah@gmail.com` / `superadmin123`)
 - [ ] Redirect ke `/dashboard` setelah login
 - [ ] Dashboard content loaded (tidak blank)
 - [ ] Bisa navigate ke menu lain (Transactions, Reports, etc.)

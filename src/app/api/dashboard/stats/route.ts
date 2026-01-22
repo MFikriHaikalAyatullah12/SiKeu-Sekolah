@@ -314,10 +314,10 @@ export async function GET(request: Request) {
 
     console.log("📊 Monthly data processed:", monthlyData);
 
-    // If no real data, generate sample data based on role
+    // If no data exists, create empty months for the chart (no fake data)
     if (monthlyData.length === 0) {
       const currentDate = new Date();
-      const sampleData = [];
+      const emptyMonths = [];
       const monthsToShow = session.user.role === 'TREASURER' ? 3 : 6;
       
       for (let i = monthsToShow - 1; i >= 0; i--) {
@@ -325,18 +325,14 @@ export async function GET(request: Request) {
         const monthName = monthNames[date.getMonth()];
         const year = date.getFullYear();
         
-        // Generate varied sample data to show trends
-        const baseIncome = 150 + (Math.sin(i * 0.8) * 50) + (Math.random() * 30 - 15); // 120-215 range with sine wave
-        const baseExpense = 100 + (Math.cos(i * 0.6) * 40) + (Math.random() * 20 - 10); // 70-150 range with cosine wave
-        
-        sampleData.push({
+        emptyMonths.push({
           month: `${monthName} ${year}`,
-          pemasukan: Math.max(50, Math.round(baseIncome)), // Minimum 50M
-          pengeluaran: Math.max(30, Math.round(baseExpense)) // Minimum 30M
+          pemasukan: 0,
+          pengeluaran: 0
         });
       }
       
-      monthlyData = sampleData;
+      monthlyData = emptyMonths;
     }
 
     // Process category breakdown

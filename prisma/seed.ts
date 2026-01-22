@@ -24,10 +24,10 @@ async function main() {
   // Upsert Super Admin User (Global - tanpa schoolProfileId)
   const superAdminPassword = await bcrypt.hash('superadmin123', 12)
   const superAdminUser = await prisma.user.upsert({
-    where: { email: 'superadmin@sikeu.com' },
+    where: { email: 'sikeusekolah@gmail.com' },
     update: {},
     create: {
-      email: 'superadmin@sikeu.com',
+      email: 'sikeusekolah@gmail.com',
       password: superAdminPassword,
       name: 'Super Administrator',
       role: 'SUPER_ADMIN',
@@ -360,7 +360,7 @@ async function main() {
   console.log('🎉 Database seeding completed successfully!')
   console.log('')
   console.log('Test accounts:')
-  console.log('� Super Admin: superadmin@sikeu.com / superadmin123 (Akses ke semua sekolah)')
+  console.log('� Super Admin: sikeusekolah@gmail.com / superadmin123 (Akses ke semua sekolah)')
   console.log('�📧 Admin: admin@smanjakarta.sch.id / admin123')
   console.log('📧 Bendahara: bendahara@smanjakarta.sch.id / bendahara123')
   console.log('')

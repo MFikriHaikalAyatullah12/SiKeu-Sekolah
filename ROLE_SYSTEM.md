@@ -14,7 +14,7 @@ Sistem ini memiliki 4 level role dengan wewenang berbeda:
 - ✅ Tidak terikat ke sekolah tertentu
 
 **Akun Default:**
-- Email: `superadmin@sikeu.com`
+- Email: `sikeusekolah@gmail.com`
 - Password: `superadmin123`
 
 ### 2. 🔑 Admin
@@ -45,7 +45,7 @@ Sistem ini memiliki 4 level role dengan wewenang berbeda:
 ## Cara Kerja
 
 ### Super Admin Login
-1. Super Admin login dengan akun `superadmin@sikeu.com`
+1. Super Admin login dengan akun `sikeusekolah@gmail.com`
 2. Di sidebar, menu **"Pengaturan Sekolah"** akan muncul (hanya untuk Super Admin)
 3. Super Admin bisa melihat semua sekolah yang terdaftar
 4. Super Admin bisa mengubah nama, alamat, telepon, dan email sekolah
@@ -139,7 +139,7 @@ model User {
 ## Testing
 
 ### Test Super Admin:
-1. Login: `superadmin@sikeu.com` / `superadmin123`
+1. Login: `sikeusekolah@gmail.com` / `superadmin123`
 2. Buka `/dashboard/school-settings`
 3. Edit nama sekolah
 4. Verify perubahan tersimpan
