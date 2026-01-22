@@ -84,10 +84,11 @@ export const authOptions: NextAuthOptions = {
 
     return providers
   })(),
+  secret: process.env.NEXTAUTH_SECRET,
   session: {
     strategy: "jwt",
-    maxAge: 30 * 60, // 30 menit (1800 seconds)
-    updateAge: 10 * 60, // Update session every 10 minutes (reduced frequency)
+    maxAge: 24 * 60 * 60, // 24 jam (lebih lama untuk production)
+    updateAge: 60 * 60, // Update session every 1 hour
   },
   callbacks: {
     async jwt({ token, user, trigger }) {
@@ -152,34 +153,7 @@ export const authOptions: NextAuthOptions = {
     signIn: "/auth/signin",
     error: "/auth/error",
   },
-  cookies: {
-    sessionToken: {
-      name: "next-auth.session-token",
-      options: {
-        httpOnly: true,
-        sameSite: "lax",
-        path: "/",
-        secure: process.env.NEXTAUTH_URL?.startsWith("https://") ?? false,
-      },
-    },
-    callbackUrl: {
-      name: "next-auth.callback-url",
-      options: {
-        httpOnly: true,
-        sameSite: "lax",
-        path: "/",
-        secure: process.env.NEXTAUTH_URL?.startsWith("https://") ?? false,
-      },
-    },
-    csrfToken: {
-      name: "next-auth.csrf-token",
-      options: {
-        httpOnly: true,
-        sameSite: "lax",
-        path: "/",
-        secure: process.env.NEXTAUTH_URL?.startsWith("https://") ?? false,
-      },
-    },
-  },
+  // Use default cookie settings - NextAuth will auto-detect HTTPS
+  useSecureCookies: process.env.NEXTAUTH_URL?.startsWith("https://") ?? false,
   debug: process.env.NODE_ENV === "development",
 }

@@ -18,11 +18,17 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next()
   }
 
-  // Get token - use the same cookie name as configured in auth.ts
+  // Determine if using secure cookies based on NEXTAUTH_URL
+  const useSecureCookies = process.env.NEXTAUTH_URL?.startsWith("https://") ?? false
+  const cookieName = useSecureCookies 
+    ? "__Secure-next-auth.session-token" 
+    : "next-auth.session-token"
+
+  // Get token with correct cookie name
   const token = await getToken({ 
     req,
     secret: process.env.NEXTAUTH_SECRET,
-    cookieName: "next-auth.session-token",
+    cookieName,
   })
 
   // Jika tidak ada token dan bukan public route, redirect ke login
@@ -42,14 +48,6 @@ export async function middleware(req: NextRequest) {
 
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - api/auth (NextAuth API routes)
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - public folder
-     */
     "/((?!api/auth|_next/static|_next/image|favicon.ico|.*\\.png$|.*\\.jpg$|.*\\.jpeg$|.*\\.gif$|.*\\.svg$).*)"
   ]
 }
