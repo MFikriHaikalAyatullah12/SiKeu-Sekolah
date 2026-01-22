@@ -172,7 +172,7 @@ export default function SignInPage() {
             {/* Tombol kembali ke landing page */}
             <Link 
               href="/" 
-              className="absolute left-4 top-4 flex items-center gap-1 px-2 py-1 rounded-full hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+              className="absolute left-4 top-4 z-10 flex items-center gap-1 px-3 py-2 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors text-gray-700 hover:text-gray-900 font-medium"
               aria-label="Kembali ke halaman utama"
             >
               <ArrowLeft className="h-4 w-4" />
