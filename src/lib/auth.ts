@@ -90,7 +90,8 @@ export const authOptions: NextAuthOptions = {
     updateAge: 10 * 60, // Update session every 10 minutes (reduced frequency)
   },
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger }) {
+      // Only update token when user logs in (not on every request)
       if (user) {
         console.log("🔐 JWT callback - User from login:", {
           id: user.id,
@@ -99,19 +100,32 @@ export const authOptions: NextAuthOptions = {
         })
         token.role = user.role
         token.schoolId = user.schoolId
+        
+        // If schoolId is missing during login, fetch from DB once
+        if (!token.schoolId || token.schoolId === "") {
+          try {
+            const dbUser = await prisma.user.findUnique({
+              where: { id: user.id },
+              select: { schoolProfileId: true }
+            })
+            if (dbUser?.schoolProfileId) {
+              token.schoolId = dbUser.schoolProfileId
+              console.log("✅ Fetched schoolId from DB during login:", token.schoolId)
+            }
+          } catch (error) {
+            console.error("❌ Error fetching schoolId:", error)
+          }
+        }
       }
-      console.log("🎫 JWT token:", {
-        sub: token.sub,
-        role: token.role,
-        schoolId: token.schoolId
-      })
+      // Remove excessive logging in production
+      if (process.env.NODE_ENV === 'development') {
+        console.log("🎫 JWT token:", { sub: token.sub, role: token.role, schoolId: token.schoolId })
+      }
       return token
     },
     async session({ session, token }) {
       // Keep this callback non-throwing so /api/auth/session always returns JSON.
       if (!session.user) {
-        // Defensive fallback (shouldn't normally happen, but avoids runtime crashes).
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         session.user = {} as any
       }
 
@@ -125,27 +139,11 @@ export const authOptions: NextAuthOptions = {
         if (typeof token.schoolId === "string") {
           session.user.schoolId = token.schoolId
         }
-        
-        // CRITICAL FIX: If schoolId is empty or null, fetch from database
-        if (session.user.id && (!session.user.schoolId || session.user.schoolId === "")) {
-          console.log("🔍 School ID missing in session, fetching from database...")
-          try {
-            const user = await prisma.user.findUnique({
-              where: { id: session.user.id },
-              select: { schoolProfileId: true }
-            })
-            if (user?.schoolProfileId) {
-              session.user.schoolId = user.schoolProfileId
-              console.log("✅ Updated session with schoolId from database:", session.user.schoolId)
-            } else {
-              console.log("⚠️  No schoolProfileId found in database for user:", session.user.id)
-            }
-          } catch (error) {
-            console.error("❌ Error fetching school ID from database:", error)
-          }
-        }
-        
-        console.log("📋 Final session - User ID:", session.user.id, "School ID:", session.user.schoolId)
+      }
+      
+      // Only log in development
+      if (process.env.NODE_ENV === 'development') {
+        console.log("📋 Session:", { userId: session.user.id, schoolId: session.user.schoolId })
       }
       return session
     },
