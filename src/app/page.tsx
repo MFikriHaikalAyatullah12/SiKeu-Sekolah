@@ -110,7 +110,7 @@ export default function LandingPage() {
             </div>
 
             {/* Right Column - School Image */}
-            <div className="relative lg:block hidden">
+            <div className="relative">
               <div className="absolute -inset-4 bg-gradient-to-r from-blue-600 to-purple-600 rounded-3xl blur-2xl opacity-20 animate-pulse" />
               <Card className="rounded-3xl overflow-hidden shadow-2xl border-4 border-white relative hover:scale-[1.02] transition-transform duration-500">
                 <div className="relative aspect-[4/3] bg-gradient-to-br from-blue-100 to-purple-50">
