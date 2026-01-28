@@ -789,16 +789,20 @@ export function TransactionContent() {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Saldo</p>
+                <p className="text-sm font-medium text-gray-600">
+                  {transactionStats.balance >= 0 ? 'Surplus' : 'Defisit'}
+                </p>
                 <p className={`text-2xl font-bold min-h-[32px] ${
                   transactionStats.balance >= 0 ? 'text-green-600' : 'text-red-600'
                 }`}>
-                  {formatCurrency(transactionStats.balance)}
+                  {formatCurrency(Math.abs(transactionStats.balance))}
                 </p>
                 <p className="text-xs text-gray-500 mt-1">Bulan Ini</p>
               </div>
-              <div className="h-12 w-12 bg-blue-100 rounded-full flex items-center justify-center">
-                <Eye className="h-6 w-6 text-blue-600" />
+              <div className={`h-12 w-12 rounded-full flex items-center justify-center ${
+                transactionStats.balance >= 0 ? 'bg-green-100' : 'bg-red-100'
+              }`}>
+                <Eye className={`h-6 w-6 ${transactionStats.balance >= 0 ? 'text-green-600' : 'text-red-600'}`} />
               </div>
             </div>
           </CardContent>
